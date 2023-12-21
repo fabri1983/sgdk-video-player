@@ -5,7 +5,7 @@
 
 // #define DEBUG_VIDEO_PLAYER
 // #define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the static map base tile index statically set on each frame by our custom rescomp extension
-// #define LOG_DIFF_BETWEEN_VIDEO_FRAMES FALSE
+// #define LOG_DIFF_BETWEEN_VIDEO_FRAMES
 
 #define VIDEO_FRAME_RATE 15
 #define FORCE_NO_MISSING_FRAMES FALSE
@@ -150,8 +150,8 @@ static void NO_INLINE waitVInt () {
  * Clearing FONT TILES from VRAM gives us additional VRAM space.
  * This is 53 tiles more per image and since we have 2 images loaded it accounts for 106 more tiles in VRAM.
  */
-static void clearFontData () {
-	VDP_fillTileData(0, TILE_FONT_INDEX, FONT_LEN * 4, TRUE); // don't know why FONT_LEN must be multiplied by 4
+static void clearFontTiles () {
+	VDP_fillTileData(0, TILE_FONT_INDEX, FONT_LEN, TRUE);
 }
 
 static u32* unpackedTilesetHalf;
@@ -253,7 +253,7 @@ void playMovie () {
 	PAL_setColors(0, palette_black, 64, DMA);
 
 	// Clear font tiles from VRAM. We will need that space, and it has to be cleared
-	clearFontData();
+	clearFontTiles();
 
 	allocateTilesetBuffer();
 	allocateTilemapBuffer();
@@ -269,6 +269,8 @@ void playMovie () {
     // Loop the entire video
 	for (;;) // Better than while (TRUE) for infinite loops
     {
+		waitVInt();
+
 		// Initializes vars used in the HInt to avoid crashing due to access garbage data after the HInt Callback is set
 		palInFrameRootPtr = unpackedPalsBuffer + 64; // 3rd strip's palette pointer
 		palInFramePtr = palInFrameRootPtr;
@@ -368,7 +370,7 @@ void playMovie () {
 
 			baseTileIndex ^= VIDEO_FRAME_MAX_TILESET_NUM; // toggles between TILE_USER_INDEX_CUSTOM and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM
 
-			#if LOG_DIFF_BETWEEN_VIDEO_FRAMES
+			#ifdef LOG_DIFF_BETWEEN_VIDEO_FRAMES
 			KLog_U1("", vtimer - prevFrame); // this tells how many system frames are spent for unpack, load, etc, per video frame
 			#endif
 
@@ -405,7 +407,6 @@ void playMovie () {
 			break;
 		}
 
-		waitVInt();
 		waitMs_(500);
     }
 
