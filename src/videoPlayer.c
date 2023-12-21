@@ -4,10 +4,8 @@
 #include "videoPlayer.h"
 
 // #define DEBUG_VIDEO_PLAYER
-#ifdef DEBUG_VIDEO_PLAYER
-	#define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the static map base tile index statically set on each frame by our custom rescomp extension
-	#define LOG_DIFF_BETWEEN_VIDEO_FRAMES FALSE
-#endif
+// #define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the static map base tile index statically set on each frame by our custom rescomp extension
+// #define LOG_DIFF_BETWEEN_VIDEO_FRAMES FALSE
 
 #define VIDEO_FRAME_RATE 15
 #define FORCE_NO_MISSING_FRAMES FALSE
@@ -20,7 +18,7 @@
 #define TILE_USER_INDEX_CUSTOM 1
 
 /// Number of Tiles to be transferred by DMA_flushQueue() with off/on VDP setting to speed up the transfer. 
-/// NOTE: this has to be enough to support VIDEO_FRAME_MAX_TILESET_NUM / 2 which is the biggest tileset size (in tiles).
+/// NOTE: this has to be enough to support VIDEO_FRAME_MAX_TILESET_NUM / 2 which is the buffer size that holds the unpack of half a tileset.
 /// 320 tiles * 32 bytes = 10240 as maxTransferPerFrame. 
 /// 368 tiles * 32 bytes = 11776 as maxTransferPerFrame. 
 /// 384 tiles * 32 bytes = 12282 as maxTransferPerFrame. 
@@ -28,7 +26,7 @@
 /// If number is bigger then you will notice some flickering on top of image meaning the transfer size consumes more time than Vertical retrace.
 /// The flickering still exists but is not noticeable due to lower image Y position in plane. 
 /// Using bigger image height or locating it at upper Y values will reveal the flickering.
-#define TILES_PER_DMA_TRANSFER 384
+#define TILES_PER_DMA_TRANSFER 368 // Not used anymore since we have split tileset in 2 chunks where each size < 368 tiles
 
 /// Wait for a certain amount of subtick. ONLY values < 150.
 static void waitSubTick_ (u32 subtick) {
@@ -159,8 +157,8 @@ static void clearFontData () {
 static u32* unpackedTilesetHalf;
 
 static void allocateTilesetBuffer () {
-	unpackedTilesetHalf = (u32*) MEM_alloc(TILES_PER_DMA_TRANSFER * 32);
-	memsetU16((u16*) unpackedTilesetHalf, 0x0, VIDEO_FRAME_MAX_TILEMAP_NUM * 4); // zero all the buffer
+	unpackedTilesetHalf = (u32*) MEM_alloc((VIDEO_FRAME_MAX_TILESET_NUM / 2) * 32);
+	memsetU16((u16*) unpackedTilesetHalf, 0x0, (VIDEO_FRAME_MAX_TILESET_NUM / 2) * 16); // zero all the buffer
 }
 
 static void unpackFrameTileset (TileSet* src) {
@@ -242,10 +240,10 @@ static void loadTileMaps (u16 addrInPlane, TransferMethod tm) {
 void playMovie () {
 
     // size: min queue size is 20.
-	// capacity: experimentally we won't have more than 384*32 bytes of data to transfer per frame. 
+	// capacity: experimentally we won't have more than 11840 bytes of data to transfer per display loop. 
 	//           This includes the worst situation when tileset data, tilemap data, and palettes have to be enqueue all together for DMA.
 	// bufferSize: we won't use temporary allocation, so set it at its min size.
-	DMA_initEx(20, 384*32, DMA_BUFFER_SIZE_MIN);
+	DMA_initEx(20, 11840, DMA_BUFFER_SIZE_MIN);
 
 	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 
