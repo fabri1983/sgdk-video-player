@@ -1,0 +1,9 @@
+/node_modules
+/out
+/res/rgb
+/res/sound
+/res/*.h
+/res/movie_frames.res
+/inc/generated
+/failed
+/tmpmv*

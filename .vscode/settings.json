@@ -1,0 +1,31 @@
+{ 
+    "C_Cpp.default.includePath": ["${env:GDK}\\inc",
+    "${env:GDK}\\res",
+    "${env:GDK}\\src",
+    "res",
+    "inc"
+],
+"files.associations": {
+    "types.h": "c",
+    "config.h": "c",
+    "genesis.h": "c",
+    "tools.h": "c",
+    "sal.h": "c",
+    "sound.h": "c",
+    "vdp_bg.h": "c",
+    "dma.h": "c",
+    "memory.h": "c",
+    "vector": "c",
+    "xstring": "c",
+    "xutility": "c",
+    "movie_frames.h": "c",
+    "moviehvinterrupts.h": "c",
+    "movie_data.h": "c",
+    "sstream": "c",
+    "videoplayer.h": "c"
+},
+"C_Cpp.errorSquiggles": "enabled",
+"[m68k]": {
+    "editor.rulers": []
+}
+}
