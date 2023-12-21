@@ -22,7 +22,7 @@ public class Palette32AllStrips extends Resource
 
     public Bin bin;
 
-    public Palette32AllStrips(String id, List<String> stripsFileList, final PalettesPositionEnum palsPosition, final boolean toggleEvery2Pals, Compression compression) throws Exception
+    public Palette32AllStrips(String id, List<String> stripsFileList, final PalettesPositionEnum palsPosition, final boolean togglePalsLocation, Compression compression) throws Exception
     {
         super(id);
 
@@ -69,7 +69,7 @@ public class Palette32AllStrips extends Resource
         			palette = Arrays.copyOfRange(palette, 0, 32);
         		else if (currentPalsPosition == PalettesPositionEnum.PAL2PAL3)
         			palette = Arrays.copyOfRange(palette, 32, 64);
-        		if (toggleEvery2Pals)
+        		if (togglePalsLocation)
         			currentPalsPosition = currentPalsPosition.next();
         	}
         	// palettes from indexed color image or .pal and more than 32 colors (but less than 64)
