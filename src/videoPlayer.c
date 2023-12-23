@@ -9,12 +9,13 @@
 
 #define VIDEO_FRAME_RATE 15
 #define FORCE_NO_MISSING_FRAMES FALSE
-#define VIDEO_FRAME_MAX_TILESET_NUM 724 // Calculated from rescomp output. It prints every tileset numTile() value from resource processor IMAGE_STRIPS_NO_PALS.
+#define VIDEO_FRAME_MAX_TILESET_NUM 716 // this value got experimentally from rescomp output (biggest resulting numTile). It has to be an even number.
+#define VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE 370 // this value got experimentally from rescomp output (biggest numTile from one of two halves). It has to be an even number.
 #define VIDEO_FRAME_MAX_TILEMAP_NUM MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES
 
-/// SGDK reserves 16 tiles starting at address 0. 
+/// SGDK reserves 16 tiles starting at address 0. That's the purpose of using SGDK's TILE_USER_INDEX.
 /// Tile address 0 holds a black tile and it shouldn't be overriden since is what an empty tilemap in VRAM points to. Also other internal effects use it.
-/// Remaining 15 tiles are OK to override for re use.
+/// Remaining 15 tiles are OK to override for re use. So we start using tiles at index 1.
 #define TILE_USER_INDEX_CUSTOM 1
 
 /// Number of Tiles to be transferred by DMA_flushQueue() with off/on VDP setting to speed up the transfer. 
@@ -26,7 +27,7 @@
 /// If number is bigger then you will notice some flickering on top of image meaning the transfer size consumes more time than Vertical retrace.
 /// The flickering still exists but is not noticeable due to lower image Y position in plane. 
 /// Using bigger image height or locating it at upper Y values will reveal the flickering.
-#define TILES_PER_DMA_TRANSFER 368 // Not used anymore since we have split tileset in 2 chunks where each size < 368 tiles
+#define TILES_PER_DMA_TRANSFER 368 // NOT USED ANYMORE since we have splitted a frame's tileset in 2 chunks.
 
 /// Wait for a certain amount of subtick. ONLY values < 150.
 static void waitSubTick_ (u32 subtick) {
@@ -240,10 +241,9 @@ static void loadTileMaps (u16 addrInPlane, TransferMethod tm) {
 void playMovie () {
 
     // size: min queue size is 20.
-	// capacity: experimentally we won't have more than 11840 bytes of data to transfer per display loop. 
-	//           This includes the worst situation when tileset data, tilemap data, and palettes have to be enqueue all together for DMA.
+	// capacity: experimentally we won't have more than VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE * 32 = 11840 bytes of data to transfer per display loop. 
 	// bufferSize: we won't use temporary allocation, so set it at its min size.
-	DMA_initEx(20, 11840, DMA_BUFFER_SIZE_MIN);
+	DMA_initEx(20, VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE * 32, DMA_BUFFER_SIZE_MIN);
 
 	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 

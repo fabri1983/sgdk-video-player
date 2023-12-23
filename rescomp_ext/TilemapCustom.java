@@ -10,7 +10,8 @@ import sgdk.rescomp.type.Tile;
 
 public class TilemapCustom extends Tilemap
 {
-	private static int MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX = 724;
+	private static int MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX = 716; // this value got experimentally from rescomp output (biggest resulting numTile). It has to be an even number.
+	private static int STARTING_TILESET_ON_SGDK = 1; // this is SGDK's TILE_USER_INDEX or your custom setup.
 
     public TilemapCustom(String id, short[] data, int w, int h, Compression compression) {
 		super(id, data, w, h, compression);
@@ -39,7 +40,8 @@ public class TilemapCustom extends Tilemap
     	printMessage(mapBaseTileInd, frameNum);
 
     	// fabri1983: here we set mapBaseTileInd according frameNum and mapBaseTileInd
-    	mapBaseTileInd = setMapBaseTileInd(mapBaseTileInd, frameNum, 0, MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
+    	mapBaseTileInd = setMapBaseTileInd(mapBaseTileInd, frameNum, STARTING_TILESET_ON_SGDK, 
+    			STARTING_TILESET_ON_SGDK + MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
 
     	// we have a base offset --> we can use system plain tiles
     	//final boolean useSystemTiles = mapBaseTileInd != 0;

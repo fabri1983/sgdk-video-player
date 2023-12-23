@@ -13,8 +13,8 @@ import sgdk.tool.ImageUtil.BasicImageInfo;
 
 public class ImageStripsNoPalsTilesetSplit2 extends Resource
 {
-	private static final int MAX_TILESET_CHUNK_SIZE = 384;
-	private static final int MAX_TILESET_SIZE_ALLOWED_FOR_SPLIT_IN_2 = MAX_TILESET_CHUNK_SIZE * 2;
+	private static final int MAX_TILESET_CHUNK_SIZE = 370; // this value got experimentally from rescomp output (biggest numTile from one of two halves). It has to be an even number.
+	private static final int MAX_TILESET_SIZE_ALLOWED_FOR_SPLIT_IN_2 = 716; // experimentally this is the biggest resulting numTile of adding the two halves. It has to be an even number.
 
     final int hc;
 
@@ -77,14 +77,14 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
 
     private void checkTilesetMaxSizeForSplitIn2(int numTile) {
 		if (numTile > MAX_TILESET_SIZE_ALLOWED_FOR_SPLIT_IN_2) {
-			throw new RuntimeException("Can't split in 2 tileset because size is greater than " + MAX_TILESET_SIZE_ALLOWED_FOR_SPLIT_IN_2);
+			throw new RuntimeException("Can't split in 2 tileset because size " + numTile + " > " + MAX_TILESET_SIZE_ALLOWED_FOR_SPLIT_IN_2);
 		}
 	
 	}
 
     private void checkTilesetMaxChunkSize(int numTile) {
 		if (numTile > MAX_TILESET_CHUNK_SIZE) {
-			throw new RuntimeException("Max tilset chunk size is greater then " + MAX_TILESET_CHUNK_SIZE);
+			throw new RuntimeException("numTile " + numTile + " chunk size is greater than max allowed " + MAX_TILESET_CHUNK_SIZE);
 		}
 	
 	}
