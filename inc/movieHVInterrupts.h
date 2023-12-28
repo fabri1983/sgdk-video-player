@@ -34,12 +34,7 @@
 #define MOVIE_HINT_COLORS_SWAP_START_SCANLINE_PAL max(MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER, ((30 - 22) / 2) + 1) * 8 - 1 // For 22 tiles height: 40-1=39
 #define MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL (30 - max(MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER, ((30 - 22) / 2))) * 8 - 2*8 - 1 // For 22 tiles height: 208-2*8-1=191
 
-extern u16* palInFrameRootPtr;
-extern u16* palInFramePtr;
-extern u16 palIdxInVDP;
-
-/// total frame counter used to calculate next video frame according to system frame rate (defined in only C file unit)
-extern vu16 hwSysFrameCount;
+void setPalInFrameRootPtr (u16* ptr);
 
 void VIntCallback ();
 

@@ -17,10 +17,9 @@ public class ImageStripsNoPals extends Resource
 
 	public final Tileset tileset;
 	public final Tilemap tilemap;
-//	public final Palette palette;
 
-    public ImageStripsNoPals(String id, List<String> stripsFileList, boolean extendedMapWidth64, Compression compression, 
-    		TileOptimization tileOpt, int mapBase) throws Exception
+    public ImageStripsNoPals(String id, List<String> stripsFileList, int toggleMapTileBaseIndexFlag, boolean extendedMapWidth64, 
+    		Compression compression, TileOptimization tileOpt, int mapBase) throws Exception
     {
         super(id);
 
@@ -39,14 +38,12 @@ public class ImageStripsNoPals extends Resource
 
         // build TILESET with wanted compression
         tileset = (Tileset) addInternalResource(new Tileset(id + "_tileset", finalImageData, w, h, 0, 0, wt, ht, tileOpt, compression, false, false));
-        System.out.print(" " + id + " -> Tileset numTiles: " + tileset.getNumTile() + ". ");
+        System.out.print(" " + id + " -> numTiles:\t  " + tileset.getNumTile() + ". ");
         // build TILEMAP with wanted compression
-        tilemap = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_tilemap", tileset, mapBase, finalImageData, wt, ht, tileOpt, compression, extendedMapWidth64));
-        // build PALETTE
-        //palette = (Palette) addInternalResource(new Palette(id + "_palette", stripsFileList.get(0), 1, false));
+        tilemap = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_tilemap", tileset, toggleMapTileBaseIndexFlag, mapBase, finalImageData, wt, ht, tileOpt, compression, extendedMapWidth64));
 
         // compute hash code
-        hc = tileset.hashCode() ^ tilemap.hashCode();// ^ palette.hashCode();
+        hc = tileset.hashCode() ^ tilemap.hashCode();
     }
 
     private byte[] mergeAllStrips(List<String> stripsFileList) throws Exception
@@ -118,7 +115,7 @@ public class ImageStripsNoPals extends Resource
         if (obj instanceof ImageStripsNoPals)
         {
             final ImageStripsNoPals image = (ImageStripsNoPals) obj;
-            return tilemap.equals(image.tilemap) && tileset.equals(image.tileset);// && palette.equals(image.palette);
+            return tilemap.equals(image.tilemap) && tileset.equals(image.tileset);
         }
 
         return false;
@@ -133,13 +130,13 @@ public class ImageStripsNoPals extends Resource
     @Override
     public int shallowSize()
     {
-        return 4 + 4;// + 4;
+        return 4 + 4;
     }
 
     @Override
     public int totalSize()
     {
-        return shallowSize() + tileset.totalSize() + tilemap.totalSize();// + palette.totalSize();
+        return shallowSize() + tileset.totalSize() + tilemap.totalSize();
     }
 
     @Override
@@ -150,8 +147,6 @@ public class ImageStripsNoPals extends Resource
 
 		// output Image structure
 		Util.decl(outS, outH, "ImageNoPals", id, 2, global);
-		// Palette pointer
-		//outS.append("    dc.l    " + palette.id + "\n"); // 0 instead of palette.id to set it as null
 		// Tileset pointer
 		outS.append("    dc.l    " + tileset.id + "\n");
 		// Tilemap pointer

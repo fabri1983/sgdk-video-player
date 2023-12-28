@@ -44,8 +44,8 @@ Blastem binary location set in the bat script
 
 
 ### TODO
+- Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
 - Maybe helps? ==> VDP_waitDMACompletion(); // safe to check for DMA completion before dealing with VDP (this also clear internal VDP latch)
-- Move next variables palInFrameRootPtr, palInFramePtr, and palLocationInVDP into c unit and expose getters and setters with FORCE_INLINE.
 - Clear mem used for sound when exiting the video loop?
 - Try to change from H40 to H32 on HInt Callback and see any speed gain. See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
 - Implement custom consecutive frame compressor, like a delta compression or whatever a simple video compressor does.
@@ -53,6 +53,7 @@ Blastem binary location set in the bat script
 So 60/3=20 in NTSC. And 50/3=16 in PAL.
 
 
+----
 ### (OLD/OUTDATED) Instructions using custom quantization lua script
 1) env.bat
 

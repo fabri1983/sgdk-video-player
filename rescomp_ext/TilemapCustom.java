@@ -3,6 +3,7 @@ package sgdk.rescomp.resource;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import sgdk.rescomp.tool.ExtProperties;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileEquality;
 import sgdk.rescomp.type.Basics.TileOptimization;
@@ -10,15 +11,13 @@ import sgdk.rescomp.type.Tile;
 
 public class TilemapCustom extends Tilemap
 {
-	private static int MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX = 716; // this value got experimentally from rescomp output (biggest resulting numTile). It has to be an even number.
-	private static int STARTING_TILESET_ON_SGDK = 1; // this is SGDK's TILE_USER_INDEX or your custom setup.
-
     public TilemapCustom(String id, short[] data, int w, int h, Compression compression) {
 		super(id, data, w, h, compression);
 	}
 
-	public static Tilemap getTilemap(String id, Tileset tileset, int mapBase, byte[] image8bpp, int imageWidth, int imageHeight, int startTileX, int startTileY,
-            int widthTile, int heightTile, TileOptimization opt, Compression compression, boolean extendedMapWidth64)
+	public static Tilemap getTilemap(String id, Tileset tileset, int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, 
+			int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt, 
+			Compression compression, boolean extendedMapWidth64)
     {
         int w = widthTile;
         int h = heightTile;
@@ -28,25 +27,33 @@ public class TilemapCustom extends Tilemap
         int mapBaseTileInd = mapBase & Tile.TILE_INDEX_MASK;
 
         // fabri1983: get frame num
-        Pattern idNamePattern = Pattern.compile("^[A-Za-z_]+_(\\d+)(_\\d+)?(_RGB)?_tilemap$", Pattern.CASE_INSENSITIVE);
+        Pattern idNamePattern = Pattern.compile("^[A-Za-z_]+_(\\d+)(_\\d+)?(_RGB)?(_chunk1)?_tilemap$", Pattern.CASE_INSENSITIVE);
         Matcher idNameMatcher = idNamePattern.matcher(id);
-        String group1 = null;
+        Integer frameNum = null;
         if (idNameMatcher.matches()) {
-        	group1 = idNameMatcher.group(1);
+        	String group1 = idNameMatcher.group(1);
+        	frameNum = getFrameNum(group1);
+        	if (frameNum == null) {
+        		System.out.println(" ##### frameNum SHOULDN'T BE NULL HERE. TilemapCustom class");
+        	}
         }
-        Integer frameNum = getFrameNum(group1); // might be null
 
-        // fabri1983: only print message at first frame whether is odd or even
-    	printMessage(mapBaseTileInd, frameNum);
+        // fabri1983: only print message at first frame only
+        printMessageForParamToggleMapTileBaseIndexFlag(toggleMapTileBaseIndexFlag, frameNum);
 
-    	// fabri1983: here we set mapBaseTileInd according frameNum and mapBaseTileInd
-    	mapBaseTileInd = setMapBaseTileInd(mapBaseTileInd, frameNum, STARTING_TILESET_ON_SGDK, 
-    			STARTING_TILESET_ON_SGDK + MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
+    	// fabri1983: here we calculate videoFrameBufferOffsetIndex according frameNum
+    	int videoFrameBufferOffsetIndex = 0;
+    	if (toggleMapTileBaseIndexFlag != -1) {
+    		int tileIndexA = ExtProperties.getInt(ExtProperties.STARTING_TILESET_ON_SGDK);
+    		int tileIndexB = tileIndexA + ExtProperties.getInt(ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
+    		videoFrameBufferOffsetIndex = calculateVideoFrameBufferOffsetIndex(toggleMapTileBaseIndexFlag, frameNum, tileIndexA, tileIndexB);
+    	}
+    	// fabri1983: add to current mapBaseTileInd value
+    	mapBaseTileInd += videoFrameBufferOffsetIndex;
 
-    	// we have a base offset --> we can use system plain tiles
-    	//final boolean useSystemTiles = mapBaseTileInd != 0;
-    	// fabri1983: don't use system tiles if mapBaseTileInd is 2047 or 2046
-        final boolean useSystemTiles = mapBaseTileInd != 0 && mapBaseTileInd != Tile.TILE_INDEX_MASK && mapBaseTileInd != (Tile.TILE_INDEX_MASK - 1);
+		// we have a base offset --> we can use system plain tiles
+		// fabri1983: don't use system plain tiles
+        final boolean useSystemTiles = false;//mapBaseTileInd != 0;
 
         short[] data = new short[w * h];
 
@@ -133,29 +140,36 @@ public class TilemapCustom extends Tilemap
 	/**
 	 * fabri1983
 	 */
-	private static void printMessage(int mapBaseTileInd, Integer frameNum) {
-		if (mapBaseTileInd == Tile.TILE_INDEX_MASK || mapBaseTileInd == (Tile.TILE_INDEX_MASK - 1)) {
+	private static void printMessageForParamToggleMapTileBaseIndexFlag(int toggleMapTileBaseIndexFlag, Integer frameNum) {
+		if (toggleMapTileBaseIndexFlag != -1 && frameNum != null) {
     		boolean printMsg = false;
-    		// 2047 if frame num is odd then frame num has to be 1
-    		if (mapBaseTileInd == Tile.TILE_INDEX_MASK && frameNum != null) {
+    		// toggleMapTileBaseIndexFlag == 1 then expected first frame num has to be 1 (odd)
+    		if (toggleMapTileBaseIndexFlag == 1) {
     			printMsg = frameNum.intValue() == 1;
     		}
-    		// 2046 if frame num is even then frame num has to be 0
-    		else if (mapBaseTileInd == (Tile.TILE_INDEX_MASK - 1) && frameNum != null) {
+    		// toggleMapTileBaseIndexFlag == 1 then expected first frame num has to be 0 (even)
+    		else if (toggleMapTileBaseIndexFlag == 0) {
     			printMsg = frameNum.intValue() == 0;
+    		}
+    		else {
+    			System.out.println("");
+    			System.out.println("####################################################################################################");
+    			System.out.println("TilemapCustom class by fabri1983.");
+    			System.out.println("SOMETHING WRONG WITH YOUR FRAME NUM SETUP! WAS toggleMapTileBaseIndexFlag SET CORRECTLY?");
+    			System.out.println("####################################################################################################");
     		}
 
     		if (printMsg) {
-    			String mn = String.valueOf(MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
+    			int a = ExtProperties.getInt(ExtProperties.STARTING_TILESET_ON_SGDK);
+        		int b = a + ExtProperties.getInt(ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
     			System.out.println("");
 		    	System.out.println("####################################################################################################");
 		    	System.out.println("TilemapCustom class by fabri1983.");
-		    	System.out.println("When mapBase parameter = 2047 (TILE_INDEX_MASK) or 2046 (TILE_INDEX_MASK - 1) we use the frame num to ");
-		    	System.out.println("toggle between tile index 0 and " + mn + " (max tileset numTile value got in another run).");
-		    	System.out.println("Use 2047 if first frame num is odd => base tile index 0 for odd frames and " + mn + " for even frames.");
-		    	System.out.println("Use 2046 if first frame num is even => base tile index 0 for even frames and " + mn + " for odd frames.");
-		    	System.out.println("(NOTE: using 2047 or 2046 is a non common value. No other resource will use them since it would set as ");
-		    	System.out.println("static only 2 tiles at the end of the VRAM space dedicated for tileset)");
+		    	System.out.println("Parameter toggleMapTileBaseIndexFlag was set to we use the frame num for toggling between ");
+		    	System.out.println("tile index " + a + " (" + ExtProperties.STARTING_TILESET_ON_SGDK + ") and " + b + " (" + ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX + ").");
+		    	System.out.println("(max tileset numTile value got experimentally in other runs).");
+		    	System.out.println("Use toggleMapTileBaseIndexFlag = 0 if first frame num is even.");
+		    	System.out.println("Use toggleMapTileBaseIndexFlag = 1 if first frame num is odd.");
 		    	System.out.println("####################################################################################################");
     		}
     	}
@@ -164,32 +178,32 @@ public class TilemapCustom extends Tilemap
 	/**
 	 * fabri1983
 	 */
-    private static int setMapBaseTileInd(int mapBaseTileInd, Integer frameNum, int tileIndexA, int tileIndexB) {
-    	if (frameNum == null || mapBaseTileInd == 0 || (mapBaseTileInd != Tile.TILE_INDEX_MASK && mapBaseTileInd != (Tile.TILE_INDEX_MASK - 1)))
-    		return mapBaseTileInd;
+    private static int calculateVideoFrameBufferOffsetIndex(int toggleMapTileBaseIndexFlag, Integer frameNum, int tileIndexA, int tileIndexB) {
+    	if (frameNum == null)
+    		return 0;
 
-    	// 2047 and framNum is odd then base tile index is tileIndexA otherwise tileIndexB
-		if (mapBaseTileInd == Tile.TILE_INDEX_MASK) {
-			if ((frameNum.intValue() % 2) == 1)
-				return tileIndexA;
-			else
-				return tileIndexB;
-		}
-		// 2046 if frameNum is even then base tile index is tileIndexA otherwise tileIndexB
-		else if (mapBaseTileInd == (Tile.TILE_INDEX_MASK - 1)) {
+		// toggleMapTileBaseIndexFlag is 0 => frameNum is even then base tile index is tileIndexA, otherwise tileIndexB
+		if (toggleMapTileBaseIndexFlag == 0) {
 			if ((frameNum.intValue() % 2) == 0)
 				return tileIndexA;
 			else
 				return tileIndexB;
 		}
+		// toggleMapTileBaseIndexFlag is 1 => framNum is odd then base tile index is tileIndexA, otherwise tileIndexB
+		else if (toggleMapTileBaseIndexFlag == 1) {
+			if ((frameNum.intValue() % 2) == 1)
+				return tileIndexA;
+			else
+				return tileIndexB;
+		}
 
-		return mapBaseTileInd;
+		return 0;
 	}
 
-	public static Tilemap getTilemap(String id, Tileset tileset, int mapBase, byte[] image8bpp, int widthTile, int heightTile, TileOptimization opt,
-            Compression compression, boolean extendedMapWidth64)
+	public static Tilemap getTilemap(String id, Tileset tileset, int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int widthTile, int heightTile, 
+			TileOptimization opt, Compression compression, boolean extendedMapWidth64)
     {
-        return TilemapCustom.getTilemap(id, tileset, mapBase, image8bpp, widthTile * 8, heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, 
+        return TilemapCustom.getTilemap(id, tileset, toggleMapTileBaseIndexFlag, mapBase, image8bpp, widthTile * 8, heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, 
         		extendedMapWidth64);
     }
 

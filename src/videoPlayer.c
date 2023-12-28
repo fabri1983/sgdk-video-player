@@ -2,6 +2,7 @@
 #include "generated/movie_data.h"
 #include "movieHVInterrupts.h"
 #include "videoPlayer.h"
+#include "palsBuffersSwapper.h"
 
 // #define DEBUG_VIDEO_PLAYER
 // #define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the static map base tile index statically set on each frame by our custom rescomp extension
@@ -12,6 +13,8 @@
 #define VIDEO_FRAME_MAX_TILESET_NUM 716 // this value got experimentally from rescomp output (biggest resulting numTile). It has to be an even number.
 #define VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE 370 // this value got experimentally from rescomp output (biggest numTile from one of two halves). It has to be an even number.
 #define VIDEO_FRAME_MAX_TILEMAP_NUM MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES
+#define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2)
+#define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES - 2*(MOVIE_FRAME_HEIGHT_IN_TILES/2)))
 
 /// SGDK reserves 16 tiles starting at address 0. That's the purpose of using SGDK's TILE_USER_INDEX.
 /// Tile address 0 holds a black tile and it shouldn't be overriden since is what an empty tilemap in VRAM points to. Also other internal effects use it.
@@ -115,12 +118,14 @@ static void NO_INLINE waitVInt_AND_flushDMA () {
 	// vu16 *pw = (u16 *) VDP_CTRL_PORT;
     // while (!(*pw & VDP_VBLANK_FLAG)) {;}
 
+	// AT THIS POINT THE VInt WAS ALREADY CALLED
+
 	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);//VDP_setEnable(FALSE);
 
 	//SYS_getAndSetInterruptMaskLevel(4); // only disables HInt
 
 	setBusProtection_Z80(TRUE);
-	waitSubTick_(10); // Z80 delay --> wait a bit to improve PCM playback (test on SOR2)
+	waitSubTick_(0); // Z80 delay --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
 
 	flushDMAQueue();
 
@@ -182,16 +187,20 @@ static void allocateTilemapBuffer () {
 	memsetU16(unpackedTilemap, TILE_SYSTEM_INDEX, VIDEO_FRAME_MAX_TILEMAP_NUM); // set TILE_SYSTEM_INDEX (black tile) all the buffer
 }
 
-static void unpackFrameTilemap (TileMap* src) {
-	//unpackedTilemap->compression = src->compression;
-	//unpackedTilemap->w = src->w;
-	//unpackedTilemap->h = src->h;
-	//const size = src->w * src->h * 2;
-	const u16 size = VIDEO_FRAME_MAX_TILEMAP_NUM * 2;
+static void unpackFrameTilemap_1 (TileMap* src) {
+	const u16 size = VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1 * 2;
 	if (src->compression != COMPRESSION_NONE)
 		lz4w_unpack((u8*) FAR_SAFE(src->tilemap, size), (u8*) unpackedTilemap);
 	else
         memcpy((u8*) unpackedTilemap, FAR_SAFE(src->tilemap, size), size);
+}
+
+static void unpackFrameTilemap_2 (TileMap* src) {
+	const u16 size = VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2 * 2;
+	if (src->compression != COMPRESSION_NONE)
+		lz4w_unpack((u8*) FAR_SAFE(src->tilemap, size), (u8*) (unpackedTilemap + VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1));
+	else
+        memcpy((u8*) (unpackedTilemap + VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1), FAR_SAFE(src->tilemap, size), size);
 }
 
 static void freeTilemapBuffer () {
@@ -199,28 +208,32 @@ static void freeTilemapBuffer () {
     unpackedTilemap = NULL;
 }
 
-static u16* unpackedPalsBuffer;
-
 static void allocatePalettesBuffer () {
-	unpackedPalsBuffer = (u16*) MEM_alloc(MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP * 2);
-	memsetU16(unpackedPalsBuffer, 0x0, MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP); // black all the buffer
+	u16 *unpackedPalsBufferA = (u16*) MEM_alloc(MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP * 2);
+	u16* unpackedPalsBufferB = (u16*) MEM_alloc(MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP * 2);
+	memsetU16(unpackedPalsBufferA, 0x0, MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP); // black all the buffer
+	memsetU16(unpackedPalsBufferB, 0x0, MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP); // black all the buffer
+	setPalsBufferA(unpackedPalsBufferA);
+	setPalsBufferB(unpackedPalsBufferB);
 }
 
-static void unpackFramePalettes (const Palette32AllStrips* pals32) {
+static void unpackFramePalettes (Palette32AllStrips* pals32) {
     if (pals32->compression != COMPRESSION_NONE) {
         // No need to use FAR_SAFE() macro here because palette data is always stored near
-        lz4w_unpack((u8*) pals32->data, (u8*) unpackedPalsBuffer);
+        lz4w_unpack((u8*) pals32->data, (u8*) getPalsBufferB());
     }
     else {
 		// Copy the palette data. No FAR_SAFE() needed here because palette data is always stored at near region.
 		const u16 size = (MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP) * 2;
-        memcpy((u8*) unpackedPalsBuffer, pals32->data, size);
+        memcpy((u8*) getPalsBufferB(), pals32->data, size);
     }
 }
 
 static void freePalettesBuffer () {
-    MEM_free((void*) unpackedPalsBuffer);
-    unpackedPalsBuffer = NULL;
+    MEM_free((void*) getPalsBufferA());
+	MEM_free((void*) getPalsBufferB());
+    setPalsBufferA(NULL);
+	setPalsBufferB(NULL);
 }
 
 static void loadTileSets (u16 tileIndex, u16 len, TransferMethod tm) {
@@ -259,6 +272,7 @@ void playMovie () {
 	allocateTilemapBuffer();
 	allocatePalettesBuffer();
 	MEM_pack();
+// KLog_U1("Free Mem: ", MEM_getFree()); // 36784 bytes
 
 	// Position in screen (in tiles)
 	u16 xp = (screenWidth - MOVIE_FRAME_WIDTH_IN_TILES*8 + 7)/8/2; // centered in X axis
@@ -269,16 +283,9 @@ void playMovie () {
     // Loop the entire video
 	for (;;) // Better than while (TRUE) for infinite loops
     {
-		waitVInt();
+		setPalInFrameRootPtr(getPalsBufferA() + 64); // Points to 3rd strip's palette
 
-		// Initializes vars used in the HInt to avoid crashing due to access garbage data after the HInt Callback is set
-		palInFrameRootPtr = unpackedPalsBuffer + 64; // 3rd strip's palette pointer
-		palInFramePtr = palInFrameRootPtr;
-		palIdxInVDP = 0;
-
-		u16 baseTileIndex = TILE_USER_INDEX_CUSTOM;
 		bool exitPlayer = FALSE;
-		u16 vFrame = 0;
 		//u16 sysFrameRate = IS_PAL_SYSTEM ? 50 : 60;
 		u16 sysFrameRateReciprocal = IS_PAL_SYSTEM ? VIDEO_FRAME_RATE * 0x051E : VIDEO_FRAME_RATE * 0x0444;
 
@@ -292,33 +299,50 @@ void playMovie () {
 			if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_CPU_PAL);
 			else SYS_setHIntCallback(HIntCallback_CPU_NTSC);
 			vtimer = 0; // reset vTimer so we can use it as our frame counter
+			#ifdef DEBUG_FIXED_FRAME
+			vtimer = DEBUG_FIXED_FRAME;
+			#endif
 		SYS_enableInts();
 
+		// Force setup of vars used in the HInt
+		waitVInt();
+
+		u16 vFrame = 0;
 		#ifdef DEBUG_FIXED_FRAME
 		vFrame = DEBUG_FIXED_FRAME;
 		#endif
+		ImageNoPalsTilesetSplit2** dataPtr = (ImageNoPalsTilesetSplit2**) data;
+		dataPtr += vFrame;
+		Palette32AllStrips** palsDataPtr = (Palette32AllStrips**) pals_data; 
+		palsDataPtr += vFrame;
 
 		while (vFrame < MOVIE_FRAME_COUNT)
 		{
-			u16 numTile1 = data[vFrame]->tileset1->numTile;
-			unpackFrameTileset(data[vFrame]->tileset1);
+			// As frames are indexed in a 0 based access layout, we know that even indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM, 
+			// and odd frames hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM
+			u16 baseTileIndex = (vFrame % 2) == 0 ? TILE_USER_INDEX_CUSTOM : TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM;
+
+			u16 numTile1 = (*dataPtr)->tileset1->numTile;
+			unpackFrameTileset((*dataPtr)->tileset1);
 			loadTileSets(baseTileIndex, numTile1, DMA_QUEUE);
 			waitVInt_AND_flushDMA();
 
-			if (data[vFrame]->tileset2 != NULL) {
-				u16 numTile2 = data[vFrame]->tileset2->numTile;
-				unpackFrameTileset(data[vFrame]->tileset2);
+			if ((*dataPtr)->tileset2 != NULL) {
+				u16 numTile2 = (*dataPtr)->tileset2->numTile;
+				unpackFrameTileset((*dataPtr)->tileset2);
 				loadTileSets(baseTileIndex + numTile1, numTile2, DMA_QUEUE);
 				waitVInt_AND_flushDMA();
 			}
+
+			unpackFrameTilemap_1((*dataPtr)->tilemap1);
+			unpackFrameTilemap_2((*dataPtr)->tilemap2);
+
+			unpackFramePalettes(*palsDataPtr);
 
 			if (JOY_readJoypad(JOY_1) & BUTTON_START) {
 				exitPlayer = TRUE;
 				break;
 			}
-
-			unpackFrameTilemap(data[vFrame]->tilemap);
-			unpackFramePalettes(pals_data[vFrame]);
 
 			// Loops until time consumes the VIDEO_FRAME_RATE before moving into next frame
 			u16 prevFrame = vFrame;
@@ -332,18 +356,18 @@ void playMovie () {
 				if (vFrame != prevFrame) {
 					break;
 				} else {
+					waitVInt();
 					if (JOY_readJoypad(JOY_1) & BUTTON_START) {
 						exitPlayer = TRUE;
 						break;
 					}
-					waitVInt();
 				}
 			}
 
 			if (exitPlayer) break;
 
-			// At this moment the tileset for the new frame is fully loaded. 
-			// Now is time to load tilemap and palettes, all within the time of a active display loop.
+			// At this moment the tileset for the new frame is fully loaded into VRAM, and the tilemap is unpacked but not loaded into VRAM yet.
+			// Now is time to load tilemap and palettes into VRAM, all within the time of the current active display loop.
 			// NOTE: loading the tilemap and palettes into VRAM must only be done at this stage since they immediatelly affects whats the VDP draws on screen
 
 			#ifdef DEBUG_FIXED_FRAME
@@ -351,24 +375,20 @@ void playMovie () {
 			if (prevFrame == DEBUG_FIXED_FRAME) {
 			#endif
 
-			// Send tilemap into VRAM
+			// Enqueue tilemap into VRAM
 			loadTileMaps(addrInPlane, DMA_QUEUE);
 
-			// Load first 2 strips' palettes
-			PAL_setColors(0, (const u16*) unpackedPalsBuffer, 64, DMA_QUEUE); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
+			// Enqueue first 2 strips' palettes which were unpacked previously into palsBufferB
+			PAL_setColors(0, (const u16*) getPalsBufferB(), 64, DMA_QUEUE); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
 
-			// NOTE: this will have effect into next VInt which is forced to happen due to the waitVInt_AND_flushDMA()
-			//SYS_getAndSetInterruptMaskLevel(6); // only disables VInt
-			palInFrameRootPtr = unpackedPalsBuffer + 64; // 3rd strip's palette
-			//SYS_setInterruptMaskLevel(3); // interrupt saved state is by default 3 (if not nested nor other particular setup)
+			// Instruct to do the pals buffers swap on the VInt so the HInt starts using the right pals
+			setDoSwapPalsBuffers(TRUE);
 
 			#ifdef DEBUG_FIXED_FRAME
 			}
 			#endif
 
 			waitVInt_AND_flushDMA();
-
-			baseTileIndex ^= VIDEO_FRAME_MAX_TILESET_NUM; // toggles between TILE_USER_INDEX_CUSTOM and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM
 
 			#ifdef LOG_DIFF_BETWEEN_VIDEO_FRAMES
 			KLog_U1("", vtimer - prevFrame); // this tells how many system frames are spent for unpack, load, etc, per video frame
@@ -377,15 +397,22 @@ void playMovie () {
 			#if FORCE_NO_MISSING_FRAMES
 			// Any frame missed? If yes then it means loadTileSets() is eating 60/12=5 NTSC (50/12=4.16 PAL) or more display loops (if VIDEO_FRAME_RATE = 12)
 			u16 deltaFrames = vFrame - prevFrame;
-			// if (deltaFrames > 1) {
-			// 	KLog_U1("Frame/s missed: ", deltaFrames);
-			// }
+			#ifdef DEBUG_VIDEO_PLAYER
+			if (deltaFrames > 1) KLog_U1("Frame/s missed: ", deltaFrames);
+			#endif
 			vFrame = prevFrame + 1;
 			#endif
 
+			dataPtr += vFrame - prevFrame;
+			palsDataPtr += vFrame - prevFrame;
+
 			#ifdef DEBUG_FIXED_FRAME
 			// Once we already draw the target frame and let the next one load its data but not drawn, we set back target frame
-			if (prevFrame != DEBUG_FIXED_FRAME) vFrame = DEBUG_FIXED_FRAME;
+			if (prevFrame != DEBUG_FIXED_FRAME) {
+				dataPtr -= vFrame - DEBUG_FIXED_FRAME;
+				palsDataPtr -= vFrame - DEBUG_FIXED_FRAME;
+				vFrame = DEBUG_FIXED_FRAME;
+			}
 			#endif
 		}
 

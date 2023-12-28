@@ -29,7 +29,7 @@ const fileNames = fs.readdirSync(RES_DIR + FRAMES_DIR)
 const sortedFileNames = fileNames
 	.map(name => {
 		const match2 = FILE_REGEX_2.exec(name);
-		return {idx: parseInt(match2[1])*10000 + parseInt(match2[2]), name};
+		return {idx: parseInt(match2[1])*100000 + parseInt(match2[2]), name};
 	})
 	.sort((a, b) => a.idx - b.idx)
 	.map(o => o.name);
@@ -42,15 +42,12 @@ const tilesetSplit = 2;
 
 // This activates the use of a map base tile index which sets the initial tile index for the tilemap of the resource.
 // As the video player uses a buffer to allocate next frame's tilemaps (among tilesets and palettes) whilst current frame 
-// was sent to VRAM previously and is being display, we need a way to toggle between the initial tile index (0) and the 
-// next tile index (724 or the max tileset size of all frames).
+// was sent to VRAM previously and is being display, we need a way to toggle between the initial tile index: user base tile index, 
+// and the next tile index: 716 (or max frame tileset size) + user base tile index.
 // So we can take the first frame number from its name/id, knowing that they are declared in ascendant order, and test its parity: even or odd.
-// 2046 if first frame num is even, 2047 if odd.
-var mapTileBaseIndexFlag = 2046;
+// 0 if first frame num is even, 1 if odd.
 const matchFirstFrame = FILE_REGEX_2.exec(sortedFileNamesEveryFirstStrip[0]);
-if ((parseInt(matchFirstFrame[1]) % 2) == 1) {
-	mapTileBaseIndexFlag = 2047;
-}
+const toggleMapTileBaseIndexFlag = parseInt(matchFirstFrame[1]) % 2;
 
 // extends map width to 64 tiles
 const extendMapWidthTo64 = true;
@@ -106,7 +103,8 @@ typedef struct
 {
     TileSet *tileset1;
     TileSet *tileset2;
-    TileMap *tilemap;
+    TileMap *tilemap1;
+    TileMap *tilemap2;
 } ImageNoPalsTilesetSplit2;
 
 typedef struct
@@ -120,7 +118,7 @@ const headerappender = `HEADER_APPENDER\t\headerCustomTypes\t\t\"${headerContent
 
 // Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  21  2  FAST  ALL  2047
 const imageResListStr = sortedFileNamesEveryFirstStrip
-	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesetSplit}\t\t${extendMapWidthTo64_str}\t\tFAST\t\tALL\t\t${mapTileBaseIndexFlag}`)
+	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesetSplit}\t\t${toggleMapTileBaseIndexFlag}\t\t${extendMapWidthTo64_str}\t\tFAST\t\tALL`)
 	.join('\n') + '\n\n';
 
 // Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  21  PAL0PAL1  TRUE  FAST
