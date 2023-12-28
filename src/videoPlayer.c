@@ -324,12 +324,13 @@ void playMovie () {
 		Palette32AllStrips** palsDataPtr = (Palette32AllStrips**) pals_data; 
 		palsDataPtr += vFrame;
 
+		// As frames are indexed in a 0 based access layout, we know that even indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM, 
+		// and odd frames hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM.
+		// We know vFrame always starts with a even value.
+		u16 baseTileIndex = TILE_USER_INDEX_CUSTOM;
+
 		while (vFrame < MOVIE_FRAME_COUNT)
 		{
-			// As frames are indexed in a 0 based access layout, we know that even indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM, 
-			// and odd frames hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM
-			u16 baseTileIndex = (vFrame % 2) == 0 ? TILE_USER_INDEX_CUSTOM : TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM;
-
 			u16 numTile1 = (*dataPtr)->tileset1->numTile;
 			unpackFrameTileset((*dataPtr)->tileset1);
 			loadTileSets(baseTileIndex, numTile1, DMA_QUEUE);
@@ -403,25 +404,36 @@ void playMovie () {
 			#endif
 
 			#if FORCE_NO_MISSING_FRAMES
-			// Any frame missed? If yes then it means loadTileSets() is eating 60/12=5 NTSC (50/12=4.16 PAL) or more display loops (if VIDEO_FRAME_RATE = 12)
-			u16 deltaFrames = vFrame - prevFrame;
-			#ifdef DEBUG_VIDEO_PLAYER
-			if (deltaFrames > 1) KLog_U1("Frame/s missed: ", deltaFrames);
-			#endif
-			vFrame = prevFrame + 1;
+				// Any frame missed? If yes then it means loadTileSets() is eating 60/12=5 NTSC (50/12=4.16 PAL) or more display loops (if VIDEO_FRAME_RATE = 12)
+				#ifdef DEBUG_VIDEO_PLAYER
+				if (deltaFrames > 1) KLog_U1("Frame/s missed: ", deltaFrames);
+				#endif
+				vFrame = prevFrame + 1;
+				++dataPtr;
+				++palsDataPtr;
+			#else
+				// IMPORTANT: next frame must be the opposite parity of current frame. If same parity (both even or both odd) then we will mistakenly 
+				// override the VRAM region currently is being used for display the loaded frame.
+				if (!((prevFrame ^ vFrame) & 1))
+					++vFrame; // move into next frame so parity is not sharedwith previous frame
+				u16 jumpFrames = vFrame - prevFrame;
+				dataPtr += jumpFrames;
+				palsDataPtr += jumpFrames;
 			#endif
 
-			dataPtr += vFrame - prevFrame;
-			palsDataPtr += vFrame - prevFrame;
 
 			#ifdef DEBUG_FIXED_FRAME
 			// Once we already draw the target frame and let the next one load its data but not drawn, we set back target frame
 			if (prevFrame != DEBUG_FIXED_FRAME) {
-				dataPtr -= vFrame - DEBUG_FIXED_FRAME;
-				palsDataPtr -= vFrame - DEBUG_FIXED_FRAME;
+				u16 backFrames = vFrame - DEBUG_FIXED_FRAME;
+				dataPtr -= backFrames;
+				palsDataPtr -= backFrames;
 				vFrame = DEBUG_FIXED_FRAME;
 			}
 			#endif
+
+			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM
+			baseTileIndex ^= VIDEO_FRAME_MAX_TILESET_NUM;
 		}
 
 		// Stop sound
