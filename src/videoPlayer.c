@@ -345,6 +345,9 @@ void playMovie () {
 				waitVInt_AND_flushDMA();
 			}
 
+			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM
+			baseTileIndex ^= VIDEO_FRAME_MAX_TILESET_NUM;
+
 			unpackFrameTilemap_1((*dataPtr)->tilemap1);
 			unpackFrameTilemap_2((*dataPtr)->tilemap2);
 
@@ -433,9 +436,6 @@ void playMovie () {
 				vFrame = DEBUG_FIXED_FRAME;
 			}
 			#endif
-
-			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM
-			baseTileIndex ^= VIDEO_FRAME_MAX_TILESET_NUM;
 		}
 
 		// Stop sound
