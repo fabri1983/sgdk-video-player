@@ -16,6 +16,8 @@
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2)
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES - 2*(MOVIE_FRAME_HEIGHT_IN_TILES/2)))
 
+#define HINT_USE_DMA TRUE // TRUE: DMA. FALSE: CPU
+
 /// SGDK reserves 16 tiles starting at address 0. That's the purpose of using SGDK's TILE_USER_INDEX.
 /// Tile address 0 holds a black tile and it shouldn't be overriden since is what an empty tilemap in VRAM points to. Also other internal effects use it.
 /// Remaining 15 tiles are OK to override for re use. So we start using tiles at index 1.
@@ -213,27 +215,27 @@ static void allocatePalettesBuffer () {
 	u16* unpackedPalsBufferB = (u16*) MEM_alloc(MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP * 2);
 	memsetU16(unpackedPalsBufferA, 0x0, MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP); // black all the buffer
 	memsetU16(unpackedPalsBufferB, 0x0, MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP); // black all the buffer
-	setPalsBufferA(unpackedPalsBufferA);
-	setPalsBufferB(unpackedPalsBufferB);
+	setPalsRender(unpackedPalsBufferA);
+	setPalsUnpacked(unpackedPalsBufferB);
 }
 
 static void unpackFramePalettes (Palette32AllStrips* pals32) {
     if (pals32->compression != COMPRESSION_NONE) {
         // No need to use FAR_SAFE() macro here because palette data is always stored near
-        lz4w_unpack((u8*) pals32->data, (u8*) getPalsBufferB());
+        lz4w_unpack((u8*) pals32->data, (u8*) getPalsUnpacked());
     }
     else {
 		// Copy the palette data. No FAR_SAFE() needed here because palette data is always stored at near region.
 		const u16 size = (MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP) * 2;
-        memcpy((u8*) getPalsBufferB(), pals32->data, size);
+        memcpy((u8*) getPalsUnpacked(), pals32->data, size);
     }
 }
 
 static void freePalettesBuffer () {
-    MEM_free((void*) getPalsBufferA());
-	MEM_free((void*) getPalsBufferB());
-    setPalsBufferA(NULL);
-	setPalsBufferB(NULL);
+    MEM_free((void*) getPalsRender());
+	MEM_free((void*) getPalsUnpacked());
+    setPalsRender(NULL);
+	setPalsUnpacked(NULL);
 }
 
 static void loadTileSets (u16 tileIndex, u16 len, TransferMethod tm) {
@@ -272,7 +274,7 @@ void playMovie () {
 	allocateTilemapBuffer();
 	allocatePalettesBuffer();
 	MEM_pack();
-// KLog_U1("Free Mem: ", MEM_getFree()); // 36784 bytes
+//KLog_U1("Free Mem: ", MEM_getFree()); // 36784 bytes
 
 	// Position in screen (in tiles)
 	u16 xp = (screenWidth - MOVIE_FRAME_WIDTH_IN_TILES*8 + 7)/8/2; // centered in X axis
@@ -283,7 +285,8 @@ void playMovie () {
     // Loop the entire video
 	for (;;) // Better than while (TRUE) for infinite loops
     {
-		setPalInFrameRootPtr(getPalsBufferA() + 64); // Points to 3rd strip's palette
+		// Instruct to do the pals buffers swap on the VInt so the HInt starts using the right pals
+		doSwapPalsBuffers();
 
 		bool exitPlayer = FALSE;
 		//u16 sysFrameRate = IS_PAL_SYSTEM ? 50 : 60;
@@ -296,8 +299,13 @@ void playMovie () {
 			SYS_setVIntCallback(VIntCallback);
 			VDP_setHIntCounter(HINT_COUNTER_FOR_COLORS_UPDATE - 1);
 			VDP_setHInterrupt(TRUE);
-			if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_CPU_PAL);
-			else SYS_setHIntCallback(HIntCallback_CPU_NTSC);
+			#if HINT_USE_DMA
+				if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_DMA_PAL);
+				else SYS_setHIntCallback(HIntCallback_DMA_NTSC);
+			#else
+				if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_CPU_PAL);
+				else SYS_setHIntCallback(HIntCallback_CPU_NTSC);
+			#endif
 			vtimer = 0; // reset vTimer so we can use it as our frame counter
 			#ifdef DEBUG_FIXED_FRAME
 			vtimer = DEBUG_FIXED_FRAME;
@@ -378,11 +386,11 @@ void playMovie () {
 			// Enqueue tilemap into VRAM
 			loadTileMaps(addrInPlane, DMA_QUEUE);
 
-			// Enqueue first 2 strips' palettes which were unpacked previously into palsBufferB
-			PAL_setColors(0, (const u16*) getPalsBufferB(), 64, DMA_QUEUE); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
+			// Enqueue first 2 strips' palettes which were previously unpacked
+			PAL_setColors(0, (const u16*) getPalsUnpacked(), 64, DMA_QUEUE); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
 
 			// Instruct to do the pals buffers swap on the VInt so the HInt starts using the right pals
-			setDoSwapPalsBuffers(TRUE);
+			doSwapPalsBuffers();
 
 			#ifdef DEBUG_FIXED_FRAME
 			}

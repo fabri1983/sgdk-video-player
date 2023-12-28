@@ -3,18 +3,18 @@
 
 #include <types.h>
 
-void setPalsBufferA (u16* ptr);
+void setPalsRender (u16* ptr);
 
-void setPalsBufferB (u16* ptr);
+void setPalsUnpacked (u16* ptr);
 
-u16* getPalsBufferA ();
+u16* getPalsRender ();
 
-u16* getPalsBufferB ();
+u16* getPalsUnpacked ();
 
 bool getDoSwapPalsBuffers ();
 
-void setDoSwapPalsBuffers (bool value);
+void doSwapPalsBuffers ();
 
-void swapBuffersForPalettes ();
+void swapBuffersForPals ();
 
 #endif

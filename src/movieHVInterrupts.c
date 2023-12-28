@@ -70,15 +70,10 @@ static u16* palInFramePtr;
 static u16 palIdxInVDP;
 static u16 vcounterManual;
 
-void setPalInFrameRootPtr (u16* ptr) {
-    palInFrameRootPtr = ptr;
-}
-
 void VIntCallback () {
     if (getDoSwapPalsBuffers()) {
-        palInFrameRootPtr = getPalsBufferB() + 64; // Points to 3rd strip's palette
-        swapBuffersForPalettes();
-        setDoSwapPalsBuffers(FALSE);
+        swapBuffersForPals();
+        palInFrameRootPtr = getPalsRender() + 64; // Points to 3rd strip's palette
     }
 	palInFramePtr = palInFrameRootPtr; // Resets to 3rd strip's palette
 	palIdxInVDP = 0; // 0: [PAL0,PAL1]. 32: [PAL2,PAL3].
@@ -92,7 +87,8 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC () {
         return;
 
     /*
-        u32 cmd1st = VDP_WRITE_CRAM_ADDR((u32)(palIdx * 2));
+        Every command is CRAM address to start writting 4 colors (2 times u32 bits)
+        u32 cmd1st = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 0) * 2));
         u32 cmd2nd = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 4) * 2));
         u32 cmd3rd = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 8) * 2));
         u32 cmd4th = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 12) * 2));
@@ -188,7 +184,8 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_PAL () {
         return;
 
     /*
-        u32 cmd1st = VDP_WRITE_CRAM_ADDR((u32)(palIdx * 2));
+        Every command is CRAM address to start writting 4 colors (2 times u32 bits)
+        u32 cmd1st = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 0) * 2));
         u32 cmd2nd = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 4) * 2));
         u32 cmd3rd = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 8) * 2));
         u32 cmd4th = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 12) * 2));
@@ -284,7 +281,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_NTSC () {
         return;
 
     /*
-        u32 palCmdForDMA_A = VDP_DMA_CRAM_ADDR((u32)palIdx * 2);
+        u32 palCmdForDMA_A = VDP_DMA_CRAM_ADDR((u32)(palIdx + 0) * 2);
         u32 palCmdForDMA_B = VDP_DMA_CRAM_ADDR(((u32)palIdx + MOVIE_DATA_COLORS_PER_STRIP/2) * 2);
         cmd     palIdx = 0      palIdx = 32
         A       0xC0000080      0xC0400080
@@ -333,7 +330,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_PAL () {
         return;
 
     /*
-        u32 palCmdForDMA_A = VDP_DMA_CRAM_ADDR((u32)palIdx * 2);
+        u32 palCmdForDMA_A = VDP_DMA_CRAM_ADDR((u32)(palIdx + 0) * 2);
         u32 palCmdForDMA_B = VDP_DMA_CRAM_ADDR(((u32)palIdx + MOVIE_DATA_COLORS_PER_STRIP/2) * 2);
         cmd     palIdx = 0      palIdx = 32
         A       0xC0000080      0xC0400080

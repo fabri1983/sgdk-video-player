@@ -4,19 +4,19 @@ static u16* unpackedPalsBufferA;
 static u16* unpackedPalsBufferB;
 static bool doSwap = FALSE;
 
-void setPalsBufferA (u16* ptr) {
+void setPalsRender (u16* ptr) {
     unpackedPalsBufferA = ptr;
 }
 
-void setPalsBufferB (u16* ptr) {
+void setPalsUnpacked (u16* ptr) {
     unpackedPalsBufferB = ptr;
 }
 
-u16* getPalsBufferA () {
+u16* getPalsRender () {
     return unpackedPalsBufferA;
 }
 
-u16* getPalsBufferB () {
+u16* getPalsUnpacked () {
     return unpackedPalsBufferB;
 }
 
@@ -24,12 +24,13 @@ bool getDoSwapPalsBuffers () {
     return doSwap;
 }
 
-void setDoSwapPalsBuffers (bool value) {
-    doSwap = value;
+void doSwapPalsBuffers () {
+    doSwap = TRUE;
 }
 
-void swapBuffersForPalettes () {
-	u16* tmpPtr = unpackedPalsBufferB;
-	unpackedPalsBufferB = unpackedPalsBufferA;
-	unpackedPalsBufferA = tmpPtr;
+void swapBuffersForPals () {
+	u16* tmp = unpackedPalsBufferA;
+	unpackedPalsBufferA = unpackedPalsBufferB;
+	unpackedPalsBufferB = tmp;
+    doSwap = FALSE;
 }
