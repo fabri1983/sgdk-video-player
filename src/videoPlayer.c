@@ -306,18 +306,20 @@ void playMovie () {
 				if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_CPU_PAL);
 				else SYS_setHIntCallback(HIntCallback_CPU_NTSC);
 			#endif
-			vtimer = 0; // reset vTimer so we can use it as our frame counter
 			#ifdef DEBUG_FIXED_FRAME
 			vtimer = DEBUG_FIXED_FRAME;
+			#else
+			vtimer = 0; // reset vTimer so we can use it as our frame counter
 			#endif
 		SYS_enableInts();
 
 		// Force setup of vars used in the HInt
 		waitVInt();
 
-		u16 vFrame = 0;
 		#ifdef DEBUG_FIXED_FRAME
-		vFrame = DEBUG_FIXED_FRAME;
+		u16 vFrame = DEBUG_FIXED_FRAME;
+		#else
+		u16 vFrame = 0;
 		#endif
 		ImageNoPalsTilesetSplit2** dataPtr = (ImageNoPalsTilesetSplit2**) data;
 		dataPtr += vFrame;
@@ -325,7 +327,7 @@ void playMovie () {
 		palsDataPtr += vFrame;
 
 		// As frames are indexed in a 0 based access layout, we know that even indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM, 
-		// and odd frames hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM.
+		// and odd indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM.
 		// We know vFrame always starts with a even value.
 		u16 baseTileIndex = TILE_USER_INDEX_CUSTOM;
 
@@ -390,7 +392,7 @@ void playMovie () {
 			// Enqueue first 2 strips' palettes which were previously unpacked
 			PAL_setColors(0, (const u16*) getPalsUnpacked(), 64, DMA_QUEUE); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
 
-			// Instruct to do the pals buffers swap on the VInt so the HInt starts using the right pals
+			// Instruct to do the pals buffers swap on the VInt so the HInt starts pointing to the right pals buffer
 			doSwapPalsBuffers();
 
 			#ifdef DEBUG_FIXED_FRAME
@@ -423,7 +425,7 @@ void playMovie () {
 
 
 			#ifdef DEBUG_FIXED_FRAME
-			// Once we already draw the target frame and let the next one load its data but not drawn, we set back target frame
+			// Once we already draw the target frame and let the next one load its data but not drawn => we set back to fixed frame
 			if (prevFrame != DEBUG_FIXED_FRAME) {
 				u16 backFrames = vFrame - DEBUG_FIXED_FRAME;
 				dataPtr -= backFrames;
