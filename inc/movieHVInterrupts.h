@@ -34,6 +34,8 @@
 #define MOVIE_HINT_COLORS_SWAP_START_SCANLINE_PAL max(MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER, ((30 - 22) / 2) + 1) * 8 - 1 // Frame with 22 tiles height: 40-1=39
 #define MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL (30 - max(MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER, ((30 - 22) / 2))) * 8 - 2*8 - 1 // Frame with 22 tiles height: 208-2*8-1=191
 
+void setPalsPointers (u16* rootPalsPtr);
+
 void VIntCallback ();
 
 HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC ();

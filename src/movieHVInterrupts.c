@@ -6,7 +6,6 @@
 #include <timer.h>
 #include <memory.h>
 #include "movieHVInterrupts.h"
-#include "palsBuffersSwapper.h"
 
 // u8 reg01; // Holds current VDP register 1 whole value (it holds other bits than VDP ON/OFF status)
 
@@ -67,14 +66,15 @@ void NO_INLINE setupDMAForPals (u16 len, u32 fromAddr) {
 
 static u16* palInFrameRootPtr;
 static u16* palInFramePtr;
-static u16 palIdxInVDP;
-static u16 vcounterManual;
+static u16 palIdxInVDP = 0;
+static u16 vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1;
+
+void setPalsPointers (u16* rootPalsPtr) {
+    palInFrameRootPtr = rootPalsPtr;
+    palInFramePtr = rootPalsPtr;
+}
 
 void VIntCallback () {
-    if (getDoSwapPalsBuffers()) {
-        swapBuffersForPals();
-        palInFrameRootPtr = getPalsRender() + 64; // Points to 3rd strip's palette
-    }
 	palInFramePtr = palInFrameRootPtr; // Resets to 3rd strip's palette
 	palIdxInVDP = 0; // 0: [PAL0,PAL1]. 32: [PAL2,PAL3].
 	vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1;
