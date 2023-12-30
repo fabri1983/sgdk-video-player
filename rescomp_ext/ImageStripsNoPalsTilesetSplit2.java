@@ -53,7 +53,7 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
         	tileset2 = null;
         	System.out.print(" " + id + " -> numTiles (chunk1 + chunk2):\t  " + tileset1.getNumTile() + " + 0 = " + tileset1.getNumTile() + ". ");
         }
-        // Split the Image in in two tilesets and two tilemaps
+        // Split the Image in two tilesets and two tilemaps
         else {
         	tileset1 = (Tileset) addInternalResource(new Tileset(id + "_chunk1_tileset", finalImageData, w, h, 0, 0, wt, ht_1, tileOpt, compression, false, false));
         	checkTilesetMaxChunkSize(tileset1.getNumTile());
@@ -63,12 +63,12 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
         			(tileset1.getNumTile() + tileset2.getNumTile()) + ". ");
         }
 
-        tilemap1 = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tileset1, toggleMapTileBaseIndexFlag, mapBase, 
-        		finalImageData, w, h, 0, 0, wt, ht_1, tileOpt, compression, extendedMapWidth64));
+        tilemap1 = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tileset1, toggleMapTileBaseIndexFlag, 
+        		mapBase, finalImageData, w, h, 0, 0, wt, ht_1, tileOpt, compression, extendedMapWidth64));
         Tileset tileset_t2 = tileset2 == null ? tileset1 : tileset2;
         int mapBaseOffset = wt * ht_1;
-        tilemap2 = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tileset_t2, toggleMapTileBaseIndexFlag, mapBase + mapBaseOffset, 
-        		finalImageData, w, h, 0, ht/2, wt, ht_2, tileOpt, compression, extendedMapWidth64));
+        tilemap2 = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tileset_t2, toggleMapTileBaseIndexFlag, 
+        		mapBase + mapBaseOffset, finalImageData, w, h, 0, ht/2, wt, ht_2, tileOpt, compression, extendedMapWidth64));
 
         // compute hash code
         int hcTemp = tileset1.hashCode() ^ tilemap1.hashCode() ^ tilemap2.hashCode();

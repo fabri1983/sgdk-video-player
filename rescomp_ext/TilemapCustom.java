@@ -27,7 +27,7 @@ public class TilemapCustom extends Tilemap
         int mapBaseTileInd = mapBase & Tile.TILE_INDEX_MASK;
 
         // fabri1983: get frame num
-        Pattern idNamePattern = Pattern.compile("^[A-Za-z_]+_(\\d+)(_\\d+)?(_RGB)?(_chunk1)?_tilemap$", Pattern.CASE_INSENSITIVE);
+        Pattern idNamePattern = Pattern.compile("^[A-Za-z_]+_(\\d+)(_\\d+)?(_RGB)?(_chunk\\d)?_tilemap$", Pattern.CASE_INSENSITIVE);
         Matcher idNameMatcher = idNamePattern.matcher(id);
         Integer frameNum = null;
         if (idNameMatcher.matches()) {
@@ -38,8 +38,8 @@ public class TilemapCustom extends Tilemap
         	}
         }
 
-        // fabri1983: only print message at first frame only
-        printMessageForParamToggleMapTileBaseIndexFlag(toggleMapTileBaseIndexFlag, frameNum);
+        // fabri1983: only print message at first frame and only for chunk1
+        printMessageForParamToggleMapTileBaseIndexFlag(toggleMapTileBaseIndexFlag, frameNum, id);
 
     	// fabri1983: here we calculate videoFrameBufferOffsetIndex according frameNum
     	int videoFrameBufferOffsetIndex = 0;
@@ -139,9 +139,10 @@ public class TilemapCustom extends Tilemap
 
 	/**
 	 * fabri1983
+	 * @param id 
 	 */
-	private static void printMessageForParamToggleMapTileBaseIndexFlag(int toggleMapTileBaseIndexFlag, Integer frameNum) {
-		if (toggleMapTileBaseIndexFlag != -1 && frameNum != null) {
+	private static void printMessageForParamToggleMapTileBaseIndexFlag(int toggleMapTileBaseIndexFlag, Integer frameNum, String id) {
+		if (id.contains("_chunk1") && toggleMapTileBaseIndexFlag != -1 && frameNum != null) {
     		boolean printMsg = false;
     		// toggleMapTileBaseIndexFlag == 1 then expected first frame num has to be 1 (odd)
     		if (toggleMapTileBaseIndexFlag == 1) {

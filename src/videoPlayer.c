@@ -15,7 +15,7 @@
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2)
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES - 2*(MOVIE_FRAME_HEIGHT_IN_TILES/2)))
 
-#define HINT_USE_DMA TRUE // TRUE: DMA. FALSE: CPU
+#define HINT_USE_DMA FALSE // TRUE: DMA. FALSE: CPU
 
 /// SGDK reserves 16 tiles starting at address 0. That's the purpose of using SGDK's TILE_USER_INDEX.
 /// Tile address 0 holds a black tile and it shouldn't be overriden since is what an empty tilemap in VRAM points to. Also other internal effects use it.
@@ -43,7 +43,7 @@ static void waitSubTick_ (u32 subtick) {
 		ASM_STATEMENT volatile (
 			"moveq #7,%0\n"
 			"1:\n"
-			"\t  dbra %0,1b"   // decrement register dx by 1 and if not zero then loop to label 1 (don't know why the b)
+			"\t  dbra %0,1b"   // decrement register dx by 1 and branch if not zero
 			: "=d" (tmp)
 			:
 			: "cc" // Clobbers: condition codes
@@ -81,18 +81,20 @@ static void setBusProtection_Z80 (bool value) {
 
 extern void flushQueue(u16 num);
 
-/// @brief NOTE: this implementation doesn't check if transfer size exceeds capacity, and assumes it has to request Z80 bus.
-static void flushDMAQueue () {
+/// @brief This implementation differs from DMA_flushQueue() in that:
+/// - it doesn't check if transfer size exceeds capacity because we know before hand the max capacity.
+/// - it assumes Z80 bus wasn't requested and hence request it.
+static void flushQueue_DMA () {
 	#ifdef DEBUG_VIDEO_PLAYER
 	if (DMA_getQueueTransferSize() > DMA_getMaxTransferSize())
 		KLog("WARNING: DMA transfer size limit raised. Modify the capacity in your DMA_initEx() call.");
 	#endif
-    u8 autoInc = VDP_getAutoInc(); // save autoInc
+    // u8 autoInc = VDP_getAutoInc(); // save autoInc
 	Z80_requestBus(FALSE);
 	flushQueue(DMA_getQueueSize());
 	Z80_releaseBus();
     DMA_clearQueue();
-    VDP_setAutoInc(autoInc); // restore autoInc
+    // VDP_setAutoInc(autoInc); // restore autoInc
 }
 
 static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender) {
@@ -129,17 +131,16 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender) {
 	//SYS_getAndSetInterruptMaskLevel(4); // only disables HInt
 
 	setBusProtection_Z80(TRUE);
-	//waitSubTick_(10); // Z80 delay --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
+	waitSubTick_(0); // Z80 delay --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
 
-	flushDMAQueue();
+	flushQueue_DMA();
 
 	setBusProtection_Z80(FALSE);
 
 	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 | 0x40);//VDP_setEnable(TRUE);
 
 	// This needed for DMA setup used in HInt, and likely needed for the CPU HInt too.
-	VDP_setAutoInc(2);
-	//*((vu16*) VDP_CTRL_PORT) = 0x8F00 | 2; // instead of VDP_setAutoInc(2) due to additionals read and write from/to internal regValues[]
+	*((vu16*) VDP_CTRL_PORT) = 0x8F00 | 2; // instead of VDP_setAutoInc(2) due to additionals read and write from/to internal regValues[]
 
 	//SYS_setInterruptMaskLevel(3); // interrupt saved state is by default 3 (if not nested nor other particular setup)
 }

@@ -87,7 +87,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC () {
         return;
 
     /*
-        Every command is CRAM address to start writting 4 colors (2 times u32 bits)
+        Every command is CRAM address to start write 4 colors (2 times u32 bits)
         u32 cmd1st = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 0) * 2));
         u32 cmd2nd = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 4) * 2));
         u32 cmd3rd = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 8) * 2));
@@ -107,8 +107,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC () {
         8       0xC0380000      0xC0780000
     */
 
-    u32 cmdBaseAddress;
-    u32 cmdAddress = cmdBaseAddress;
+    u32 cmdAddress;
 	u32 colors2_A, colors2_B, colors2_C, colors2_D;
 
 	// Value under current conditions is always 116
@@ -119,7 +118,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC () {
 	colors2_B = *((u32*) (palInFramePtr + 2)); // next 2 colors
 	colors2_C = *((u32*) (palInFramePtr + 4)); // next 2 colors
 	colors2_D = *((u32*) (palInFramePtr + 6)); // next 2 colors
-	cmdBaseAddress = (palIdxInVDP == 0) ? 0xC0000000 : 0xC0400000;
+	cmdAddress = (palIdxInVDP == 0) ? 0xC0000000 : 0xC0400000;
 	waitHCounter(145);
 	turnOffVDP(116);
 	*((vu32*) VDP_CTRL_PORT) = cmdAddress;
@@ -184,7 +183,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_PAL () {
         return;
 
     /*
-        Every command is CRAM address to start writting 4 colors (2 times u32 bits)
+        Every command is CRAM address to start write 4 colors (2 times u32 bits)
         u32 cmd1st = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 0) * 2));
         u32 cmd2nd = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 4) * 2));
         u32 cmd3rd = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 8) * 2));
@@ -204,8 +203,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_PAL () {
         8       0xC0380000      0xC0780000
     */
 
-    u32 cmdBaseAddress;
-    u32 cmdAddress = cmdBaseAddress;
+    u32 cmdAddress;
 	u32 colors2_A, colors2_B, colors2_C, colors2_D;
 
 	// Value under current conditions is always 116
@@ -216,7 +214,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_PAL () {
 	colors2_B = *((u32*) (palInFramePtr + 2)); // next 2 colors
 	colors2_C = *((u32*) (palInFramePtr + 4)); // next 2 colors
 	colors2_D = *((u32*) (palInFramePtr + 6)); // next 2 colors
-	cmdBaseAddress = (palIdxInVDP == 0) ? 0xC0000000 : 0xC0400000;
+	cmdAddress = (palIdxInVDP == 0) ? 0xC0000000 : 0xC0400000;
 	waitHCounter(145);
 	turnOffVDP(116);
 	*((vu32*) VDP_CTRL_PORT) = cmdAddress;
@@ -281,11 +279,23 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_NTSC () {
         return;
 
     /*
+        With 2 DMA commands and same DMA lengths:
+        Every command is CRAM address to start DMA MOVIE_DATA_COLORS_PER_STRIP/2 colors
         u32 palCmdForDMA_A = VDP_DMA_CRAM_ADDR((u32)(palIdx + 0) * 2);
         u32 palCmdForDMA_B = VDP_DMA_CRAM_ADDR(((u32)palIdx + MOVIE_DATA_COLORS_PER_STRIP/2) * 2);
         cmd     palIdx = 0      palIdx = 32
         A       0xC0000080      0xC0400080
         B       0xC0200080      0xC0600080
+
+        With 3 DMA commands and different DMA lenghts:
+        Every command is CRAM address to start DMA 8 colors and then 12 and 12
+        u32 palCmdForDMA_A = VDP_DMA_CRAM_ADDR((u32)(palIdx + 0) * 2);
+        u32 palCmdForDMA_B = VDP_DMA_CRAM_ADDR(((u32)palIdx + 8) * 2);
+        u32 palCmdForDMA_C = VDP_DMA_CRAM_ADDR(((u32)palIdx + 20) * 2);
+        cmd     palIdx = 0      palIdx = 32
+        A       0xC0000080      0xC0400080
+        B       0xC0100080      0xC0500080
+        C       0xC0280080      0xC0680080
     */
 
     u32 palCmdForDMA;
@@ -296,10 +306,10 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_NTSC () {
     // NOTE: here is OK to call VDP_getReg(0x01) only if we didn't previously change the the VDP's reg 1 using direct access without VDP_setReg()
 
     fromAddrForDMA = (u32) palInFramePtr >> 1;
-    palInFramePtr += MOVIE_DATA_COLORS_PER_STRIP/2;
+    palInFramePtr += 8;
     palCmdForDMA = palIdxInVDP == 0 ? 0xC0000080 : 0xC0400080;
     waitHCounter(136);
-    setupDMAForPals(MOVIE_DATA_COLORS_PER_STRIP/2, fromAddrForDMA);
+    setupDMAForPals(8, fromAddrForDMA);
 
     waitHCounter(150);
     turnOffVDP(116);
@@ -307,10 +317,21 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_NTSC () {
     turnOnVDP(116);
 
     fromAddrForDMA = (u32) palInFramePtr >> 1;
-    palInFramePtr += MOVIE_DATA_COLORS_PER_STRIP/2;
-    palCmdForDMA = palIdxInVDP == 0 ? 0xC0200080 : 0xC0600080;
+    palInFramePtr += 12;
+    palCmdForDMA = palIdxInVDP == 0 ? 0xC0100080 : 0xC0500080;
     waitHCounter(136);
-    setupDMAForPals(MOVIE_DATA_COLORS_PER_STRIP/2, fromAddrForDMA);
+    setupDMAForPals(12, fromAddrForDMA);
+
+    waitHCounter(150);
+    turnOffVDP(116);
+    *((vu32*) VDP_CTRL_PORT) = palCmdForDMA; // trigger DMA transfer
+    turnOnVDP(116);
+
+    fromAddrForDMA = (u32) palInFramePtr >> 1;
+    palInFramePtr += 12;
+    palCmdForDMA = palIdxInVDP == 0 ? 0xC0280080 : 0xC0680080;
+    waitHCounter(136);
+    setupDMAForPals(12, fromAddrForDMA);
 
     waitHCounter(150);
     turnOffVDP(116);
@@ -330,11 +351,23 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_PAL () {
         return;
 
     /*
+        With 2 commands:
+        Every command is CRAM address to start DMA MOVIE_DATA_COLORS_PER_STRIP/2 colors
         u32 palCmdForDMA_A = VDP_DMA_CRAM_ADDR((u32)(palIdx + 0) * 2);
         u32 palCmdForDMA_B = VDP_DMA_CRAM_ADDR(((u32)palIdx + MOVIE_DATA_COLORS_PER_STRIP/2) * 2);
         cmd     palIdx = 0      palIdx = 32
         A       0xC0000080      0xC0400080
         B       0xC0200080      0xC0600080
+
+        With 3 commands and different DMA lenghts:
+        Every command is CRAM address to start DMA 8 colors and then 12 and 12
+        u32 palCmdForDMA_A = VDP_DMA_CRAM_ADDR((u32)(palIdx + 0) * 2);
+        u32 palCmdForDMA_B = VDP_DMA_CRAM_ADDR(((u32)palIdx + 8) * 2);
+        u32 palCmdForDMA_C = VDP_DMA_CRAM_ADDR(((u32)palIdx + 20) * 2);
+        cmd     palIdx = 0      palIdx = 32
+        A       0xC0000080      0xC0400080
+        B       0xC0100080      0xC0500080
+        C       0xC0280080      0xC0680080
     */
 
     u32 palCmdForDMA;
@@ -345,10 +378,10 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_PAL () {
     // NOTE: here is OK to call VDP_getReg(0x01) only if we didn't previously change the the VDP's reg 1 using direct access without VDP_setReg()
 
     fromAddrForDMA = (u32) palInFramePtr >> 1;
-    palInFramePtr += MOVIE_DATA_COLORS_PER_STRIP/2;
+    palInFramePtr += 8;
     palCmdForDMA = palIdxInVDP == 0 ? 0xC0000080 : 0xC0400080;
     waitHCounter(136);
-    setupDMAForPals(MOVIE_DATA_COLORS_PER_STRIP/2, fromAddrForDMA);
+    setupDMAForPals(8, fromAddrForDMA);
 
     waitHCounter(150);
     turnOffVDP(116);
@@ -356,10 +389,21 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_PAL () {
     turnOnVDP(116);
 
     fromAddrForDMA = (u32) palInFramePtr >> 1;
-    palInFramePtr += MOVIE_DATA_COLORS_PER_STRIP/2;
-    palCmdForDMA = palIdxInVDP == 0 ? 0xC0200080 : 0xC0600080;
+    palInFramePtr += 12;
+    palCmdForDMA = palIdxInVDP == 0 ? 0xC0100080 : 0xC0500080;
     waitHCounter(136);
-    setupDMAForPals(MOVIE_DATA_COLORS_PER_STRIP/2, fromAddrForDMA);
+    setupDMAForPals(12, fromAddrForDMA);
+
+    waitHCounter(150);
+    turnOffVDP(116);
+    *((vu32*) VDP_CTRL_PORT) = palCmdForDMA; // trigger DMA transfer
+    turnOnVDP(116);
+
+    fromAddrForDMA = (u32) palInFramePtr >> 1;
+    palInFramePtr += 12;
+    palCmdForDMA = palIdxInVDP == 0 ? 0xC0280080 : 0xC0680080;
+    waitHCounter(136);
+    setupDMAForPals(12, fromAddrForDMA);
 
     waitHCounter(150);
     turnOffVDP(116);
