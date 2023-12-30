@@ -15,7 +15,7 @@
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2)
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES - 2*(MOVIE_FRAME_HEIGHT_IN_TILES/2)))
 
-#define HINT_USE_DMA FALSE // TRUE: DMA. FALSE: CPU
+#define HINT_USE_DMA TRUE // TRUE: DMA. FALSE: CPU
 
 /// SGDK reserves 16 tiles starting at address 0. That's the purpose of using SGDK's TILE_USER_INDEX.
 /// Tile address 0 holds a black tile and it shouldn't be overriden since is what an empty tilemap in VRAM points to. Also other internal effects use it.
@@ -49,22 +49,6 @@ static void waitSubTick_ (u32 subtick) {
 			: "cc" // Clobbers: condition codes
 		);
 	}
-}
-
-/// @brief Waits for a certain amount of millisecond (~3.33 ms based timer when wait is >= 100ms). 
-/// Lightweight implementation without calling SYS_doVBlankProcess().
-/// This method CAN NOT be called from V-Int callback or when V-Int is disabled.
-/// @param ms >= 100ms, otherwise use waitMs() from timer.h
-static void waitMs_ (u32 ms) {
-	u32 tick = (ms * TICKPERSECOND) / 1000;
-	u32 start = getTick();
-    u32 max = start + tick;
-
-    // need to check for overflow
-    if (max < start) max = 0xFFFFFFFF;
-
-    // wait until we reached subtick
-    while (getTick() < max) {;}
 }
 
 /// @brief See original Z80_setBusProtection() method.
@@ -240,12 +224,38 @@ void swapBuffersForPals () {
 	unpackedPalsBuffer = tmp;
 }
 
-// static void loadTileMaps (u16 xp, u16 yp, TransferMethod tm) {
-// 	u16 wt = MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES; // Every strip is N tiles width, but extended to 64 to speed up DMA transfer
-// 	u16 ht = MOVIE_FRAME_HEIGHT_IN_TILES; // Every strip is M tiles height
-// 	u16 wm = MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES;
-// 	VDP_setTileMapDataRect(BG_B, unpackedTilemap, xp, yp, wt, ht, wm, tm);
-// }
+static void fadeToBlack () {
+	// Last frame's palettes is still pointed by unpackedPalsRender
+	// Apply fade formula and wait to next VInt
+	u16 loopFrames = 8*4; // always multiple of 8 since the fade to black effect lasts 8 steps.
+	while (loopFrames > 0) {
+		if ((loopFrames-- % 8) == 0) {
+			u16* palsPtr = unpackedPalsRender;
+			for (u16 i=MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP; i > 0; --i) {
+                // IMPL A:
+                u16 d = *palsPtr - 0x222; // decrement 1 unit in every component
+                switch (d & 0b1000100010000) {
+                       case 0b0000000010000: d &= ~0b0000000011110; break; // red overflows? then zero it
+                       case 0b0000100010000: d &= ~0b0000111111110; break; // red and green overflow? then zero them
+                       case 0b0000100000000: d &= ~0b0000111100000; break; // green overflows? then zero it
+                       case 0b1000000010000: d &= ~0b1111000011110; break; // red and blue overflow? then zero them
+                       case 0b1000000000000: d &= ~0b1111000000000; break; // blue overflows? then zero it
+                       case 0b1000100000000: d &= ~0b1111111100000; break; // green and blue overflow? then zero them
+                       case 0b1000100010000: d = 0; break; // all colors overflow, then zero them
+                       default: break;
+                }
+                *palsPtr++ = d;
+                // IMPL B:
+                // u16 d = *palsPtr - 0x222; // decrement 1 unit in every component
+                // if (d & 0b0000000010000) d &= ~0b0000000011110; // red overflows? then zero it
+                // if (d & 0b0000100000000) d &= ~0b0000111100000; // green overflows? then zero it
+                // if (d & 0b1000000000000) d &= ~0b1111000000000; // blue overflows? then zero it
+                // *palsPtr++ = d;
+            }
+			waitVInt();
+		}
+	}
+}
 
 void playMovie () {
 
@@ -301,15 +311,16 @@ void playMovie () {
 				if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_CPU_PAL);
 				else SYS_setHIntCallback(HIntCallback_CPU_NTSC);
 			#endif
-			#ifdef DEBUG_FIXED_FRAME
-			vtimer = DEBUG_FIXED_FRAME;
-			#else
-			vtimer = 0; // reset vTimer so we can use it as our frame counter
-			#endif
 		SYS_enableInts();
 
 		// Force setup of vars used in the HInt
 		waitVInt();
+
+		#ifdef DEBUG_FIXED_FRAME
+		vtimer = DEBUG_FIXED_FRAME;
+		#else
+		vtimer = 0; // reset vTimer so we can use it as our frame counter
+		#endif
 
 		#ifdef DEBUG_FIXED_FRAME
 		u16 vFrame = DEBUG_FIXED_FRAME;
@@ -345,11 +356,6 @@ void playMovie () {
 			unpackFramePalettes(pals_data[vFrame]);
 			swapBuffersForPals();
 
-			if (JOY_readJoypad(JOY_1) & BUTTON_START) {
-				exitPlayer = TRUE;
-				break;
-			}
-
 			// Loops until time consumes the VIDEO_FRAME_RATE before moving into next frame
 			u16 prevFrame = vFrame;
 			for (;;) {
@@ -363,6 +369,7 @@ void playMovie () {
 					break;
 				} else {
 					waitVInt();
+					JOY_update();
 					if (JOY_readJoypad(JOY_1) & BUTTON_START) {
 						exitPlayer = TRUE;
 						break;
@@ -420,34 +427,40 @@ void playMovie () {
 			if (prevFrame != DEBUG_FIXED_FRAME)
 				vFrame = DEBUG_FIXED_FRAME;
 			#endif
+
+			JOY_update();
+			if (JOY_readJoypad(JOY_1) & BUTTON_START) {
+				exitPlayer = TRUE;
+				break;
+			}
 		}
+
+		// Fade out to black last frame's palettes. Only if we deliberatly wanted to exit from the video
+		if (exitPlayer)
+			fadeToBlack();
 
 		// Stop sound
 		SND_stopPlay_2ADPCM(SOUND_PCM_CH1);
 
-		// Wait for next VInt in order to disable all interrupt handlers
-		waitVInt();
 		SYS_disableInts();
 			SYS_setVIntCallback(NULL);
 			VDP_setHInterrupt(FALSE);
 			SYS_setHIntCallback(NULL);
 		SYS_enableInts();
 
-		PAL_setColors(PAL0, palette_black, 64, DMA);
 		VDP_fillTileMap(BG_B, 0, TILE_SYSTEM_INDEX, TILE_MAX_NUM); // SGDK's tile address 0 is a black tile.
 
 		if (exitPlayer) {
 			break;
 		}
-
-		waitMs_(500);
     }
 
 	freeTilesetBuffer();
 	freeTilemapBuffer();
 	freePalettesBuffer();
+	// Clear plane after the MEM_free() calls otherwise buffers' pointers would point to empty memory
+	VDP_clearPlane(BG_B, TRUE); // It uses SGDK's tile address 0 which is a black tile.
 
-	// TODO: clear mem used for sound?
 	MEM_pack();
 
 	// Restore system tiles (16 plain tile)
