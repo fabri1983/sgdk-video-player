@@ -66,7 +66,7 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
         tilemap1 = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tileset1, toggleMapTileBaseIndexFlag, 
         		mapBase, finalImageData, w, h, 0, 0, wt, ht_1, tileOpt, compression, extendedMapWidth64));
         Tileset tileset_t2 = tileset2 == null ? tileset1 : tileset2;
-        int mapBaseOffset = wt * ht_1;
+        int mapBaseOffset = tileset2 == null ? 0 : tileset1.getNumTile();
         tilemap2 = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tileset_t2, toggleMapTileBaseIndexFlag, 
         		mapBase + mapBaseOffset, finalImageData, w, h, 0, ht/2, wt, ht_2, tileOpt, compression, extendedMapWidth64));
 

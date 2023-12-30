@@ -9,8 +9,8 @@
 
 #define VIDEO_FRAME_RATE 15
 #define FORCE_NO_MISSING_FRAMES FALSE
-#define VIDEO_FRAME_MAX_TILESET_NUM 716 // this value got experimentally from rescomp output (biggest resulting numTile). It has to be an even number.
-#define VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE 370 // this value got experimentally from rescomp output (biggest numTile from one of two halves). It has to be an even number.
+#define VIDEO_FRAME_MAX_TILESET_NUM 716 // this value got experimentally from rescomp output (biggest resulting numTile1 + numTile2). It has to be an even number.
+#define VIDEO_FRAME_MAX_TILESET_CHUNK_NUM 370 // this value got experimentally from rescomp output (biggest numTile from one of two halves). It has to be an even number.
 #define VIDEO_FRAME_MAX_TILEMAP_NUM MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2)
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES - 2*(MOVIE_FRAME_HEIGHT_IN_TILES/2)))
@@ -31,7 +31,7 @@
 /// If number is bigger then you will notice some flickering on top of image meaning the transfer size consumes more time than Vertical retrace.
 /// The flickering still exists but is not noticeable due to lower image Y position in plane. 
 /// Using bigger image height or locating it at upper Y values will reveal the flickering.
-#define TILES_PER_DMA_TRANSFER 368 // NOT USED ANYMORE since we have splitted a frame's tileset in 2 chunks.
+#define TILES_PER_DMA_TRANSFER 368 // NOT USED ANYMORE since we now have splitted every frame's tileset in 2 chunks and using VIDEO_FRAME_MAX_TILESET_CHUNK_NUM instead.
 
 /// Wait for a certain amount of subtick. ONLY values < 150.
 static void waitSubTick_ (u32 subtick) {
@@ -250,9 +250,9 @@ void swapBuffersForPals () {
 void playMovie () {
 
     // size: min queue size is 20.
-	// capacity: experimentally we won't have more than VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE * 32 = 11840 bytes of data to transfer per display loop. 
+	// capacity: experimentally we won't have more than VIDEO_FRAME_MAX_TILESET_CHUNK_NUM * 32 = 11840 bytes of data to transfer per display loop. 
 	// bufferSize: we won't use temporary allocation, so set it at its min size.
-	DMA_initEx(20, VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE * 32, DMA_BUFFER_SIZE_MIN);
+	DMA_initEx(20, VIDEO_FRAME_MAX_TILESET_CHUNK_NUM * 32, DMA_BUFFER_SIZE_MIN);
 
 	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 
@@ -284,10 +284,11 @@ void playMovie () {
 
 		bool exitPlayer = FALSE;
 		//u16 sysFrameRate = IS_PAL_SYSTEM ? 50 : 60;
+		// Reciprocal approximation magic numbers for 1/50 and 1/60
 		u16 sysFrameRateReciprocal = IS_PAL_SYSTEM ? VIDEO_FRAME_RATE * 0x051E : VIDEO_FRAME_RATE * 0x0444;
 
 		// Start sound
-		//SND_startPlay_2ADPCM(sound_wav, sizeof(sound_wav), SOUND_PCM_CH1, FALSE);
+		SND_startPlay_2ADPCM(sound_wav, sizeof(sound_wav), SOUND_PCM_CH1, FALSE);
 
 		SYS_disableInts();
 			SYS_setVIntCallback(VIntCallback);
@@ -405,11 +406,7 @@ void playMovie () {
 			#endif
 
 			#if FORCE_NO_MISSING_FRAMES
-				u16 deltaFrames = vFrame - prevFrame;
-				// Any frame missed? If yes then it means loadTileSets() is eating 60/12=5 NTSC (50/12=4.16 PAL) or more display loops (if VIDEO_FRAME_RATE = 12)
-				#ifdef DEBUG_VIDEO_PLAYER
-				if (deltaFrames > 1) KLog_U1("Frame/s missed: ", deltaFrames);
-				#endif
+				// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) display loops (for VIDEO_FRAME_RATE = 15)
 				vFrame = prevFrame + 1;
 			#else
 				// IMPORTANT: next frame must be the opposite parity of current frame. If same parity (both even or both odd) then we will mistakenly 
@@ -426,7 +423,7 @@ void playMovie () {
 		}
 
 		// Stop sound
-		//SND_stopPlay_2ADPCM(SOUND_PCM_CH1);
+		SND_stopPlay_2ADPCM(SOUND_PCM_CH1);
 
 		// Wait for next VInt in order to disable all interrupt handlers
 		waitVInt();
