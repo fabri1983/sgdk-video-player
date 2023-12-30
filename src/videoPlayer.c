@@ -7,7 +7,7 @@
 // #define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the static map base tile index statically set on each frame by our custom rescomp extension
 // #define LOG_DIFF_BETWEEN_VIDEO_FRAMES
 
-#define VIDEO_FRAME_RATE 15
+#define VIDEO_FRAME_RATE (15-1) // Minus 1 so it delays enough to be in sync with audio. IT'S A TEMPORARY HACK BUT WORKS FLAWLESSLY!
 #define FORCE_NO_MISSING_FRAMES FALSE
 #define VIDEO_FRAME_MAX_TILESET_NUM 716 // this value got experimentally from rescomp output (biggest resulting numTile1 + numTile2). It has to be an even number.
 #define VIDEO_FRAME_MAX_TILESET_CHUNK_NUM 370 // this value got experimentally from rescomp output (biggest numTile from one of two halves). It has to be an even number.
@@ -22,16 +22,32 @@
 /// Remaining 15 tiles are OK to override for re use. So we start using tiles at index 1.
 #define TILE_USER_INDEX_CUSTOM 1
 
-/// Number of Tiles to be transferred by DMA_flushQueue() with off/on VDP setting to speed up the transfer. 
+/// Number of Tiles to be transferred by DMA_flushQueue() with mandatory off/on VDP setting to speed up the transfer (otherwise it glitches up).
 /// NOTE: this has to be enough to support VIDEO_FRAME_MAX_TILESET_NUM / 2 which is the buffer size that holds the unpack of half a tileset.
 /// 320 tiles * 32 bytes = 10240 as maxTransferPerFrame. 
 /// 368 tiles * 32 bytes = 11776 as maxTransferPerFrame. 
 /// 384 tiles * 32 bytes = 12282 as maxTransferPerFrame. 
-/// Hoping that disabling VDP before DMA_flushQueue() helps to effectively increase the max transfer limit.
-/// If number is bigger then you will notice some flickering on top of image meaning the transfer size consumes more time than Vertical retrace.
+/// Disabling VDP before DMA_flushQueue() helps to effectively increase the max transfer limit.
+/// If number is bigger then you will notice some flickering on top of image meaning the transfer takes more time than Vertical retrace.
 /// The flickering still exists but is not noticeable due to lower image Y position in plane. 
 /// Using bigger image height or locating it at upper Y values will reveal the flickering.
 #define TILES_PER_DMA_TRANSFER 368 // NOT USED ANYMORE since we now have splitted every frame's tileset in 2 chunks and using VIDEO_FRAME_MAX_TILESET_CHUNK_NUM instead.
+
+/// @brief Waits for a certain amount of millisecond (~3.33 ms based timer when wait is >= 100ms). 
+/// Lightweight implementation without calling SYS_doVBlankProcess().
+/// This method CAN NOT be called from V-Int callback or when V-Int is disabled.
+/// @param ms >= 100ms, otherwise use waitMs() from timer.h
+static void waitMs_ (u32 ms) {
+    u32 tick = (ms * TICKPERSECOND) / 1000;
+    u32 start = getTick();
+    u32 max = start + tick;
+
+    // need to check for overflow
+    if (max < start) max = 0xFFFFFFFF;
+
+    // wait until we reached subtick
+    while (getTick() < max) {;}
+}
 
 /// Wait for a certain amount of subtick. ONLY values < 150.
 static void waitSubTick_ (u32 subtick) {
@@ -59,7 +75,7 @@ static void setBusProtection_Z80 (bool value) {
     Z80_requestBus(FALSE);
 	u16 busProtectSignalAddress = (Z80_DRV_PARAMS + 0x0D) & 0xFFFF; // point to Z80 PROTECT parameter
     vu8* pb = (u8*) (Z80_RAM + busProtectSignalAddress); // See Z80_useBusProtection() reference in z80_ctrl.c
-    *pb = value;
+    *pb = value?1:0;
 	Z80_releaseBus();
 }
 
@@ -103,7 +119,7 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender) {
 	u32 t = vtimer; // initial frame counter
 	while (vtimer == t) {;} // wait for next VInt
 	// vu16 *pw = (u16 *) VDP_CTRL_PORT;
-    // while (!(*pw & VDP_VBLANK_FLAG)) {;}
+    // while (!(*pw & VDP_VBLANK_FLAG)) {;} // wait end of active period (vactive)
 
 	// AT THIS POINT THE VInt WAS ALREADY CALLED. And if we have enqueued the pals we have to update the pointers used in HInt.
     if (palsForRender) {
@@ -111,8 +127,6 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender) {
     }
 
 	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);//VDP_setEnable(FALSE);
-
-	//SYS_getAndSetInterruptMaskLevel(4); // only disables HInt
 
 	setBusProtection_Z80(TRUE);
 	waitSubTick_(0); // Z80 delay --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
@@ -125,8 +139,6 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender) {
 
 	// This needed for DMA setup used in HInt, and likely needed for the CPU HInt too.
 	*((vu16*) VDP_CTRL_PORT) = 0x8F00 | 2; // instead of VDP_setAutoInc(2) due to additionals read and write from/to internal regValues[]
-
-	//SYS_setInterruptMaskLevel(3); // interrupt saved state is by default 3 (if not nested nor other particular setup)
 }
 
 static void NO_INLINE waitVInt () {
@@ -138,7 +150,7 @@ static void NO_INLINE waitVInt () {
 	u32 t = vtimer; // initial frame counter
 	while (vtimer == t) {;} // wait for next VInt
 	// vu16 *pw = (u16 *) VDP_CTRL_PORT;
-    // while (!(*pw & VDP_VBLANK_FLAG)) {;}
+    // while (!(*pw & VDP_VBLANK_FLAG)) {;} // wait end of active period (vactive)
 }
 
 /*
@@ -224,12 +236,16 @@ void swapBuffersForPals () {
 	unpackedPalsBuffer = tmp;
 }
 
+#define FADE_TO_BLACK_STEP_FREQ 4 // Every N frames we apply one fade to black step
+
 static void fadeToBlack () {
 	// Last frame's palettes is still pointed by unpackedPalsRender
-	// Apply fade formula and wait to next VInt
-	u16 loopFrames = 8*4; // always multiple of 8 since the fade to black effect lasts 8 steps.
-	while (loopFrames > 0) {
-		if ((loopFrames-- % 8) == 0) {
+
+	// Always multiple of 7 since a uniform fade to black effect lasts 7 steps.
+	s16 loopFrames = 7 * FADE_TO_BLACK_STEP_FREQ;
+
+	while (loopFrames >= 0) {
+		if ((loopFrames-- % FADE_TO_BLACK_STEP_FREQ) == 0) {
 			u16* palsPtr = unpackedPalsRender;
 			for (u16 i=MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP; i > 0; --i) {
                 // IMPL A:
@@ -245,15 +261,21 @@ static void fadeToBlack () {
                        default: break;
                 }
                 *palsPtr++ = d;
+
                 // IMPL B:
                 // u16 d = *palsPtr - 0x222; // decrement 1 unit in every component
                 // if (d & 0b0000000010000) d &= ~0b0000000011110; // red overflows? then zero it
                 // if (d & 0b0000100000000) d &= ~0b0000111100000; // green overflows? then zero it
                 // if (d & 0b1000000000000) d &= ~0b1111000000000; // blue overflows? then zero it
                 // *palsPtr++ = d;
+
+				// IMPL C: decay faster
+				// u16 d = *palsPtr - 0x222; // decrement 1 unit in every component
+                // if (d & 0b1000100010000) d = 0; // if only one color overflows then zero them all
+                // *palsPtr++ = d;
             }
-			waitVInt();
 		}
+		waitVInt();
 	}
 }
 
@@ -292,10 +314,11 @@ void playMovie () {
 		// Let the HInt starts using the right pals
 		setPalsPointers(unpackedPalsRender + 64); // Points to 3rd strip's palette
 
-		bool exitPlayer = FALSE;
-		//u16 sysFrameRate = IS_PAL_SYSTEM ? 50 : 60;
-		// Reciprocal approximation magic numbers for 1/50 and 1/60
-		u16 sysFrameRateReciprocal = IS_PAL_SYSTEM ? VIDEO_FRAME_RATE * 0x051E : VIDEO_FRAME_RATE * 0x0444;
+		bool isPal = IS_PAL_SYSTEM;
+		// IMPL A: use normal division formula when calculating current frame
+		// u16 sysFrameRate = isPal ? 50 : 60;
+		// IMPL B: Reciprocal approximation magic numbers for 1/50 and 1/60
+		u16 sysFrameRateReciprocal = isPal ? VIDEO_FRAME_RATE * 0x051E : VIDEO_FRAME_RATE * 0x0444;
 
 		// Start sound
 		SND_startPlay_2ADPCM(sound_wav, sizeof(sound_wav), SOUND_PCM_CH1, FALSE);
@@ -305,10 +328,10 @@ void playMovie () {
 			VDP_setHIntCounter(HINT_COUNTER_FOR_COLORS_UPDATE - 1);
 			VDP_setHInterrupt(TRUE);
 			#if HINT_USE_DMA
-				if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_DMA_PAL);
+				if (isPal) SYS_setHIntCallback(HIntCallback_DMA_PAL);
 				else SYS_setHIntCallback(HIntCallback_DMA_NTSC);
 			#else
-				if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_CPU_PAL);
+				if (isPal) SYS_setHIntCallback(HIntCallback_CPU_PAL);
 				else SYS_setHIntCallback(HIntCallback_CPU_NTSC);
 			#endif
 		SYS_enableInts();
@@ -332,6 +355,8 @@ void playMovie () {
 		// and odd indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM.
 		// We know vFrame always starts with a even value.
 		u16 baseTileIndex = TILE_USER_INDEX_CUSTOM;
+
+		bool exitPlayer = FALSE;
 
 		while (vFrame < MOVIE_FRAME_COUNT)
 		{
@@ -359,12 +384,13 @@ void playMovie () {
 			// Loops until time consumes the VIDEO_FRAME_RATE before moving into next frame
 			u16 prevFrame = vFrame;
 			for (;;) {
-				//SYS_getAndSetInterruptMaskLevel(6); // only disables VInt
-				u16 frameCount = vtimer;
-				//SYS_setInterruptMaskLevel(3); // interrupt saved state is by default 3 (if not nested nor other particular setup)
-				//vFrame = frameCount * VIDEO_FRAME_RATE / sysFrameRate;
-				vFrame = (frameCount * sysFrameRateReciprocal) >> 16;
+				u16 hwFrameCntr = vtimer;
 
+				// IMPL A:
+				// vFrame = divu(hwFrameCntr * VIDEO_FRAME_RATE, sysFrameRate);
+				// IMPL B:
+				vFrame = (hwFrameCntr * sysFrameRateReciprocal) >> 16;
+				// IMPL A/B:
 				if (vFrame != prevFrame) {
 					break;
 				} else {
@@ -375,6 +401,21 @@ void playMovie () {
 						break;
 					}
 				}
+
+				// IMPL C: if VIDEO_FRAME_RATE = 15 then 50/15=3 PAL and 60/15=4 NTSC.
+				// u16 deltaFrames = isPal ? divu(hwFrameCntr, 3) : hwFrameCntr / 4;
+				// deltaFrames -= vFrame;
+				// if (deltaFrames >= 1) {
+				// 	vFrame += deltaFrames;
+				// 	break;
+				// } else {
+				// 	waitVInt();
+				// 	JOY_update();
+				// 	if (JOY_readJoypad(JOY_1) & BUTTON_START) {
+				// 		exitPlayer = TRUE;
+				// 		break;
+				// 	}
+				// }
 			}
 
 			if (exitPlayer) break;
@@ -409,7 +450,8 @@ void playMovie () {
 			#endif
 
 			#ifdef LOG_DIFF_BETWEEN_VIDEO_FRAMES
-			KLog_U1("", vtimer - prevFrame); // this tells how many system frames are spent for unpack, load, etc, per video frame
+			u16 frmCntr = vtimer;
+			KLog_U1("", frmCntr - prevFrame); // this tells how many system frames are spent for unpack, load, etc, per video frame
 			#endif
 
 			#if FORCE_NO_MISSING_FRAMES
@@ -436,8 +478,9 @@ void playMovie () {
 		}
 
 		// Fade out to black last frame's palettes. Only if we deliberatly wanted to exit from the video
-		if (exitPlayer)
+		if (exitPlayer) {
 			fadeToBlack();
+		}
 
 		// Stop sound
 		SND_stopPlay_2ADPCM(SOUND_PCM_CH1);
@@ -448,10 +491,17 @@ void playMovie () {
 			SYS_setHIntCallback(NULL);
 		SYS_enableInts();
 
-		VDP_fillTileMap(BG_B, 0, TILE_SYSTEM_INDEX, TILE_MAX_NUM); // SGDK's tile address 0 is a black tile.
-
+		// Stop the video
 		if (exitPlayer) {
+			VDP_fillTileMap(BG_B, 0, TILE_SYSTEM_INDEX, TILE_MAX_NUM); // SGDK's tile address 0 is a black tile.
+			waitMs_(400);
 			break;
+		}
+		// Loop the video
+		else {
+			// Clears all BG_B Plane's VRAM since tile index 1 leaving the tile 0 (system black tile)
+			VDP_clearTileMap(VDP_BG_B, 1, 1 << (planeWidthSft + planeHeightSft), TRUE); // See VDP_clearPlane() for details
+			waitMs_(400);
 		}
     }
 

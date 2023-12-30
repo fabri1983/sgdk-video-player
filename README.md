@@ -44,14 +44,13 @@ Blastem binary location set in the bat script
 
 
 ### TODO
-- Replace loop logic for waiting VIDEO_FRAME_RATE with just checking if prevFrame - vTimer >= 4 (3 for PAL). Where: 60/15=4 NTSC and 50/15=3.33 PAL
-- Is there a better way to loop-wait until VInt happens instead of using `while (vtimer == t) {;}`?
+- Is there a faster/accurate way to loop-wait until VInt happens instead of using `while (vtimer == t) {;}`?
 - Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
-- Maybe helps? ==> `VDP_waitDMACompletion(); // safe to check for DMA completion before dealing with VDP (this also clear internal VDP latch)`
 - Clear mem used by sound when exiting the video loop?
 - Try to change from H40 to H32 on HInt Callback and see any speed gain. See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
-- Read all tiles of all frames and count their occurrences so we can cached them at the start of tileset VRAM. At least 34 tilesshould be cached.
-- Implement custom consecutive frame compressor, like a delta compression or whatever a simple video compressor does.
+- Implement custom rescomp plugin to create a cache of most common tiles.
+	- Read all tiles of all frames and count their occurrences so we can cached them at the start of tileset VRAM. At least 34 tilesshould be cached.
+	- Check for big frames (600 tiles?) that at least have cached 34 tiles.
 - Try 20 FPS once we make every frame to be displayed only in 3 display loops (only doable with frame delta compression with cached common tiles).
 So 60/3=20 in NTSC. And 50/3=16 in PAL.
 
