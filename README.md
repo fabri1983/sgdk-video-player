@@ -44,6 +44,7 @@ Blastem binary location set in the bat script
 
 
 ### TODO
+- Fix calculation for HInt lower limit MOVIE_HINT_COLORS_SWAP_END_SCANLINE.
 - Idea to avoid sending the first 2 strips'pals:
 	- don't do +64 nor -64 over the pals ptrs anymore.
 	- Hint now starts at 1 row of tiles less than the already calculated in movieHVInterrupts.h.

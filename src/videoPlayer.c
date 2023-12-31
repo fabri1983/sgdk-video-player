@@ -266,7 +266,7 @@ void playMovie () {
 	// Position in screen (in tiles)
 	u16 xp = (screenWidth - MOVIE_FRAME_WIDTH_IN_TILES*8 + 7)/8/2; // centered in X axis
 	u16 yp = (screenHeight - MOVIE_FRAME_HEIGHT_IN_TILES*8 + 7)/8/2; // centered in Y axis
-	yp = max(yp, MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER); // yp >= 3 to avoid that DMA exceeding VInt's time causes some flicker at the top rendering section
+	yp = max(yp, MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER); // offsets the Y axis plane position to avoid the flickering due to DMA transfer leaking into active display area
 	u16 tilemapAddrInPlane = VDP_getPlaneAddress(BG_B, xp, yp);
 
     // Loop the entire video
