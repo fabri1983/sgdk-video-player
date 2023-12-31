@@ -3,42 +3,6 @@
 #include "movieHVInterrupts.h"
 #include "videoPlayer.h"
 
-// #define DEBUG_VIDEO_PLAYER
-// #define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the static map base tile index statically set on each frame by our custom rescomp extension
-// #define LOG_DIFF_BETWEEN_VIDEO_FRAMES
-
-#define VIDEO_FRAME_RATE (15-1) // Minus 1 so it delays enough to be in sync with audio. IT'S A TEMPORARY HACK BUT WORKS FLAWLESSLY!
-#define EXIT_PLAYER_WITH_JOY_START FALSE
-#define FORCE_NO_MISSING_FRAMES FALSE
-// IMPL 0: Use normal division formula when calculating current frame
-// IMPL 1: Use reciprocal magic numbers approximation for 1/50 and 1/60
-// IMPL 2: Use the delta between vtimer (system's internal frame counter) and current video frame
-#define VIDEO_FRAME_ADVANCE_STRATEGY 1
-
-#define VIDEO_FRAME_MAX_TILESET_NUM 716 // this value got experimentally from rescomp output (biggest resulting numTile1 + numTile2). It has to be an even number.
-#define VIDEO_FRAME_MAX_TILESET_CHUNK_NUM 370 // this value got experimentally from rescomp output (biggest numTile from one of two halves). It has to be an even number.
-#define VIDEO_FRAME_MAX_TILEMAP_NUM MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES
-#define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2)
-#define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES - 2*(MOVIE_FRAME_HEIGHT_IN_TILES/2)))
-
-#define HINT_USE_DMA TRUE // TRUE: DMA. FALSE: CPU
-
-/// SGDK reserves 16 tiles starting at address 0. That's the purpose of using SGDK's TILE_USER_INDEX.
-/// Tile address 0 holds a black tile and it shouldn't be overriden since is what an empty tilemap in VRAM points to. Also other internal effects use it.
-/// Remaining 15 tiles are OK to override for re use. So we start using tiles at index 1.
-#define TILE_USER_INDEX_CUSTOM 1
-
-/// Number of Tiles to be transferred by DMA_flushQueue() with mandatory off/on VDP setting to speed up the transfer (otherwise it glitches up).
-/// NOTE: this has to be enough to support VIDEO_FRAME_MAX_TILESET_NUM / 2 which is the buffer size that holds the unpack of half a tileset.
-/// 320 tiles * 32 bytes = 10240 as maxTransferPerFrame. 
-/// 368 tiles * 32 bytes = 11776 as maxTransferPerFrame. 
-/// 384 tiles * 32 bytes = 12282 as maxTransferPerFrame. 
-/// Disabling VDP before DMA_flushQueue() helps to effectively increase the max transfer limit.
-/// If number is bigger then you will notice some flickering on top of image meaning the transfer takes more time than Vertical retrace.
-/// The flickering still exists but is not noticeable due to lower image Y position in plane. 
-/// Using bigger image height or locating it at upper Y values will reveal the flickering.
-#define TILES_PER_DMA_TRANSFER 368 // NOT USED ANYMORE since we now have splitted every frame's tileset in 2 chunks and using VIDEO_FRAME_MAX_TILESET_CHUNK_NUM instead.
-
 /// @brief Waits for a certain amount of millisecond (~3.33 ms based timer when wait is >= 100ms). 
 /// Lightweight implementation without calling SYS_doVBlankProcess().
 /// This method CAN NOT be called from V-Int callback or when V-Int is disabled.
@@ -104,8 +68,9 @@ static void flushQueue_DMA () {
 }
 
 static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender, bool resetPalsPtrsForHInt) {
+	// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
 	// We have to enqueue the first 2 strips' pals on every active display period so when on Blank period the data is DMAed into CRAM
-	// PAL_setColors(0, (const u16*) palsForRender, 64, DMA_QUEUE); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
+	//PAL_setColors(0, (const u16*) palsForRender, 64, DMA_QUEUE); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
 
 	// From Discord:
 	// ctr001: It would be better to just turn display off in vblank and then turn it on later, since then the z80 vblank interrupt will be better synchronized.
@@ -121,7 +86,7 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender, bool resetPalsP
 	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);//VDP_setEnable(FALSE);
 
 	// AT THIS POINT THE VInt WAS ALREADY CALLED.
-    
+
 	// Reset the pals pointers used by HInt so they now point to the new unpacked pals
 	if (resetPalsPtrsForHInt)
         setPalsPointers(palsForRender + 64); // Points to 3rd strip's palette
@@ -231,8 +196,6 @@ void swapBuffersForPals () {
 	unpackedPalsBuffer = tmp;
 }
 
-#define FADE_TO_BLACK_STEP_FREQ 4 // Every N frames we apply one fade to black step
-
 static void fadeToBlack () {
 	// Last frame's palettes is still pointed by unpackedPalsRender
 
@@ -270,7 +233,9 @@ static void fadeToBlack () {
                 // *palsPtr++ = d;
             }
 		}
-		waitVInt_AND_flushDMA(unpackedPalsRender, TRUE);
+		// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
+		//waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
+		waitVInt();
 	}
 }
 
@@ -387,7 +352,9 @@ void playMovie () {
 				if (vFrame != prevFrame) {
 					break;
 				} else {
-					waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
+					// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
+					//waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
+					waitVInt();
 					#if EXIT_PLAYER_WITH_JOY_START
 					JOY_update();
 					if (JOY_readJoypad(JOY_1) & BUTTON_START) {
@@ -405,7 +372,9 @@ void playMovie () {
 					vFrame += deltaFrames;
 					break;
 				} else {
-					waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
+					// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
+					//waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
+					waitVInt();
 					#if EXIT_PLAYER_WITH_JOY_START
 					JOY_update();
 					if (JOY_readJoypad(JOY_1) & BUTTON_START) {

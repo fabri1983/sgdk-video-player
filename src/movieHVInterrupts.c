@@ -75,6 +75,9 @@ void setPalsPointers (u16* rootPalsPtr) {
 }
 
 void VIntCallback () {
+    // TODO PALS_1: remove when unpacking/load happens in the current active display loop
+    PAL_setColors(0, (const u16*) palInFrameRootPtr - 64, 64, DMA); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
+
 	palInFramePtr = palInFrameRootPtr; // Resets to 3rd strip's palette due to ptr modification made by HInt
 	palIdxInVDP = 0; // Resets pal index due to modification made by HInt. 0: [PAL0,PAL1]. 32: [PAL2,PAL3].
 	vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1; // Resets due to modification made by HInt
