@@ -8,7 +8,13 @@
 // #define LOG_DIFF_BETWEEN_VIDEO_FRAMES
 
 #define VIDEO_FRAME_RATE (15-1) // Minus 1 so it delays enough to be in sync with audio. IT'S A TEMPORARY HACK BUT WORKS FLAWLESSLY!
+#define EXIT_PLAYER_WITH_JOY_START FALSE
 #define FORCE_NO_MISSING_FRAMES FALSE
+// IMPL 0: Use normal division formula when calculating current frame
+// IMPL 1: Use reciprocal magic numbers approximation for 1/50 and 1/60
+// IMPL 2: Use the delta between vtimer (system's internal frame counter) and current video frame
+#define VIDEO_FRAME_ADVANCE_STRATEGY 1
+
 #define VIDEO_FRAME_MAX_TILESET_NUM 716 // this value got experimentally from rescomp output (biggest resulting numTile1 + numTile2). It has to be an even number.
 #define VIDEO_FRAME_MAX_TILESET_CHUNK_NUM 370 // this value got experimentally from rescomp output (biggest numTile from one of two halves). It has to be an even number.
 #define VIDEO_FRAME_MAX_TILEMAP_NUM MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES
@@ -68,7 +74,7 @@ static void waitSubTick_ (u32 subtick) {
 }
 
 /// @brief See original Z80_setBusProtection() method.
-/// NOTE: This implementation doesn't disable interrupts since at the moment is called no interrupt is expected to occur.
+/// NOTE: This implementation doesn't disable interrupts because at the moment it's called no interrupt is expected to occur.
 /// NOTE: This implementation assumes the Z80 bus was not already requested, and requests it immediatelly.
 /// @param value TRUE enables protection, FALSE disables it.
 static void setBusProtection_Z80 (bool value) {
@@ -97,7 +103,10 @@ static void flushQueue_DMA () {
     // VDP_setAutoInc(autoInc); // restore autoInc
 }
 
-static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender) {
+static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender, bool resetPalsPtrsForHInt) {
+	// We have to enqueue the first 2 strips' pals on every active display period so when on Blank period the data is DMAed into CRAM
+	// PAL_setColors(0, (const u16*) palsForRender, 64, DMA_QUEUE); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
+
 	// From Discord:
 	// ctr001: It would be better to just turn display off in vblank and then turn it on later, since then the z80 vblank interrupt will be better synchronized.
 	//         But doing so may cause sprite glitches on the first line of the re-enabled display.
@@ -106,27 +115,16 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender) {
 	//       Better to use the V counter to re-enable display at a fixed line (otherwise it may vary depending the DMA load)
 	//       You can even use the h-int to re-enable display without a passive wait.
 
-	#ifdef DEBUG_VIDEO_PLAYER
-	// already in VInt?
-    if (SYS_isInVInt()) {
-		// Likely this will cause some glitches if I don't understand when exactly this case occurs. 
-		// Also it introduces delays since the DMA Queue now needs to wait to next VInt retrace.
-		KLog("Already in VInt! Missed opportunity for DMA flush!");
-		return;
-	};
-	#endif
-
 	u32 t = vtimer; // initial frame counter
 	while (vtimer == t) {;} // wait for next VInt
-	// vu16 *pw = (u16 *) VDP_CTRL_PORT;
-    // while (!(*pw & VDP_VBLANK_FLAG)) {;} // wait end of active period (vactive)
-
-	// AT THIS POINT THE VInt WAS ALREADY CALLED. And if we have enqueued the pals we have to update the pointers used in HInt.
-    if (palsForRender) {
-        setPalsPointers(palsForRender + 64); // Points to 3rd strip's palette
-    }
 
 	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);//VDP_setEnable(FALSE);
+
+	// AT THIS POINT THE VInt WAS ALREADY CALLED.
+    
+	// Reset the pals pointers used by HInt so they now point to the new unpacked pals
+	if (resetPalsPtrsForHInt)
+        setPalsPointers(palsForRender + 64); // Points to 3rd strip's palette
 
 	setBusProtection_Z80(TRUE);
 	waitSubTick_(0); // Z80 delay --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
@@ -135,22 +133,19 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender) {
 
 	setBusProtection_Z80(FALSE);
 
+	// This needed for DMA setup used in HInt, and likely needed for the CPU HInt too.
+	// *((vu16*) VDP_CTRL_PORT) = 0x8F00 | 2; // instead of VDP_setAutoInc(2) due to additionals read and write from/to internal regValues[]
+
 	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 | 0x40);//VDP_setEnable(TRUE);
 
-	// This needed for DMA setup used in HInt, and likely needed for the CPU HInt too.
-	*((vu16*) VDP_CTRL_PORT) = 0x8F00 | 2; // instead of VDP_setAutoInc(2) due to additionals read and write from/to internal regValues[]
+	// We can perform the previous two operations in one call to VDP control port using sending u32 data
+	// u32 twoWrites = (0x8F00 | 2) | ((0x8100 | (116 | 0x40)) << 16);
+	// *(vu32*) VDP_CTRL_PORT = twoWrites;
 }
 
-static void NO_INLINE waitVInt () {
-	// already in VInt?
-    if (SYS_isInVInt()) {
-		return;
-	};
-
+static FORCE_INLINE void waitVInt () {
 	u32 t = vtimer; // initial frame counter
 	while (vtimer == t) {;} // wait for next VInt
-	// vu16 *pw = (u16 *) VDP_CTRL_PORT;
-    // while (!(*pw & VDP_VBLANK_FLAG)) {;} // wait end of active period (vactive)
 }
 
 /*
@@ -275,16 +270,17 @@ static void fadeToBlack () {
                 // *palsPtr++ = d;
             }
 		}
-		waitVInt();
+		waitVInt_AND_flushDMA(unpackedPalsRender, TRUE);
 	}
 }
 
 void playMovie () {
 
     // size: min queue size is 20.
-	// capacity: experimentally we won't have more than VIDEO_FRAME_MAX_TILESET_CHUNK_NUM * 32 = 11840 bytes of data to transfer per display loop. 
+	// capacity: experimentally we won't have more than (VIDEO_FRAME_MAX_TILESET_CHUNK_NUM * 32) + 64 = 11840 + 64 = 11904 bytes of data to transfer in VBlank period.
+	//			 The +64 is due to the first 2 strips' pals that we need to send every active display period since the CRAM is always ovewritten by the HInt.
 	// bufferSize: we won't use temporary allocation, so set it at its min size.
-	DMA_initEx(20, VIDEO_FRAME_MAX_TILESET_CHUNK_NUM * 32, DMA_BUFFER_SIZE_MIN);
+	DMA_initEx(20, (VIDEO_FRAME_MAX_TILESET_CHUNK_NUM * 32) + 64, DMA_BUFFER_SIZE_MIN);
 
 	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 
@@ -300,28 +296,26 @@ void playMovie () {
 	allocateTilemapBuffer();
 	allocatePalettesBuffer();
 	MEM_pack();
-//KLog_U1("Free Mem: ", MEM_getFree()); // 36784 bytes
+// KLog_U1("Free Mem: ", MEM_getFree()); // 36782 bytes
 
 	// Position in screen (in tiles)
 	u16 xp = (screenWidth - MOVIE_FRAME_WIDTH_IN_TILES*8 + 7)/8/2; // centered in X axis
 	u16 yp = (screenHeight - MOVIE_FRAME_HEIGHT_IN_TILES*8 + 7)/8/2; // centered in Y axis
 	yp = max(yp, MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER); // yp >= 3 to avoid that DMA exceeding VInt's time causes some flicker at the top rendering section
-	u16 addrInPlane = VDP_getPlaneAddress(BG_B, xp, yp);
+	u16 tilemapAddrInPlane = VDP_getPlaneAddress(BG_B, xp, yp);
 
     // Loop the entire video
 	for (;;) // Better than while (TRUE) for infinite loops
     {
-		// Let the HInt starts using the right pals
-		setPalsPointers(unpackedPalsRender + 64); // Points to 3rd strip's palette
-
 		bool isPal = IS_PAL_SYSTEM;
-		// IMPL A: use normal division formula when calculating current frame
-		// u16 sysFrameRate = isPal ? 50 : 60;
-		// IMPL B: Reciprocal approximation magic numbers for 1/50 and 1/60
+		#if (VIDEO_FRAME_ADVANCE_STRATEGY == 0)
+		u16 sysFrameRate = isPal ? 50 : 60;
+		#elif (VIDEO_FRAME_ADVANCE_STRATEGY == 1)
 		u16 sysFrameRateReciprocal = isPal ? VIDEO_FRAME_RATE * 0x051E : VIDEO_FRAME_RATE * 0x0444;
+		#endif
 
-		// Start sound
-		SND_startPlay_2ADPCM(sound_wav, sizeof(sound_wav), SOUND_PCM_CH1, FALSE);
+		// Let the HInt usie the right pals right before setting the VInt and HInt callbacks
+		setPalsPointers(unpackedPalsRender + 64); // Points to 3rd strip's palette (which is all black)
 
 		SYS_disableInts();
 			SYS_setVIntCallback(VIntCallback);
@@ -336,18 +330,11 @@ void playMovie () {
 			#endif
 		SYS_enableInts();
 
-		// Force setup of vars used in the HInt
-		waitVInt();
-
 		#ifdef DEBUG_FIXED_FRAME
 		vtimer = DEBUG_FIXED_FRAME;
-		#else
-		vtimer = 0; // reset vTimer so we can use it as our frame counter
-		#endif
-
-		#ifdef DEBUG_FIXED_FRAME
 		u16 vFrame = DEBUG_FIXED_FRAME;
 		#else
+		vtimer = 0; // reset vTimer so we can use it as our frame counter
 		u16 vFrame = 0;
 		#endif
 
@@ -358,18 +345,24 @@ void playMovie () {
 
 		bool exitPlayer = FALSE;
 
+		// Start sound
+		SND_startPlay_2ADPCM(sound_wav, sizeof(sound_wav), SOUND_PCM_CH1, FALSE);
+
+		// Wait for VInt so the logic can start at the beginning of the active display period
+		waitVInt();
+
 		while (vFrame < MOVIE_FRAME_COUNT)
 		{
 			u16 numTile1 = data[vFrame]->tileset1->numTile;
 			unpackFrameTileset(data[vFrame]->tileset1);
 			VDP_loadTileData(unpackedTilesetHalf, baseTileIndex, numTile1, DMA_QUEUE);
-			waitVInt_AND_flushDMA(NULL);
+			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
 			if (data[vFrame]->tileset2 != NULL) {
 				u16 numTile2 = data[vFrame]->tileset2->numTile;
 				unpackFrameTileset(data[vFrame]->tileset2);
 				VDP_loadTileData(unpackedTilesetHalf, baseTileIndex + numTile1, numTile2, DMA_QUEUE);
-				waitVInt_AND_flushDMA(NULL);
+				waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 			}
 
 			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM
@@ -379,50 +372,52 @@ void playMovie () {
 			unpackFrameTilemap(data[vFrame]->tilemap2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1);
 
 			unpackFramePalettes(pals_data[vFrame]);
-			swapBuffersForPals();
 
 			// Loops until time consumes the VIDEO_FRAME_RATE before moving into next frame
 			u16 prevFrame = vFrame;
 			for (;;) {
 				u16 hwFrameCntr = vtimer;
 
-				// IMPL A:
-				// vFrame = divu(hwFrameCntr * VIDEO_FRAME_RATE, sysFrameRate);
-				// IMPL B:
+				#if (VIDEO_FRAME_ADVANCE_STRATEGY == 0)
+				vFrame = divu(hwFrameCntr * VIDEO_FRAME_RATE, sysFrameRate);
+				#elif (VIDEO_FRAME_ADVANCE_STRATEGY == 1)
 				vFrame = (hwFrameCntr * sysFrameRateReciprocal) >> 16;
-				// IMPL A/B:
+				#endif
+				#if (VIDEO_FRAME_ADVANCE_STRATEGY < 2)
 				if (vFrame != prevFrame) {
 					break;
 				} else {
-					waitVInt();
+					waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
+					#if EXIT_PLAYER_WITH_JOY_START
 					JOY_update();
 					if (JOY_readJoypad(JOY_1) & BUTTON_START) {
 						exitPlayer = TRUE;
 						break;
 					}
+					#endif
 				}
+				#endif
 
-				// IMPL C: if VIDEO_FRAME_RATE = 15 then 50/15=3 PAL and 60/15=4 NTSC.
-				// u16 deltaFrames = isPal ? divu(hwFrameCntr, 3) : hwFrameCntr / 4;
-				// deltaFrames -= vFrame;
-				// if (deltaFrames >= 1) {
-				// 	vFrame += deltaFrames;
-				// 	break;
-				// } else {
-				// 	waitVInt();
-				// 	JOY_update();
-				// 	if (JOY_readJoypad(JOY_1) & BUTTON_START) {
-				// 		exitPlayer = TRUE;
-				// 		break;
-				// 	}
-				// }
+				#if (VIDEO_FRAME_ADVANCE_STRATEGY == 2)
+				u16 deltaFrames = isPal ? divu(hwFrameCntr, 50/VIDEO_FRAME_RATE) : divu(hwFrameCntr, 60/VIDEO_FRAME_RATE);
+				deltaFrames -= vFrame;
+				if (deltaFrames >= 1) {
+					vFrame += deltaFrames;
+					break;
+				} else {
+					waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
+					#if EXIT_PLAYER_WITH_JOY_START
+					JOY_update();
+					if (JOY_readJoypad(JOY_1) & BUTTON_START) {
+						exitPlayer = TRUE;
+						break;
+					}
+					#endif
+				}
+				#endif
 			}
 
 			if (exitPlayer) break;
-
-			// At this moment the tileset for the new frame is fully loaded into VRAM, and the tilemap is unpacked but not loaded into VRAM yet.
-			// Now is time to load tilemap and palettes into VRAM, all within the time of the current active display loop.
-			// NOTE: loading the tilemap and palettes into VRAM must only be done at this stage since they immediatelly affects whats the VDP draws on screen
 
 			#ifdef DEBUG_FIXED_FRAME
 			// If previous frame is same than fixed frame, it means this current frame must be displayed
@@ -430,10 +425,12 @@ void playMovie () {
 			#endif
 
 			// Enqueue tilemap into VRAM
-			VDP_setTileMapData(addrInPlane, unpackedTilemap, 0, VIDEO_FRAME_MAX_TILEMAP_NUM, 2, DMA_QUEUE);
+			VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_MAX_TILEMAP_NUM, 2, DMA_QUEUE);
 
-			// Enqueue first 2 strips' palettes which were previously unpacked
-			PAL_setColors(0, (const u16*) unpackedPalsRender, 64, DMA_QUEUE); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
+			// Swaps buffers pals so now the pals render buffer points to the unpacked pals
+			swapBuffersForPals();
+
+			// NOTE: first 2 strips' palettes which were previously unpacked will be enqueued in waitVInt_AND_flushDMA()
 
 			#ifdef DEBUG_FIXED_FRAME
 			}
@@ -442,11 +439,11 @@ void playMovie () {
 			#ifdef DEBUG_FIXED_FRAME
 			// If previous frame wasn't the fixed frame, we don't need to modify the pointers the HInt is using so it continues showing the fixed frame
 			if (prevFrame != DEBUG_FIXED_FRAME)
-				waitVInt_AND_flushDMA(NULL);
+				waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 			else
-				waitVInt_AND_flushDMA(unpackedPalsRender);
+				waitVInt_AND_flushDMA(unpackedPalsRender, TRUE);
 			#else
-			waitVInt_AND_flushDMA(unpackedPalsRender);
+			waitVInt_AND_flushDMA(unpackedPalsRender, TRUE);
 			#endif
 
 			#ifdef LOG_DIFF_BETWEEN_VIDEO_FRAMES
@@ -455,7 +452,7 @@ void playMovie () {
 			#endif
 
 			#if FORCE_NO_MISSING_FRAMES
-				// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) display loops (for VIDEO_FRAME_RATE = 15)
+				// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) active display periods (for VIDEO_FRAME_RATE = 15)
 				vFrame = prevFrame + 1;
 			#else
 				// IMPORTANT: next frame must be the opposite parity of current frame. If same parity (both even or both odd) then we will mistakenly 
@@ -470,20 +467,22 @@ void playMovie () {
 				vFrame = DEBUG_FIXED_FRAME;
 			#endif
 
+			#if EXIT_PLAYER_WITH_START
 			JOY_update();
 			if (JOY_readJoypad(JOY_1) & BUTTON_START) {
 				exitPlayer = TRUE;
 				break;
 			}
+			#endif
 		}
+
+		// Stop sound
+		SND_stopPlay_2ADPCM(SOUND_PCM_CH1);
 
 		// Fade out to black last frame's palettes. Only if we deliberatly wanted to exit from the video
 		if (exitPlayer) {
 			fadeToBlack();
 		}
-
-		// Stop sound
-		SND_stopPlay_2ADPCM(SOUND_PCM_CH1);
 
 		SYS_disableInts();
 			SYS_setVIntCallback(NULL);
@@ -493,8 +492,6 @@ void playMovie () {
 
 		// Stop the video
 		if (exitPlayer) {
-			VDP_fillTileMap(BG_B, 0, TILE_SYSTEM_INDEX, TILE_MAX_NUM); // SGDK's tile address 0 is a black tile.
-			waitMs_(400);
 			break;
 		}
 		// Loop the video
@@ -509,11 +506,12 @@ void playMovie () {
 	freeTilemapBuffer();
 	freePalettesBuffer();
 	// Clear plane after the MEM_free() calls otherwise buffers' pointers would point to empty memory
-	VDP_clearPlane(BG_B, TRUE); // It uses SGDK's tile address 0 which is a black tile.
+	// Clears all BG_B Plane's VRAM since tile index 1 leaving the tile 0 (system black tile)
+	VDP_clearTileMap(VDP_BG_B, 1, 1 << (planeWidthSft + planeHeightSft), TRUE); // See VDP_clearPlane() for details
 
 	MEM_pack();
 
-	// Restore system tiles (16 plain tile)
+	// Restore system tiles (16 plain tiles)
     u16 i = 16;
     while(i--) VDP_fillTileData(i | (i << 4), TILE_SYSTEM_INDEX + i, 1, TRUE);
 

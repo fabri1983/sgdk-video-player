@@ -75,9 +75,9 @@ void setPalsPointers (u16* rootPalsPtr) {
 }
 
 void VIntCallback () {
-	palInFramePtr = palInFrameRootPtr; // Resets to 3rd strip's palette
-	palIdxInVDP = 0; // 0: [PAL0,PAL1]. 32: [PAL2,PAL3].
-	vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1;
+	palInFramePtr = palInFrameRootPtr; // Resets to 3rd strip's palette due to ptr modification made by HInt
+	palIdxInVDP = 0; // Resets pal index due to modification made by HInt. 0: [PAL0,PAL1]. 32: [PAL2,PAL3].
+	vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1; // Resets due to modification made by HInt
 }
 
 HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC () {
