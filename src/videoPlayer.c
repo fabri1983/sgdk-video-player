@@ -319,6 +319,7 @@ void playMovie () {
 		while (vFrame < MOVIE_FRAME_COUNT)
 		{
 			u16 numTile1 = data[vFrame]->tileset1->numTile;
+			
 			unpackFrameTileset(data[vFrame]->tileset1);
 			VDP_loadTileData(unpackedTilesetHalf, baseTileIndex, numTile1, DMA_QUEUE);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
@@ -335,7 +336,6 @@ void playMovie () {
 
 			unpackFrameTilemap(data[vFrame]->tilemap1, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1, 0);
 			unpackFrameTilemap(data[vFrame]->tilemap2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1);
-
 			unpackFramePalettes(pals_data[vFrame]);
 
 			// Loops until time consumes the VIDEO_FRAME_RATE before moving into next frame

@@ -44,12 +44,14 @@ Blastem binary location set in the bat script
 
 
 ### TODO
-- Idea to avoid sending the first 2 strips'pals and just 1 strip's pals:
-	- change +64 and -64 over the pals ptrs by +32 and -32 accordingly.
-	- Start with palIdxInVDP = 32 in HInt.
+- Idea to avoid sending the first 2 strips'pals in VInt:
+	- do it in HInt. And send them by CPU on HInt DMA specific methods.
+- Idea to avoid sending the first 2 strips'pals and send ony first strip's pals:
+	- Change +64 and -64 over the pals ptrs by +32 and -32 accordingly in VInt and videoPlayer.c.
+	- Set HINT_PALS_CMD_ADDRR_RESET_VALUE to 32 in movieHVInterrupts.h.
 	- Hint now starts 1 row of tiles less than the already calculated in movieHVInterrupts.h.
-	- It likely will flicker with DMA transfer override into active display period.
-- Once the unpack/load of tileset/tilemap/pals happen during the time of an active display loop we can discard palInFrameRootPtr and just call setPalsPointer()
+- Once the unpack/load of tileset/tilemap/pals happen during the time of an active display loop we can discard palInFrameRootPtr and 
+just use the setPalsPointer() call made in waitVInt_AND_flushDMA() without the bool parameter resetPalsPtrsForHInt.
 - Use VirtualDub to resize the video with the correct filter to keep image crisp.
 - Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
 - Clear mem used by sound when exiting the video loop?

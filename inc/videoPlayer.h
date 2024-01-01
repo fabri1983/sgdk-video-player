@@ -19,7 +19,7 @@
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2)
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES - 2*(MOVIE_FRAME_HEIGHT_IN_TILES/2)))
 
-#define HINT_USE_DMA FALSE // TRUE: DMA. FALSE: CPU
+#define HINT_USE_DMA TRUE // TRUE: DMA. FALSE: CPU
 
 /// SGDK reserves 16 tiles starting at address 0. That's the purpose of using SGDK's TILE_USER_INDEX.
 /// Tile address 0 holds a black tile and it shouldn't be overriden since is what an empty tilemap in VRAM points to. Also other internal effects use it.
@@ -40,24 +40,27 @@
 #define FADE_TO_BLACK_STEP_FREQ 4 // Every N frames we apply one fade to black step
 
 #define STRINGIFY(x) #x
+// Healthy consumption time measured in scanlines is up to 260, otherwise code will be interrupted by hardware VInt and HInt too
 #define STOPWATCH_START(n) \
 			u16 lineStart_##n = GET_VCOUNTER;
 #define STOPWATCH_STOP(n) \
 			u16 lineEnd_##n = GET_VCOUNTER;\
 			u16 frameTime_##n;\
+			char str_##n[] = "ft__"STRINGIFY(n)"     ";\
 			if (lineEnd_##n < lineStart_##n) {\
 				frameTime_##n = 261 - lineStart_##n;\
 				frameTime_##n += lineEnd_##n;\
+				/* Add a w to know this measure has wrapped around a display loop */ \
+				*(str_##n + 2) = 'w';\
 			} else {\
 				frameTime_##n = lineEnd_##n - lineStart_##n;\
 			}\
 			{\
-				char str[] = "frameTime_"STRINGIFY(n)"     ";\
-				*(str + 14) = '0' + (frameTime_##n / 100);\
-				*(str + 15) = '0' + ((frameTime_##n / 10) % 10);\
-				*(str + 16) = '0' + (frameTime_##n % 10);\
-				*(str + 17) = '\0';\
-				KLog(str);\
+				*(str_##n + 8) = '0' + (frameTime_##n / 100);\
+				*(str_##n + 9) = '0' + ((frameTime_##n / 10) % 10);\
+				*(str_##n + 10) = '0' + (frameTime_##n % 10);\
+				*(str_##n + 11) = '\0';\
+				KLog(str_##n);\
 			}\
 
 void playMovie ();

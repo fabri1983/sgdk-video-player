@@ -14,6 +14,8 @@
 // in case you were to split any calculation over the colors of strip by an odd divisor n
 #define MOVIE_DATA_COLORS_PER_STRIP_REMINDER(n) (MOVIE_DATA_COLORS_PER_STRIP - n*(MOVIE_DATA_COLORS_PER_STRIP/n))
 
+#define HINT_PALS_CMD_ADDRR_RESET_VALUE 0 // 0 if HInt starts swap for [PAL0,PAL1]. MOVIE_DATA_COLORS_PER_STRIP if HInt starts swap for [PAL2,PAL3].
+
 #define HINT_COUNTER_FOR_COLORS_UPDATE 8 // add -1 when set on VDP_setHIntCounter()
 
 #define MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER 3 // 0 based
