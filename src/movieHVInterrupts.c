@@ -64,12 +64,12 @@ void NO_INLINE setupDMAForPals (u16 len, u32 fromAddr) {
     *palDmaPtr = 0x9700 + ((fromAddr >> 16) & 0x7f);
 }
 
-static u16* palInFrameRootPtr;
-static u16* palInFramePtr;
-static u16 palIdxInVDP = 0;
+static u16* palInFrameRootPtr; // points to the first pals the HInt starts to swap
+static u16* palInFramePtr; // pals pointer increased in every HInt call cycle
+static u16 palIdxInVDP = 0; // 0 if HInt starts swap for [PAL0,PAL1]. 32 if HInt starts swap for [PAL2,PAL3].
 static u16 vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1;
 
-void setPalsPointers (u16* rootPalsPtr) {
+void setPalsPointer (u16* rootPalsPtr) {
     palInFrameRootPtr = rootPalsPtr;
     palInFramePtr = rootPalsPtr;
 }

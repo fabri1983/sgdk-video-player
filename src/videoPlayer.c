@@ -89,7 +89,7 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender, bool resetPalsP
 
 	// Reset the pals pointers used by HInt so they now point to the new unpacked pals
 	if (resetPalsPtrsForHInt)
-        setPalsPointers(palsForRender + 64); // Points to 3rd strip's palette
+        setPalsPointer(palsForRender + 64); // Points to 3rd strip's palette
 
 	setBusProtection_Z80(TRUE);
 	waitSubTick_(0); // Z80 delay --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
@@ -280,7 +280,7 @@ void playMovie () {
 		#endif
 
 		// Let the HInt usie the right pals right before setting the VInt and HInt callbacks
-		setPalsPointers(unpackedPalsRender + 64); // Points to 3rd strip's palette (which is all black)
+		setPalsPointer(unpackedPalsRender + 64); // Points to 3rd strip's palette (which is all black)
 
 		SYS_disableInts();
 			SYS_setVIntCallback(VIntCallback);

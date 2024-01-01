@@ -44,11 +44,13 @@ Blastem binary location set in the bat script
 
 
 ### TODO
-- Fix calculation for HInt lower limit MOVIE_HINT_COLORS_SWAP_END_SCANLINE.
-- Idea to avoid sending the first 2 strips'pals:
-	- don't do +64 nor -64 over the pals ptrs anymore.
-	- Hint now starts at 1 row of tiles less than the already calculated in movieHVInterrupts.h.
+- Idea to avoid sending the first 2 strips'pals and just 1 strip's pals:
+	- change +64 and -64 over the pals ptrs by +32 and -32 accordingly.
+	- Start with palIdxInVDP = 32 in HInt.
+	- Hint now starts 1 row of tiles less than the already calculated in movieHVInterrupts.h.
 	- It likely will flicker with DMA transfer override into active display period.
+- Once the unpack/load of tileset/tilemap/pals happen during the time of an active display loop we can discard palInFrameRootPtr and just call setPalsPointer()
+- Use VirtualDub to resize the video with the correct filter to keep image crisp.
 - Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
 - Clear mem used by sound when exiting the video loop?
 - Try to change from H40 to H32 on HInt Callback and see any speed gain.
@@ -56,7 +58,7 @@ Blastem binary location set in the bat script
 	See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
 - Implement custom rescomp plugin to create a cache of most common tiles.
 	- Read all tiles from all frames and count their occurrences so we can cached them at the start of tileset RAM section.
-	- At least 34 tilesshould be cached = 34*32=1088 bytes
+	- At least 34 tiles should be cached = 34*32=1088 bytes
 	- Check for big frames (min 600 tiles?) that at least have cached 34 tiles.
 	- Then in SGDK pre load cached tiles into VRAM for both tile index 1 and 716+1.
 - Try 20 FPS once we make every frame to be unpacked and loaded in up to 3 active display perios (only doable with lot of cached common tiles).
