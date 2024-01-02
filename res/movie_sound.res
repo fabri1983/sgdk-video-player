@@ -1,1 +1,1 @@
-WAV sound_wav "sound/sound.wav" 2ADPCM
+WAV sound_wav "sound/sound.wav" PCM

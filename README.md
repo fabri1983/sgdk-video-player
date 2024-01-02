@@ -13,13 +13,14 @@ Supports up to 252 colors per frame (at the expense of a smaller frame size), cu
 1) env.bat
 Set NodeJs env var.
 
-2) extract.bat "Genesis Does What Nintendon't - v2 HD by RVGM.mp4" tmpmv 8 256
-(color reduction param is optional)
-This creates frames and strips, width next data
-frame width: 272   (set in the script)
-frame height: 176  (set in the script)
-rows per strip: 8
-color reduction: 256 (optional param)
+2) extract.bat "Genesis Does What Nintendon't - v2 HD by RVGM.mp4" tmpmv 15 8 256
+tmpmv: output folder
+15: frame rate
+8: rows per strip
+256: color reduction per frame (optional param)
+Additionally it uses these internal params:
+frame width:  272  (set inside the script)
+frame height: 176  (set inside the script)
 
 3) Use nodejs custom app tiledpalettequant to generate all RGB images with palettes.
 Once rgb images with palettes were generated and before saving them ensure the next config:
@@ -29,10 +30,11 @@ Once rgb images with palettes were generated and before saving them ensure the n
 		set 22 at Reset every N strips (This only needed if strips per frame is an odd number)
 Export/download the images and move them at res\rgb folder.
 
-4) node generator.js 272 176 8
+4) node generator.js 272 176 8 15
 frame width: 272
 frame height: 176
 rows per strip: 8
+frame rate: 15
 
 5) compile_n_run.bat
 Run it once to catch rescomp output to know max tiles number and then 
@@ -55,6 +57,11 @@ just use the setPalsPointer() call made in waitVInt_AND_flushDMA() without the b
 - Use VirtualDub to resize the video with the correct filter to keep image crisp.
 - Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
 - Clear mem used by sound when exiting the video loop?
+- Try using XGM PCM driver:
+	- extract audio with sample rate 14k (or 13.3k for XGMv2 yet to be released)
+		(I used VirtualDub2 to extract as 8bit signed 14KHz 1 channel (mono), but the extract.bat script is the correct way and needs to be updated)
+	- in movie_sound.res: WAV sound_wav "sound/sound.wav" XGM
+	- Use the XGM_PCM methods
 - Try to change from H40 to H32 on HInt Callback and see any speed gain.
 	See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
 	See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
@@ -65,6 +72,7 @@ just use the setPalsPointer() call made in waitVInt_AND_flushDMA() without the b
 	- Then in SGDK pre load cached tiles into VRAM for both tile index 1 and 716+1.
 - Try 20 FPS once we make every frame to be unpacked and loaded in up to 3 active display perios (only doable with lot of cached common tiles).
 So 60/3=20 in NTSC. And 50/3=16 in PAL.
+	- edit extract.bat and 
 
 
 ----

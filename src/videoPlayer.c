@@ -83,9 +83,9 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender, bool resetPalsP
 	u32 t = vtimer; // initial frame counter
 	while (vtimer == t) {;} // wait for next VInt
 
-	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);//VDP_setEnable(FALSE);
-
 	// AT THIS POINT THE VInt WAS ALREADY CALLED.
+
+	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);//VDP_setEnable(FALSE);
 
 	// Reset the pals pointers used by HInt so they now point to the new unpacked pals
 	if (resetPalsPtrsForHInt)
@@ -276,7 +276,7 @@ void playMovie () {
 		#if (VIDEO_FRAME_ADVANCE_STRATEGY == 0)
 		u16 sysFrameRate = isPal ? 50 : 60;
 		#elif (VIDEO_FRAME_ADVANCE_STRATEGY == 1)
-		u16 sysFrameRateReciprocal = isPal ? VIDEO_FRAME_RATE * 0x051E : VIDEO_FRAME_RATE * 0x0444;
+		u16 sysFrameRateReciprocal = isPal ? MOVIE_FRAME_RATE * 0x051E : MOVIE_FRAME_RATE * 0x0444;
 		#endif
 
 		// Let the HInt usie the right pals right before setting the VInt and HInt callbacks
@@ -311,7 +311,10 @@ void playMovie () {
 		bool exitPlayer = FALSE;
 
 		// Start sound
-		SND_startPlay_2ADPCM(sound_wav, sizeof(sound_wav), SOUND_PCM_CH1, FALSE);
+		SND_startPlay_PCM(sound_wav, sizeof(sound_wav), SOUND_RATE_32000, SOUND_PAN_CENTER, FALSE);
+		// XGM_setPCM(1, sound_wav, sizeof(sound_wav));
+		// XGM_startPlayPCM(1, 1, SOUND_PCM_CH1);
+		// XGM_setLoopNumber(0);
 
 		// Wait for VInt so the logic can start at the beginning of the active display period
 		waitVInt();
@@ -338,13 +341,13 @@ void playMovie () {
 			unpackFrameTilemap(data[vFrame]->tilemap2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1);
 			unpackFramePalettes(pals_data[vFrame]);
 
-			// Loops until time consumes the VIDEO_FRAME_RATE before moving into next frame
+			// Loops until time consumes the MOVIE_FRAME_RATE before moving into next frame
 			u16 prevFrame = vFrame;
 			for (;;) {
 				u16 hwFrameCntr = vtimer;
 
 				#if (VIDEO_FRAME_ADVANCE_STRATEGY == 0)
-				vFrame = divu(hwFrameCntr * VIDEO_FRAME_RATE, sysFrameRate);
+				vFrame = divu(hwFrameCntr * MOVIE_FRAME_RATE, sysFrameRate);
 				#elif (VIDEO_FRAME_ADVANCE_STRATEGY == 1)
 				vFrame = (hwFrameCntr * sysFrameRateReciprocal) >> 16;
 				#endif
@@ -366,7 +369,7 @@ void playMovie () {
 				#endif
 
 				#if (VIDEO_FRAME_ADVANCE_STRATEGY == 2)
-				u16 deltaFrames = isPal ? divu(hwFrameCntr, 50/VIDEO_FRAME_RATE) : divu(hwFrameCntr, 60/VIDEO_FRAME_RATE);
+				u16 deltaFrames = isPal ? divu(hwFrameCntr, 50/MOVIE_FRAME_RATE) : divu(hwFrameCntr, 60/MOVIE_FRAME_RATE);
 				deltaFrames -= vFrame;
 				if (deltaFrames >= 1) {
 					vFrame += deltaFrames;
@@ -421,7 +424,7 @@ void playMovie () {
 			#endif
 
 			#if FORCE_NO_MISSING_FRAMES
-				// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) active display periods (for VIDEO_FRAME_RATE = 15)
+				// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) active display periods (for MOVIE_FRAME_RATE = 15)
 				vFrame = prevFrame + 1;
 			#else
 				// IMPORTANT: next frame must be the opposite parity of current frame. If same parity (both even or both odd) then we will mistakenly 
@@ -446,7 +449,8 @@ void playMovie () {
 		}
 
 		// Stop sound
-		SND_stopPlay_2ADPCM(SOUND_PCM_CH1);
+		SND_stopPlay_PCM();
+		// XGM_stopPlayPCM(SOUND_PCM_CH1);
 
 		// Fade out to black last frame's palettes. Only if we deliberatly wanted to exit from the video
 		if (exitPlayer) {

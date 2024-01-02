@@ -1,8 +1,8 @@
 /**
  * Usage:
- *   node generator.js <frame Width in px> <frame Height in px> <strip Height in px>
+ *   node generator.js <frame Width in px> <frame Height in px> <strip Height in px> <frame rate>
  * Eg:
- *   node generator.js 264 168 8
+ *   node generator.js 264 168 8 15
 */
 
 const fs = require('fs');
@@ -22,6 +22,7 @@ const FILE_REGEX_2 = /^\w+_(\d+)_(\d+)(_RGB)?\.(png|PNG|bmp|BMP)$/; // frame_100
 const widthTiles = parseInt(args[0])/8;
 const heightTiles = parseInt(args[1])/8;
 const stripsPerFrame = parseInt(args[1])/parseInt(args[2]);
+const frameRate = parseInt(args[3]);
 
 const fileNames = fs.readdirSync(RES_DIR + FRAMES_DIR)
 	.filter(s => FILE_REGEX_2.test(s));
@@ -72,6 +73,7 @@ fs.writeFileSync(`${GENSRC_DIR}/movie_data.h`,
 #include "movie_frames.h"
 #include "movie_sound.h"
 
+#define MOVIE_FRAME_RATE (${frameRate}-1) // Minus 1 so it delays enough to be in sync with audio. IT'S A TEMPORARY HACK BUT WORKS FLAWLESSLY!
 #define MOVIE_FRAME_COUNT ${sortedFileNamesEveryFirstStrip.length}
 #define MOVIE_FRAME_WIDTH_IN_TILES ${widthTiles}
 #define MOVIE_FRAME_HEIGHT_IN_TILES ${heightTiles}

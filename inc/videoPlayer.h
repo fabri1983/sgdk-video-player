@@ -5,7 +5,6 @@
 // #define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the static map base tile index statically set on each frame by our custom rescomp extension
 // #define LOG_DIFF_BETWEEN_VIDEO_FRAMES
 
-#define VIDEO_FRAME_RATE (15-1) // Minus 1 so it delays enough to be in sync with audio. IT'S A TEMPORARY HACK BUT WORKS FLAWLESSLY!
 #define EXIT_PLAYER_WITH_JOY_START FALSE
 #define FORCE_NO_MISSING_FRAMES FALSE
 // IMPL 0: Use normal division formula when calculating current frame

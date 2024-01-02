@@ -1,9 +1,9 @@
 :: Example:
-::   extract.bat "Genesis Does What Nintendon't - v2 HD by RVGM.mp4" tmpmv 8 256
+::   extract.bat "Genesis Does What Nintendon't - v2 HD by RVGM.mp4" tmpmv 15 8 256
 ::   (color reduction parameter is optional)
 @ECHO OFF
 
-SET COLORS=%4
+SET COLORS=%5
 SET "TARGET_FOLDER=%2"
 RMDIR /S /Q %TARGET_FOLDER% 2>NUL
 MD %TARGET_FOLDER%
@@ -12,10 +12,10 @@ MD res\sound
 
 SET frameW=272
 SET frameH=176
-SET /A rowsPerStrip=%3
-SET fps=15
+SET /A rowsPerStrip=%4
+SET /A fps=%3
 
-ffmpeg -i %1 -r %fps% -qmin 1 -qmax 2 -qscale:v 1 -s %frameW%x%frameH% %TARGET_FOLDER%/frame_%%d.png -ar 22050 -ac 1 -acodec pcm_u8 res/sound/sound.wav
+ffmpeg -i %1 -r %fps% -qmin 1 -qmax 2 -qscale:v 1 -s %frameW%x%frameH% %TARGET_FOLDER%/frame_%%d.png -ar 32000 -ac 1 -acodec pcm_u8 res/sound/sound.wav
 :: The -vsync 0 parameter avoids needing to specify -r, and means all frames in the input file are processed
 
 IF "%COLORS%" == "" (
