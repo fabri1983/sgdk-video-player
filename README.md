@@ -46,17 +46,18 @@ Blastem binary location set in the bat script
 
 
 ### TODO
-- Split tileset and tilemap in 3 chunks.
-- Idea to avoid sending the first 2 strips'pals in VInt:
-	- Do it inside HInt while the HInt is not in the scanlines ready to start swapping.
-	- Send them by CPU on both HInt by DMA and  by CPU to avoid conflicting with current DMA of tilesets.
-- Idea to avoid sending the first 2 strips'pals and send ony first strip's pals:
-	- Change +64 and -64 over the pals ptrs by +32 and -32 accordingly in VInt and videoPlayer.c.
+- Idea: don't use data[] nor pals_data[] but pointer arithmetic instead.
+- Use VirtualDub to resize the video with the correct filter to keep image crisp.
+- Idea: flush DMA without waiting for completion and move the enable VDP into HInt (use condition). This way we can:
+	- quickly return to CPU to continue unpackicg (if it was doing so).
+- Split tileset and tilemap in 3 chunks so the unpack is less CPU intense and we can do it inside the active display period.
+- Idea to avoid sending the first 2 strips'pals and send only first strip's pals:
+	- Load the first 32 colors at VInt
+	- Add +32 and -32 accordingly in VInt and videoPlayer.c.
 	- Set HINT_PALS_CMD_ADDRR_RESET_VALUE to 32 in movieHVInterrupts.h.
-	- Hint now starts 1 row of tiles less than the already calculated in movieHVInterrupts.h.
+	- Hint now starts 1 row of tiles more than the already calculated in movieHVInterrupts.h.
 - Once the unpack/load of tileset/tilemap/pals happen during the time of an active display loop we can discard palInFrameRootPtr and 
 just use the setPalsPointer() call made in waitVInt_AND_flushDMA() without the bool parameter resetPalsPtrsForHInt.
-- Use VirtualDub to resize the video with the correct filter to keep image crisp.
 - Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
 - Clear mem used by sound when exiting the video loop?
 - Try using XGM PCM driver:
@@ -64,7 +65,7 @@ just use the setPalsPointer() call made in waitVInt_AND_flushDMA() without the b
 		(I used VirtualDub2 to extract as 8bit signed 14KHz 1 channel (mono), but the extract.bat script is the correct way and needs to be updated)
 	- in movie_sound.res: WAV sound_wav "sound/sound.wav" XGM
 	- Use the XGM_PCM methods
-- Try to change from H40 to H32 on HInt Callback and see any speed gain.
+- Try to change from H40 to H32 on HInt Callback and hope for any any speed gain.
 	See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
 	See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
 - Implement custom rescomp plugin to create a cache of most common tiles.

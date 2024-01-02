@@ -85,11 +85,11 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender, bool resetPalsP
 
 	// AT THIS POINT THE VInt WAS ALREADY CALLED.
 
-	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);//VDP_setEnable(FALSE);
-
 	// Reset the pals pointers used by HInt so they now point to the new unpacked pals
 	if (resetPalsPtrsForHInt)
-        setPalsPointer(palsForRender + 64); // Points to 3rd strip's palette
+        setPalsPointer(palsForRender);
+
+	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);//VDP_setEnable(FALSE);
 
 	setBusProtection_Z80(TRUE);
 	waitSubTick_(0); // Z80 delay --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
@@ -242,10 +242,9 @@ static void fadeToBlack () {
 void playMovie () {
 
     // size: min queue size is 20.
-	// capacity: experimentally we won't have more than (VIDEO_FRAME_MAX_TILESET_CHUNK_NUM * 32) + 64 = 11840 + 64 = 11904 bytes of data to transfer in VBlank period.
-	//			 The +64 is due to the first 2 strips' pals that we need to send every active display period since the CRAM is always ovewritten by the HInt.
+	// capacity: experimentally we won't have more than (VIDEO_FRAME_MAX_TILESET_CHUNK_NUM * 32) = 11840 bytes of data to transfer in VBlank period.
 	// bufferSize: we won't use temporary allocation, so set it at its min size.
-	DMA_initEx(20, (VIDEO_FRAME_MAX_TILESET_CHUNK_NUM * 32) + 64, DMA_BUFFER_SIZE_MIN);
+	DMA_initEx(20, (VIDEO_FRAME_MAX_TILESET_CHUNK_NUM * 32), DMA_BUFFER_SIZE_MIN);
 
 	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 
@@ -280,7 +279,7 @@ void playMovie () {
 		#endif
 
 		// Let the HInt usie the right pals right before setting the VInt and HInt callbacks
-		setPalsPointer(unpackedPalsRender + 64); // Points to 3rd strip's palette (which is all black)
+		setPalsPointer(unpackedPalsRender); // Palettes are all black at this point
 
 		SYS_disableInts();
 			SYS_setVIntCallback(VIntCallback);

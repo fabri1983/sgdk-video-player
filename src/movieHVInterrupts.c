@@ -64,7 +64,7 @@ void NO_INLINE setupDMAForPals (u16 len, u32 fromAddr) {
     *palDmaPtr = 0x9700 + ((fromAddr >> 16) & 0x7f);
 }
 
-static u16* palInFrameRootPtr; // points to the first pals the HInt starts to swap
+static u16* palInFrameRootPtr; // points to the first pals the HInt starts to load
 static u16* palInFramePtr; // pals pointer increased in every HInt call cycle
 static u16 palCmdAddrrToggle = HINT_PALS_CMD_ADDRR_RESET_VALUE; // used to toggle between the two different CRAM cmd addresses used to send the pals
 static u16 vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1;
@@ -75,10 +75,7 @@ void setPalsPointer (u16* rootPalsPtr) {
 }
 
 void VIntCallback () {
-    // TODO PALS_1: remove when unpacking/load happens in the current active display loop
-    PAL_setColors(0, (const u16*) palInFrameRootPtr - 64, 64, DMA); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
-
-	palInFramePtr = palInFrameRootPtr; // Resets to 3rd strip's palette due to ptr modification made by HInt
+	palInFramePtr = palInFrameRootPtr; // Resets to 1st strip's palettes due to ptr modification made by HInt
 	palCmdAddrrToggle = HINT_PALS_CMD_ADDRR_RESET_VALUE; // Resets pal index due to modification made by HInt.
 	vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1; // Resets due to modification made by HInt
 }
