@@ -294,14 +294,6 @@ void playMovie () {
 			#endif
 		SYS_enableInts();
 
-		#ifdef DEBUG_FIXED_FRAME
-		vtimer = DEBUG_FIXED_FRAME;
-		u16 vFrame = DEBUG_FIXED_FRAME;
-		#else
-		vtimer = 0; // reset vTimer so we can use it as our frame counter
-		u16 vFrame = 0;
-		#endif
-
 		// As frames are indexed in a 0 based access layout, we know that even indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM, 
 		// and odd indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM.
 		// We know vFrame always starts with a even value.
@@ -318,17 +310,26 @@ void playMovie () {
 		// Wait for VInt so the logic can start at the beginning of the active display period
 		waitVInt();
 
+		#ifdef DEBUG_FIXED_FRAME
+		vtimer = DEBUG_FIXED_FRAME;
+		u16 vFrame = DEBUG_FIXED_FRAME;
+		#else
+		vtimer = 0; // reset vTimer so we can use it as our frame counter
+		u16 vFrame = 0;
+		#endif
+
+		ImageNoPalsTilesetSplit2** dataPtr = (ImageNoPalsTilesetSplit2**)data + vFrame;
+
 		while (vFrame < MOVIE_FRAME_COUNT)
 		{
-			u16 numTile1 = data[vFrame]->tileset1->numTile;
-			
-			unpackFrameTileset(data[vFrame]->tileset1);
+			u16 numTile1 = (*dataPtr)->tileset1->numTile;
+			unpackFrameTileset((*dataPtr)->tileset1);
 			VDP_loadTileData(unpackedTilesetHalf, baseTileIndex, numTile1, DMA_QUEUE);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
-			if (data[vFrame]->tileset2 != NULL) {
-				u16 numTile2 = data[vFrame]->tileset2->numTile;
-				unpackFrameTileset(data[vFrame]->tileset2);
+			if ((*dataPtr)->tileset2 != NULL) {
+				u16 numTile2 = (*dataPtr)->tileset2->numTile;
+				unpackFrameTileset((*dataPtr)->tileset2);
 				VDP_loadTileData(unpackedTilesetHalf, baseTileIndex + numTile1, numTile2, DMA_QUEUE);
 				waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 			}
@@ -336,8 +337,8 @@ void playMovie () {
 			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM
 			baseTileIndex ^= VIDEO_FRAME_MAX_TILESET_NUM;
 
-			unpackFrameTilemap(data[vFrame]->tilemap1, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1, 0);
-			unpackFrameTilemap(data[vFrame]->tilemap2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1);
+			unpackFrameTilemap((*dataPtr)->tilemap1, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1, 0);
+			unpackFrameTilemap((*dataPtr)->tilemap2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1);
 			unpackFramePalettes(pals_data[vFrame]);
 
 			// Loops until time consumes the MOVIE_FRAME_RATE before moving into next frame
@@ -422,20 +423,25 @@ void playMovie () {
 			KLog_U1("", frmCntr - prevFrame); // this tells how many system frames are spent for unpack, load, etc, per video frame
 			#endif
 
-			#if FORCE_NO_MISSING_FRAMES
-				// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) active display periods (for MOVIE_FRAME_RATE = 15)
-				vFrame = prevFrame + 1;
-			#else
-				// IMPORTANT: next frame must be the opposite parity of current frame. If same parity (both even or both odd) then we will mistakenly 
-				// override the VRAM region currently is being used for display the loaded frame.
-				if (!((prevFrame ^ vFrame) & 1))
-					++vFrame; // move into next frame so parity is not sharedwith previous frame
-			#endif
-
 			#ifdef DEBUG_FIXED_FRAME
-			// Once we already draw the target frame and let the next one load its data but not drawn => we set back to fixed frame
-			if (prevFrame != DEBUG_FIXED_FRAME)
+			// Once we already draw the target frame and let the next one load its data but not drawn => we go back to fixed frame
+			if (prevFrame != DEBUG_FIXED_FRAME) {
 				vFrame = DEBUG_FIXED_FRAME;
+				--dataPtr;
+			} else {
+				++dataPtr;
+			}
+			#else
+			#if FORCE_NO_MISSING_FRAMES
+			// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) active display periods (for MOVIE_FRAME_RATE = 15)
+			vFrame = prevFrame + 1;
+			#else
+			// IMPORTANT: next frame must be of the opposite parity of previous frame. If same parity (both even or both odd) then we will mistakenly 
+			// override the VRAM region currently is being used for display the recently loaded frame.
+			if (!((prevFrame ^ vFrame) & 1))
+				++vFrame; // move into next frame so parity is not shared with previous frame
+			#endif
+			dataPtr += vFrame - prevFrame;
 			#endif
 
 			#if EXIT_PLAYER_WITH_START

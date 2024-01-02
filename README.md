@@ -46,7 +46,6 @@ Blastem binary location set in the bat script
 
 
 ### TODO
-- OPT: Don't use data[] nor pals_data[] but pointer arithmetic instead.
 - OPT: if GET_VCOUNTER >= MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC (and PAL) then we can start the DMA_flush immediately for tileset data 
 without the need to wait for start of vblank period. Keep in mind that tilemap should only be flushed in vblank period.
 - Investigate how to wait for start of vblank in ASM is done.
@@ -60,8 +59,10 @@ without the need to wait for start of vblank period. Keep in mind that tilemap s
 	- Add +32 and -32 accordingly in VInt and videoPlayer.c.
 	- Set HINT_PALS_CMD_ADDRR_RESET_VALUE to 32 in movieHVInterrupts.h.
 	- Hint now starts 1 row of tiles more than the already calculated in movieHVInterrupts.h.
-- Once the unpack/load of tileset/tilemap/pals happen during the time of an active display loop we can discard palInFrameRootPtr and 
-just use the setPalsPointer() call made in waitVInt_AND_flushDMA() without the bool parameter resetPalsPtrsForHInt.
+- Once the unpack/load of tileset/tilemap/pals happen during the time of an active display loop we can:
+	- discard palInFrameRootPtr and just use the setPalsPointer() call made in waitVInt_AND_flushDMA() without the bool parameter resetPalsPtrsForHInt.
+	- remove the condition if (!((prevFrame ^ vFrame) & 1))
+	- use ++dataPtr; instead of dataPtr += vFrame - prevFrame;
 - Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
 - Clear mem used by sound when exiting the video loop?
 - Try using XGM PCM driver:
