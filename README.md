@@ -46,8 +46,10 @@ Blastem binary location set in the bat script
 
 
 ### TODO
+- Split tileset and tilemap in 3 chunks.
 - Idea to avoid sending the first 2 strips'pals in VInt:
-	- do it in HInt. And send them by CPU on HInt DMA specific methods.
+	- Do it inside HInt while the HInt is not in the scanlines ready to start swapping.
+	- Send them by CPU on both HInt by DMA and  by CPU to avoid conflicting with current DMA of tilesets.
 - Idea to avoid sending the first 2 strips'pals and send ony first strip's pals:
 	- Change +64 and -64 over the pals ptrs by +32 and -32 accordingly in VInt and videoPlayer.c.
 	- Set HINT_PALS_CMD_ADDRR_RESET_VALUE to 32 in movieHVInterrupts.h.
