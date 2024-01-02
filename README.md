@@ -46,7 +46,11 @@ Blastem binary location set in the bat script
 
 
 ### TODO
-- Idea: don't use data[] nor pals_data[] but pointer arithmetic instead.
+- OPT: Don't use data[] nor pals_data[] but pointer arithmetic instead.
+- OPT: if GET_VCOUNTER >= MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC (and PAL) then we can start the DMA_flush immediately for tileset data 
+without the need to wait for start of vblank period. Keep in mind that tilemap should only be flushed in vblank period.
+- Investigate how to wait for start of vblank in ASM is done.
+- Investigate what is all this about 4px wide strips.
 - Use VirtualDub to resize the video with the correct filter to keep image crisp.
 - Idea: flush DMA without waiting for completion and move the enable VDP into HInt (use condition). This way we can:
 	- quickly return to CPU to continue unpackicg (if it was doing so).
@@ -65,7 +69,7 @@ just use the setPalsPointer() call made in waitVInt_AND_flushDMA() without the b
 		(I used VirtualDub2 to extract as 8bit signed 14KHz 1 channel (mono), but the extract.bat script is the correct way and needs to be updated)
 	- in movie_sound.res: WAV sound_wav "sound/sound.wav" XGM
 	- Use the XGM_PCM methods
-- Try to change from H40 to H32 on HInt Callback and hope for any any speed gain.
+- Try to change from H40 to H32 on HInt Callback, and hope for any any speed gain?
 	See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
 	See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
 - Implement custom rescomp plugin to create a cache of most common tiles.
