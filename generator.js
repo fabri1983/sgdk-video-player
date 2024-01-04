@@ -8,7 +8,7 @@
 const fs = require('fs');
 
 var args = process.argv.slice(2);
-if (args.length != 3) {
+if (args.length != 4) {
 	throw new Error("Wrong parameters count. See usage in this script source code.");
 }
 
@@ -38,7 +38,7 @@ const sortedFileNames = fileNames
 const sortedFileNamesEveryFirstStrip = sortedFileNames
 	.filter((_, index) => index % stripsPerFrame === 0);
 
-// split tileset in N chunks. Current valid values are 1 or 2
+// split tileset in N chunks. Current valid values are [1, 2, 3]
 const tilesetSplit = 2;
 
 // This activates the use of a map base tile index which sets the initial tile index for the tilemap of the resource.
@@ -105,13 +105,15 @@ const Palette32AllStrips* pals_data[${sortedFileNamesEveryFirstStrip.length}] = 
 
 // --------- Generate .res file
 // Next struct type definitions will be added at the top of generated movie_frames.h
-const headerContent = `
+const headerContent1 = `
 typedef struct
 {
     TileSet *tileset;
     TileMap *tilemap;
 } ImageNoPals;
+`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
+const headerContent2 = `
 typedef struct
 {
     TileSet *tileset1;
@@ -119,15 +121,32 @@ typedef struct
     TileMap *tilemap1;
     TileMap *tilemap2;
 } ImageNoPalsTilesetSplit2;
+`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
+const headerContent3 = `
+typedef struct
+{
+    TileSet *tileset1;
+    TileSet *tileset2;
+    TileSet *tileset3;
+    TileMap *tilemap1;
+    TileMap *tilemap2;
+    TileMap *tilemap3;
+} ImageNoPalsTilesetSplit3;
+`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+
+const headerContent4 = `
 typedef struct
 {
     u16 compression;
     u16* data;
 } Palette32AllStrips;
-`.replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
-const headerappender = `HEADER_APPENDER\t\headerCustomTypes\t\t\"${headerContent}\"\n\n`;
+const headerappender1 = `HEADER_APPENDER\t\headerCustomTypes1\t\t\"${headerContent1}\"\n`;
+const headerappender2 = `HEADER_APPENDER\t\headerCustomTypes2\t\t\"${headerContent2}\"\n`;
+const headerappender3 = `HEADER_APPENDER\t\headerCustomTypes3\t\t\"${headerContent3}\"\n`;
+const headerappender4 = `HEADER_APPENDER\t\headerCustomTypes4\t\t\"${headerContent4}\"\n\n`;
 
 // Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  21  2  FAST  ALL  2047
 const imageResListStr = sortedFileNamesEveryFirstStrip
@@ -140,4 +159,4 @@ const paletteResListStr = sortedFileNamesEveryFirstStrip
 	.join('\n') + '\n\n';
 
 // Create .res file
-fs.writeFileSync(`${RES_DIR}/movie_frames.res`, headerappender + imageResListStr + paletteResListStr);
+fs.writeFileSync(`${RES_DIR}/movie_frames.res`, headerappender1 + headerappender2 + headerappender3 + headerappender4 + imageResListStr + paletteResListStr);

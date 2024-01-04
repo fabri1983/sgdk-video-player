@@ -14,8 +14,8 @@
 // IMPL 2: Use the delta between vtimer (system's internal frame counter) and current video frame
 #define VIDEO_FRAME_ADVANCE_STRATEGY 0
 
-#define VIDEO_FRAME_MAX_TILESET_NUM 716 // Got experimentally from rescomp output (biggest numTile1 + numTile2). If odd then use next even number.
-#define VIDEO_FRAME_MAX_TILESET_CHUNK_NUM 370 // Got experimentally from rescomp output (biggest numTile from one of two halves). If odd then use next even number.
+#define VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE 370 // Got experimentally from rescomp output (biggest numTile from one of two halves). If odd then use next even number.
+#define VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE 716 // Got experimentally from rescomp output (biggest numTile1 + numTile2). If odd then use next even number.
 #define VIDEO_FRAME_MAX_TILEMAP_NUM MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2)
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES - 2*(MOVIE_FRAME_HEIGHT_IN_TILES/2)))
@@ -28,7 +28,7 @@
 #define TILE_USER_INDEX_CUSTOM 1
 
 /// Number of Tiles to be transferred by DMA_flushQueue() with mandatory off/on VDP setting to speed up the transfer (otherwise it glitches up).
-/// NOTE: this has to be enough to support VIDEO_FRAME_MAX_TILESET_NUM / 2 which is the buffer size that holds the unpack of half a tileset.
+/// NOTE: this has to be enough to support VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE / 2 which is the buffer size that holds the unpack of half a tileset.
 /// 320 tiles * 32 bytes = 10240 as maxTransferPerFrame. 
 /// 368 tiles * 32 bytes = 11776 as maxTransferPerFrame. 
 /// 384 tiles * 32 bytes = 12282 as maxTransferPerFrame. 

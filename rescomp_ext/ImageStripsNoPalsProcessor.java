@@ -15,6 +15,7 @@ import sgdk.rescomp.Processor;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.resource.ImageStripsNoPals;
 import sgdk.rescomp.resource.ImageStripsNoPalsTilesetSplit2;
+import sgdk.rescomp.resource.ImageStripsNoPalsTilesetSplit3;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileOptimization;
@@ -43,7 +44,7 @@ public class ImageStripsNoPalsProcessor implements Processor
 			System.out.println("  name           Image variable name. Eg: frame_12");
 			System.out.println("  baseFile       path of the first strip for input RGB image file with palettes (BMP or PNG image). Eg: \"res/rgb/frame_12_0.png\" or \"res/rgb/frame_12_0_RGB.png\"");
 			System.out.println("  strips         how many strips is the final image composed of. Eg: 21. It means there are frame_12_0.png, frame_12_1.png, ... frame_12_20.png");
-			System.out.println("  splitTileset   how many chunks is the tileset split. Default 1 (no split), otherwise 2 (max chunks allowed is 2 atm). 384 tiles max per chunk");
+			System.out.println("  splitTileset   how many chunks is the tileset split. Default 1 (no split), otherwise 2 or 3.");
 			System.out.println("  toggleMapTileBaseIndexFlag   -1 disable. 0 if first frame num is even, 1 if odd. This is for the video frame swap buffer mechanism.");
 			System.out.println("  mapWidth64     extends the map width to 64 tiles (filled with 0s) so you can use VDP_setTileMapData() if your plane width is 64 tiles. TRUE or FALSE");
 			System.out.println("  compression    compression type, accepted values:");
@@ -80,7 +81,7 @@ public class ImageStripsNoPalsProcessor implements Processor
         int splitTileset = 1;
         if (fields.length >= 5) {
         	int value = StringUtil.parseInt(fields[4], 1);
-			splitTileset = Math.min(2, Math.max(1, value)); // clamp(1, 2, value)
+			splitTileset = Math.min(3, Math.max(1, value)); // clamp(1, 3, value)
         }
 
         // get the value for toggling map tile base index for video frame swap buffer
@@ -123,8 +124,10 @@ public class ImageStripsNoPalsProcessor implements Processor
 
         if (splitTileset == 1)
         	return new ImageStripsNoPals(name, stripsInList, toggleMapTileBaseIndexFlag, extendedMapWidth64, compression, tileOpt, mapBase);
-        else
+        else if (splitTileset == 2)
         	return new ImageStripsNoPalsTilesetSplit2(name, stripsInList, toggleMapTileBaseIndexFlag, extendedMapWidth64, compression, tileOpt, mapBase);
+        else
+        	return new ImageStripsNoPalsTilesetSplit3(name, stripsInList, toggleMapTileBaseIndexFlag, extendedMapWidth64, compression, tileOpt, mapBase);
     }
 
 	private List<String> generateFilesInForStrips(String absPath, String baseFileName, Matcher baseFileNameMatcher, int strips)

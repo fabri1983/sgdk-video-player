@@ -9,8 +9,10 @@ public class ExtProperties {
 
 	public static final String MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX = 	"MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX";
 	public static final String STARTING_TILESET_ON_SGDK = 					"STARTING_TILESET_ON_SGDK";
-	public static final String MAX_TILESET_CHUNK_SIZE = 					"MAX_TILESET_CHUNK_SIZE";
-	public static final String MAX_TILESET_SIZE_ALLOWED_FOR_SPLIT_IN_2 = 	"MAX_TILESET_SIZE_ALLOWED_FOR_SPLIT_IN_2";
+	public static final String MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_2 =		"MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_2";
+	public static final String MAX_TILESET_TOTAL_SIZE_FOR_SPLIT_IN_2 =		"MAX_TILESET_TOTAL_SIZE_FOR_SPLIT_IN_2";
+	public static final String MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_3 =		"MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_3";
+	public static final String MAX_TILESET_TOTAL_SIZE_FOR_SPLIT_IN_3 =		"MAX_TILESET_TOTAL_SIZE_FOR_SPLIT_IN_3";
 
 	private static ExtProperties instance;
 	private Properties properties[] = {null, null};

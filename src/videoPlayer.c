@@ -124,8 +124,8 @@ static void clearFontTiles () {
 static u32* unpackedTilesetHalf;
 
 static void allocateTilesetBuffer () {
-	unpackedTilesetHalf = (u32*) MEM_alloc((VIDEO_FRAME_MAX_TILESET_NUM / 2) * 32);
-	memsetU16((u16*) unpackedTilesetHalf, 0x0, (VIDEO_FRAME_MAX_TILESET_NUM / 2) * 16); // zero all the buffer
+	unpackedTilesetHalf = (u32*) MEM_alloc((VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE / 2) * 32);
+	memsetU16((u16*) unpackedTilesetHalf, 0x0, (VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE / 2) * 16); // zero all the buffer
 }
 
 static void unpackFrameTileset (TileSet* src) {
@@ -242,9 +242,9 @@ static void fadeToBlack () {
 void playMovie () {
 
     // size: min queue size is 20.
-	// capacity: experimentally we won't have more than (VIDEO_FRAME_MAX_TILESET_CHUNK_NUM * 32) = 11840 bytes of data to transfer in VBlank period.
+	// capacity: experimentally we won't have more than (VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE * 32) = 11840 bytes of data to transfer in VBlank period.
 	// bufferSize: we won't use temporary allocation, so set it at its min size.
-	DMA_initEx(20, (VIDEO_FRAME_MAX_TILESET_CHUNK_NUM * 32), DMA_BUFFER_SIZE_MIN);
+	DMA_initEx(20, (VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE * 32), DMA_BUFFER_SIZE_MIN);
 
 	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 
@@ -295,7 +295,7 @@ void playMovie () {
 		SYS_enableInts();
 
 		// As frames are indexed in a 0 based access layout, we know that even indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM, 
-		// and odd indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM.
+		// and odd indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE.
 		// We know vFrame always starts with a even value.
 		u16 baseTileIndex = TILE_USER_INDEX_CUSTOM;
 
@@ -334,8 +334,8 @@ void playMovie () {
 				waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 			}
 
-			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_NUM
-			baseTileIndex ^= VIDEO_FRAME_MAX_TILESET_NUM;
+			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE
+			baseTileIndex ^= VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE;
 
 			unpackFrameTilemap((*dataPtr)->tilemap1, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1, 0);
 			unpackFrameTilemap((*dataPtr)->tilemap2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1);

@@ -12,14 +12,14 @@ import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.tool.ImageUtil;
 import sgdk.tool.ImageUtil.BasicImageInfo;
 
-public class ImageStripsNoPalsTilesetSplit2 extends Resource
+public class ImageStripsNoPalsTilesetSplit3 extends Resource
 {
     final int hc;
 
-	public final Tileset tileset1, tileset2;
-	public final Tilemap tilemap1, tilemap2;
+	public final Tileset tileset1, tileset2, tileset3;
+	public final Tilemap tilemap1, tilemap2, tilemap3;
 
-    public ImageStripsNoPalsTilesetSplit2(String id, List<String> stripsFileList, int toggleMapTileBaseIndexFlag, boolean extendedMapWidth64, 
+    public ImageStripsNoPalsTilesetSplit3(String id, List<String> stripsFileList, int toggleMapTileBaseIndexFlag, boolean extendedMapWidth64, 
     		Compression compression, TileOptimization tileOpt, int mapBase) throws Exception
     {
         super(id);
@@ -62,6 +62,7 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
         	System.out.print(" " + id + " -> Tileset numTiles (chunk1 + chunk2):\t  " + tileset1.getNumTile() + " + " + tileset2.getNumTile() + " = " + 
         			(tileset1.getNumTile() + tileset2.getNumTile()) + ". ");
         }
+        tileset3 = null;
 
         tilemap1 = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tileset1, toggleMapTileBaseIndexFlag, 
         		mapBase, finalImageData, w, h, 0, 0, wt, ht_1, tileOpt, compression, extendedMapWidth64));
@@ -69,6 +70,7 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
         int mapBaseOffset = tileset2 == null ? 0 : tileset1.getNumTile();
         tilemap2 = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tileset_t2, toggleMapTileBaseIndexFlag, 
         		mapBase + mapBaseOffset, finalImageData, w, h, 0, ht/2, wt, ht_2, tileOpt, compression, extendedMapWidth64));
+        tilemap3 = null;
 
         // compute hash code
         int hcTemp = tileset1.hashCode() ^ tilemap1.hashCode() ^ tilemap2.hashCode();
@@ -149,7 +151,7 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
 
     public int getHeight()
     {
-    	return tilemap1.h * 8 + tilemap2.h * 8;
+    	return tilemap1.h * 8 + tilemap2.h * 8 + tilemap3.h * 8;
     }
 
     @Override
@@ -161,15 +163,19 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
     @Override
     public boolean internalEquals(Object obj)
     {
-        if (obj instanceof ImageStripsNoPalsTilesetSplit2)
+        if (obj instanceof ImageStripsNoPalsTilesetSplit3)
         {
-        	final ImageStripsNoPalsTilesetSplit2 image = (ImageStripsNoPalsTilesetSplit2) obj;
+        	final ImageStripsNoPalsTilesetSplit3 image = (ImageStripsNoPalsTilesetSplit3) obj;
 
             // Check for nulls and then compare the non-null fields
             boolean tileset2Equals = (tileset2 == null && image.tileset2 == null) ||
                     (tileset2 != null && tileset2.equals(image.tileset2));
+            // Check for nulls and then compare the non-null fields
+            boolean tileset3Equals = (tileset3 == null && image.tileset3 == null) ||
+                    (tileset3 != null && tileset3.equals(image.tileset3));
 
-            return tileset2Equals && tileset1.equals(image.tileset1) && tilemap1.equals(image.tilemap1) && tilemap2.equals(image.tilemap2);
+            return tileset2Equals && tileset3Equals && tileset1.equals(image.tileset1)
+            		&& tilemap1.equals(image.tilemap1) && tilemap2.equals(image.tilemap2);
         }
 
         return false;
@@ -185,16 +191,18 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
     public int shallowSize()
     {
     	// 4 bytes (a long) per pointer declaration
-        return 4 + 4 + 4 + 4;
+        return 4 + 4 + 4 + 4 + 4 + 4;
     }
 
     @Override
     public int totalSize()
     {
-    	if (tileset2 == null) {
-    		return shallowSize() + tileset1.totalSize() + tilemap1.totalSize() + tilemap2.totalSize();
+    	if (tileset2 == null && tileset3 == null) {
+    		return shallowSize() + tileset1.totalSize() + tilemap1.totalSize() + tilemap2.totalSize() + tilemap3.totalSize();
+    	} else if (tileset2 != null && tileset3 == null) {
+    		return shallowSize() + tileset1.totalSize() + tileset2.totalSize() + tilemap1.totalSize() + tilemap2.totalSize() + tilemap3.totalSize();
     	} else {
-    		return shallowSize() + tileset1.totalSize() + tileset2.totalSize() + tilemap1.totalSize() + tilemap2.totalSize();
+    		return shallowSize() + tileset1.totalSize() + tileset2.totalSize() + tileset3.totalSize() + tilemap1.totalSize() + tilemap2.totalSize() + tilemap3.totalSize();
     	}
     }
 
@@ -211,10 +219,14 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
 		// Tileset2 pointer
 		String t2_id = tileset2 != null ? tileset2.id : "0";
 		outS.append("    dc.l    " + t2_id + "\n");
+		// Tileset3 pointer
+		String t3_id = tileset3 != null ? tileset3.id : "0";
 		// Tilemap1 pointer
 		outS.append("    dc.l    " + tilemap1.id + "\n");
 		// Tilemap2 pointer
 		outS.append("    dc.l    " + tilemap2.id + "\n");
+		// Tilemap3 pointer
+		outS.append("    dc.l    " + tilemap3.id + "\n");
 		outS.append("\n");
     }
 }
