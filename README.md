@@ -17,10 +17,10 @@ Originally inspired by [sgdk-video-player](https://github.com/haroldo-ok/sgdk-vi
 
 
 ### Instructions using custom tiledpalettequant app
-1) env.bat
+1) `env.bat`
 Set NodeJs env var.
 
-2) extract.bat video.mp4 tmpmv 272 176 8 15 256
+2) `extract.bat video.mp4 tmpmv 272 176 8 15 256`
 tmpmv: output folder
 272: frame width
 176: frame height
@@ -34,15 +34,15 @@ Once rgb images with palettes were generated and before saving them ensure the n
 	- check _Switch 2 Palettes positions_
 	- check _Start at [PAL0,PAL1] first_
 	- enter 22 (strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
-Export/download the images and move them at res\rgb folder.
+- Download the images and move them at res\rgb folder.
 
-4) node generator.js 272 176 8 15
+4) `node generator.js 272 176 8 15`
 frame width: 272
 frame height: 176
 rows per strip: 8
 frame rate: 15
 
-5) compile_n_run.bat
+5) `compile_n_run.bat`
 Run it once to catch rescomp output to know max tiles number and then:
 - manually set VIDEO_FRAME_MAX_TILESET_NUM constant at `videoPlayer.h`.
 - manually set VIDEO_FRAME_MAX_TILESET_CHUNK_NUM constant at `videoPlayer.h`.
@@ -53,17 +53,18 @@ Blastem binary location set in the bat script.
 
 ### NOTES
 - I recommend to use a video resize and filter program like *VirtualDub 2*, which allows you to keep image crisp when resizing, 
-use custom ratio and/or black regions when resizing, lets you crop the video, and also use all kind of useful filters.
+use custom ratio with black regions when resizing, lets you crop the video, and also comes with all kind of useful filters. 
+That way the extract.bat script which calls ffmpeg will only extract the frames without resizing (already resized by the editor program) 
+and extract the audio in correct format for the SGDK rescomp tool.
 
 
 ### TODO
+- Idea: call waitVInt_AND_flushDMA() with immediate flag so it starts flushing DMA. 
+	- Move the enable/disable VDP into HInt (use conditions when not need to start pals swap) .
 - Idea: try audio sample rate 26600. Or 26300 which is the max PCM sample rate supported by software accordingly wikipedia.
-- Use VirtualDub to resize the video with the correct size and filter to keep image crisp.
-- Idea: flush DMA without waiting for completion and move the enable VDP into HInt (use condition). This way we can:
-	- quickly return to CPU to continue unpackicg (if it was doing so).
 - Split tileset and tilemap in 3 chunks so the unpack is less CPU intense and we can do it inside the active display period.
 - Idea to avoid sending the first 2 strips'pals and send only first strip's pals:
-	- Load the first 32 colors at VInt
+	- DMA_QUEUE the first 32 colors at VInt. This forces the use of DMA_getQueueSize() in fastDMA_flushQueue().
 	- Add +32 and -32 accordingly in VInt and videoPlayer.c.
 	- Set HINT_PALS_CMD_ADDRR_RESET_VALUE to 32 in movieHVInterrupts.h.
 	- Hint now starts 1 row of tiles more than the already calculated in movieHVInterrupts.h.
@@ -72,12 +73,12 @@ use custom ratio and/or black regions when resizing, lets you crop the video, an
 	- remove the condition if (!((prevFrame ^ vFrame) & 1))
 	- use ++dataPtr; instead of dataPtr += vFrame - prevFrame;
 	- search for TODO PALS_1 and act accordingly.
-	- use DMA_getQueueSize() in fastDMA_flushQueue().
+	- If the first 2 strips' pals are DMA_QUEUE in waitVInt_AND_flushDMA() then use DMA_getQueueSize() in fastDMA_flushQueue().
 - Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
 - Clear mem used by sound when exiting the video loop?
 - Try using XGM PCM driver:
 	- extract audio with sample rate 14k (or 13.3k for XGMv2 yet to be released)
-		(I used VirtualDub2 to extract as 8bit signed 14KHz 1 channel (mono), but the extract.bat script is the correct way and needs to be updated)
+		(I used VirtualDub2 to extract as 8bit signed 14KHz 1 channel (mono), but the extract.bat script is the correct approach and needs to be updated)
 	- in movie_sound.res: WAV sound_wav "sound/sound.wav" XGM
 	- Use the XGM_PCM methods
 - Try to change from H40 to H32 on HInt Callback, and hope for any any speed gain?
@@ -88,9 +89,10 @@ use custom ratio and/or black regions when resizing, lets you crop the video, an
 	- At least 34 tiles should be cached = 34*32=1088 bytes
 	- Check for big frames (min 600 tiles?) that at least have cached 34 tiles.
 	- Then in SGDK pre load cached tiles into VRAM for both tile index 1 and 716+1.
-- Try 20 FPS once we make every frame to be unpacked and loaded in up to 3 active display perios (only doable with lot of cached common tiles).
-So 60/3=20 in NTSC. And 50/3=16 in PAL.
-	- edit extract.bat and 
+- Try 20 FPS NTSC (16 FPS PAL). So 60/3=20 in NTSC. And 50/3=16 in PAL.
+	- update MOVIE_FRAME_RATE at movie_data_consts.h.
+	- update README.md steps 2 and 4.
+	- update videoPlayer in order to do the unpack/load of all the elements along 3 display loops.
 
 
 ----
