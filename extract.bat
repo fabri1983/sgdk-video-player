@@ -1,19 +1,19 @@
 :: Example:
-::   extract.bat "Genesis Does What Nintendon't - v2 HD by RVGM.mp4" tmpmv 15 8 256
+::   extract.bat video.mp4 tmpmv 272 176 8 15 256
 ::   (color reduction parameter is optional)
 @ECHO OFF
 
-SET COLORS=%5
 SET "TARGET_FOLDER=%2"
 RMDIR /S /Q %TARGET_FOLDER% 2>NUL
 MD %TARGET_FOLDER%
 RMDIR /S /Q res\sound 2>NUL
 MD res\sound
 
-SET frameW=272
-SET frameH=176
-SET /A rowsPerStrip=%4
-SET /A fps=%3
+SET /A frameW=%3
+SET /A frameH=%4
+SET /A rowsPerStrip=%5
+SET /A fps=%6
+SET "COLORS=%7"
 
 ffmpeg -i %1 -r %fps% -qmin 1 -qmax 2 -qscale:v 1 -s %frameW%x%frameH% %TARGET_FOLDER%/frame_%%d.png -ar 32000 -ac 1 -acodec pcm_u8 res/sound/sound.wav
 :: The -vsync 0 parameter avoids needing to specify -r, and means all frames in the input file are processed

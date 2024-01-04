@@ -1,6 +1,8 @@
 #ifndef _MOVIE_PLAYER_H
 #define _MOVIE_PLAYER_H
 
+#include "generated/movie_data_consts.h"
+
 // #define DEBUG_VIDEO_PLAYER
 // #define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the static map base tile index statically set on each frame by our custom rescomp extension
 // #define LOG_DIFF_BETWEEN_VIDEO_FRAMES
@@ -12,8 +14,8 @@
 // IMPL 2: Use the delta between vtimer (system's internal frame counter) and current video frame
 #define VIDEO_FRAME_ADVANCE_STRATEGY 0
 
-#define VIDEO_FRAME_MAX_TILESET_NUM 716 // this value got experimentally from rescomp output (biggest resulting numTile1 + numTile2). It has to be an even number.
-#define VIDEO_FRAME_MAX_TILESET_CHUNK_NUM 370 // this value got experimentally from rescomp output (biggest numTile from one of two halves). It has to be an even number.
+#define VIDEO_FRAME_MAX_TILESET_NUM 716 // Got experimentally from rescomp output (biggest numTile1 + numTile2). If odd then use next even number.
+#define VIDEO_FRAME_MAX_TILESET_CHUNK_NUM 370 // Got experimentally from rescomp output (biggest numTile from one of two halves). If odd then use next even number.
 #define VIDEO_FRAME_MAX_TILEMAP_NUM MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2)
 #define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES - 2*(MOVIE_FRAME_HEIGHT_IN_TILES/2)))

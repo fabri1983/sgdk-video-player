@@ -170,8 +170,8 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC () {
 	*((vu32*) VDP_DATA_PORT) = colors2_D;
 	turnOnVDP(116);
 
-	palInFramePtr += MOVIE_DATA_COLORS_PER_STRIP; // advance to next strip's palettes (if pointer wasn't incremented previously)
-	palCmdAddrrToggle ^= MOVIE_DATA_COLORS_PER_STRIP; // cycles between 0 and 32
+	palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP; // advance to next strip's palettes (if pointer wasn't incremented previously)
+	palCmdAddrrToggle ^= MOVIE_FRAME_COLORS_PER_STRIP; // cycles between 0 and 32
     //palCmdAddrrToggle = palCmdAddrrToggle == 0 ? 32 : 0;
     //palCmdAddrrToggle = (palCmdAddrrToggle + 32) & 63; // (palCmdAddrrToggle + 32) % 64 => x mod y = x & (y-1) when y is power of 2
 }
@@ -266,8 +266,8 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_PAL () {
 	*((vu32*) VDP_DATA_PORT) = colors2_D;
 	turnOnVDP(116);
 
-	palInFramePtr += MOVIE_DATA_COLORS_PER_STRIP; // advance to next strip's palettes (if pointer wasn't incremented previously)
-	palCmdAddrrToggle ^= MOVIE_DATA_COLORS_PER_STRIP; // cycles between 0 and 32
+	palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP; // advance to next strip's palettes (if pointer wasn't incremented previously)
+	palCmdAddrrToggle ^= MOVIE_FRAME_COLORS_PER_STRIP; // cycles between 0 and 32
     //palCmdAddrrToggle = palCmdAddrrToggle == 0 ? 32 : 0;
     //palCmdAddrrToggle = (palCmdAddrrToggle + 32) & 63; // (palCmdAddrrToggle + 32) % 64 => x mod y = x & (y-1) when y is power of 2
 }
@@ -280,9 +280,9 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_NTSC () {
 
     /*
         With 2 DMA commands and same DMA lengths:
-        Every command is CRAM address to start DMA MOVIE_DATA_COLORS_PER_STRIP/2 colors
+        Every command is CRAM address to start DMA MOVIE_FRAME_COLORS_PER_STRIP/2 colors
         u32 palCmdForDMA_A = VDP_DMA_CRAM_ADDR((u32)(palIdx + 0) * 2);
-        u32 palCmdForDMA_B = VDP_DMA_CRAM_ADDR(((u32)palIdx + MOVIE_DATA_COLORS_PER_STRIP/2) * 2);
+        u32 palCmdForDMA_B = VDP_DMA_CRAM_ADDR(((u32)palIdx + MOVIE_FRAME_COLORS_PER_STRIP/2) * 2);
         cmd     palIdx = 0      palIdx = 32
         A       0xC0000080      0xC0400080
         B       0xC0200080      0xC0600080
@@ -338,8 +338,8 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_NTSC () {
     *((vu32*) VDP_CTRL_PORT) = palCmdForDMA; // trigger DMA transfer
     turnOnVDP(116);
 
-	//palInFramePtr += MOVIE_DATA_COLORS_PER_STRIP; // advance to next strip's palettes (if pointer wasn't incremented previously)
-	palCmdAddrrToggle ^= MOVIE_DATA_COLORS_PER_STRIP; // cycles between 0 and 32
+	//palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP; // advance to next strip's palettes (if pointer wasn't incremented previously)
+	palCmdAddrrToggle ^= MOVIE_FRAME_COLORS_PER_STRIP; // cycles between 0 and 32
     //palCmdAddrrToggle = palCmdAddrrToggle == 0 ? 32 : 0;
     //palCmdAddrrToggle = (palCmdAddrrToggle + 32) & 63; // (palCmdAddrrToggle + 32) % 64 => x mod y = x & (y-1) when y is power of 2
 }
@@ -352,9 +352,9 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_PAL () {
 
     /*
         With 2 commands:
-        Every command is CRAM address to start DMA MOVIE_DATA_COLORS_PER_STRIP/2 colors
+        Every command is CRAM address to start DMA MOVIE_FRAME_COLORS_PER_STRIP/2 colors
         u32 palCmdForDMA_A = VDP_DMA_CRAM_ADDR((u32)(palIdx + 0) * 2);
-        u32 palCmdForDMA_B = VDP_DMA_CRAM_ADDR(((u32)palIdx + MOVIE_DATA_COLORS_PER_STRIP/2) * 2);
+        u32 palCmdForDMA_B = VDP_DMA_CRAM_ADDR(((u32)palIdx + MOVIE_FRAME_COLORS_PER_STRIP/2) * 2);
         cmd     palIdx = 0      palIdx = 32
         A       0xC0000080      0xC0400080
         B       0xC0200080      0xC0600080
@@ -410,8 +410,8 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_PAL () {
     *((vu32*) VDP_CTRL_PORT) = palCmdForDMA; // trigger DMA transfer
     turnOnVDP(116);
 
-	//palInFramePtr += MOVIE_DATA_COLORS_PER_STRIP; // advance to next strip's palettes (if pointer wasn't incremented previously)
-	palCmdAddrrToggle ^= MOVIE_DATA_COLORS_PER_STRIP; // cycles between 0 and 32
+	//palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP; // advance to next strip's palettes (if pointer wasn't incremented previously)
+	palCmdAddrrToggle ^= MOVIE_FRAME_COLORS_PER_STRIP; // cycles between 0 and 32
     //palCmdAddrrToggle = palCmdAddrrToggle == 0 ? 32 : 0;
     //palCmdAddrrToggle = (palCmdAddrrToggle + 32) & 63; // (palCmdAddrrToggle + 32) % 64 => x mod y = x & (y-1) when y is power of 2
 }

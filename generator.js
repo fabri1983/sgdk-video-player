@@ -13,7 +13,7 @@ if (args.length != 3) {
 }
 
 const FRAMES_DIR = 'rgb/';
-const GENSRC_DIR = 'inc/generated/';
+const GEN_INC_DIR = 'inc/generated/';
 const RES_DIR = 'res/';
 
 const removeExtension = s => s.replace(/\.(png|PNG|bmp|BMP)$/, '');
@@ -58,20 +58,14 @@ if (extendMapWidthTo64 == false) {
 }
 const extendMapWidthTo64_str = extendMapWidthTo64 ? "TRUE" : "FALSE";
 
-if (!fs.existsSync(GENSRC_DIR)) {
-	fs.mkdirSync(GENSRC_DIR, { recursive: true });
+if (!fs.existsSync(GEN_INC_DIR)) {
+	fs.mkdirSync(GEN_INC_DIR, { recursive: true });
 }
 
-// --------- Generate .h file
-
-fs.writeFileSync(`${GENSRC_DIR}/movie_data.h`, 
-`#ifndef _MOVIE_DATA_H
-#define _MOVIE_DATA_H
-
-#include <types.h>
-#include <vdp_bg.h>
-#include "movie_frames.h"
-#include "movie_sound.h"
+// --------- Generate movie_data_consts.h file
+fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`, 
+`#ifndef _MOVIE_DATA_CONSTS_H
+#define _MOVIE_DATA_CONSTS_H
 
 #define MOVIE_FRAME_RATE (${frameRate}-1) // Minus 1 so it delays enough to be in sync with audio. IT'S A TEMPORARY HACK BUT WORKS FLAWLESSLY!
 #define MOVIE_FRAME_COUNT ${sortedFileNamesEveryFirstStrip.length}
@@ -79,6 +73,24 @@ fs.writeFileSync(`${GENSRC_DIR}/movie_data.h`,
 #define MOVIE_FRAME_HEIGHT_IN_TILES ${heightTiles}
 #define MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES ${widthTilesExt}
 #define MOVIE_FRAME_STRIPS ${stripsPerFrame}
+
+#define MOVIE_FRAME_COLORS_PER_STRIP 32
+// in case you were to split any calculation over the colors of strip by an odd divisor n
+#define MOVIE_FRAME_COLORS_PER_STRIP_REMINDER(n) (MOVIE_FRAME_COLORS_PER_STRIP - n*(MOVIE_FRAME_COLORS_PER_STRIP/n))
+
+#endif // _MOVIE_DATA_CONSTS_H
+`);
+
+// --------- Generate movie_data.h file
+fs.writeFileSync(`${GEN_INC_DIR}/movie_data.h`, 
+`#ifndef _MOVIE_DATA_H
+#define _MOVIE_DATA_H
+
+#include <types.h>
+#include <vdp_bg.h>
+#include "movie_frames.h"
+#include "movie_sound.h"
+#include "generated/movie_data_consts.h"
 
 const ImageNoPalsTilesetSplit2* data[${sortedFileNamesEveryFirstStrip.length}] = {
 	${sortedFileNamesEveryFirstStrip.map(s => `&mv_${removeExtension(s)}`).join(',\n	')}
@@ -92,7 +104,6 @@ const Palette32AllStrips* pals_data[${sortedFileNamesEveryFirstStrip.length}] = 
 `);
 
 // --------- Generate .res file
-
 // Next struct type definitions will be added at the top of generated movie_frames.h
 const headerContent = `
 typedef struct

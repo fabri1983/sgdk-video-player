@@ -54,14 +54,14 @@ extern void flushQueue(u16 num);
 /// @brief This implementation differs from DMA_flushQueue() in that:
 /// - it doesn't check if transfer size exceeds capacity because we know before hand the max capacity.
 /// - it assumes Z80 bus wasn't requested and hence request it.
-static void flushQueue_DMA () {
+static void fastDMA_flushQueue () {
 	#ifdef DEBUG_VIDEO_PLAYER
 	if (DMA_getQueueTransferSize() > DMA_getMaxTransferSize())
 		KLog("WARNING: DMA transfer size limit raised. Modify the capacity in your DMA_initEx() call.");
 	#endif
     // u8 autoInc = VDP_getAutoInc(); // save autoInc
 	Z80_requestBus(FALSE);
-	flushQueue(DMA_getQueueSize());
+	flushQueue(1); // We know DMA_getQueueSize() is 1 because we only do one DMA_QUEUE before each DMA flush.
 	Z80_releaseBus();
     DMA_clearQueue();
     // VDP_setAutoInc(autoInc); // restore autoInc
@@ -85,16 +85,16 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender, bool resetPalsP
 
 	// AT THIS POINT THE VInt WAS ALREADY CALLED.
 
+	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);//VDP_setEnable(FALSE);
+
 	// Reset the pals pointers used by HInt so they now point to the new unpacked pals
 	if (resetPalsPtrsForHInt)
-        setPalsPointer(palsForRender);
-
-	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);//VDP_setEnable(FALSE);
+		setPalsPointer(palsForRender);
 
 	setBusProtection_Z80(TRUE);
 	waitSubTick_(0); // Z80 delay --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
 
-	flushQueue_DMA();
+	fastDMA_flushQueue();
 
 	setBusProtection_Z80(FALSE);
 
@@ -165,10 +165,10 @@ static u16* unpackedPalsRender;
 static u16* unpackedPalsBuffer;
 
 static void allocatePalettesBuffer () {
-	unpackedPalsRender = (u16*) MEM_alloc(MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP * 2);
-	unpackedPalsBuffer = (u16*) MEM_alloc(MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP * 2);
-	memsetU16(unpackedPalsRender, 0x0, MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP); // black all the buffer
-	memsetU16(unpackedPalsBuffer, 0x0, MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP); // black all the buffer
+	unpackedPalsRender = (u16*) MEM_alloc(MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP * 2);
+	unpackedPalsBuffer = (u16*) MEM_alloc(MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP * 2);
+	memsetU16(unpackedPalsRender, 0x0, MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP); // black all the buffer
+	memsetU16(unpackedPalsBuffer, 0x0, MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP); // black all the buffer
 }
 
 static void unpackFramePalettes (const Palette32AllStrips* pals32) {
@@ -178,7 +178,7 @@ static void unpackFramePalettes (const Palette32AllStrips* pals32) {
     }
     else {
 		// Copy the palette data. No FAR_SAFE() needed here because palette data is always stored at near region.
-		const u16 size = (MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP) * 2;
+		const u16 size = (MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP) * 2;
         memcpy((u8*) unpackedPalsBuffer, pals32->data, size);
     }
 }
@@ -205,7 +205,7 @@ static void fadeToBlack () {
 	while (loopFrames >= 0) {
 		if ((loopFrames-- % FADE_TO_BLACK_STEP_FREQ) == 0) {
 			u16* palsPtr = unpackedPalsRender;
-			for (u16 i=MOVIE_FRAME_STRIPS * MOVIE_DATA_COLORS_PER_STRIP; i > 0; --i) {
+			for (u16 i=MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP; i > 0; --i) {
                 // IMPL A:
                 u16 d = *palsPtr - 0x222; // decrement 1 unit in every component
                 switch (d & 0b1000100010000) {
@@ -403,6 +403,7 @@ void playMovie () {
 			swapBuffersForPals();
 
 			// NOTE: first 2 strips' palettes which were previously unpacked will be enqueued in waitVInt_AND_flushDMA()
+			// NOTE2: not true until TODO PALS_1 is done
 
 			#ifdef DEBUG_FIXED_FRAME
 			}
