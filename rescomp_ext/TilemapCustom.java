@@ -1,5 +1,7 @@
 package sgdk.rescomp.resource;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,7 +17,7 @@ public class TilemapCustom extends Tilemap
 		super(id, data, w, h, compression);
 	}
 
-	public static Tilemap getTilemap(String id, Tileset tileset, int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, 
+	public static Tilemap getTilemap(String id, List<Tileset> tilesets, int[] offsetForTilesets, int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, 
 			int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt, 
 			Compression compression, boolean extendedMapWidth64)
     {
@@ -83,6 +85,9 @@ public class TilemapCustom extends Tilemap
                         index = tile.getPlainValue();
                     else
                     {
+                    	int tilesetsListIdx = getTilesetIndexFor(tile, opt, tilesets);
+                    	Tileset tileset = tilesets.get(tilesetsListIdx);
+
                         // otherwise we try to get tile index in the tileset
                         index = tileset.getTileIndex(tile, opt);
                         // not found ? (should never happen)
@@ -92,7 +97,7 @@ public class TilemapCustom extends Tilemap
                         // get equality info
                         equality = tile.getEquality(tileset.get(index));
                         // can add base index now
-                        index += mapBaseTileInd;
+                        index += mapBaseTileInd + offsetForTilesets[tilesetsListIdx];
                     }
                 }
 
@@ -157,7 +162,7 @@ public class TilemapCustom extends Tilemap
     			System.out.println("");
     			System.out.println("####################################################################################################");
     			System.out.println("TilemapCustom class by fabri1983.");
-    			System.out.println("SOMETHING WRONG WITH YOUR FRAME NUM SETUP! WAS toggleMapTileBaseIndexFlag SET CORRECTLY?");
+    			System.out.println("ERROR! SOMETHING WRONG WITH YOUR FRAME NUM SETUP! WAS toggleMapTileBaseIndexFlag SET CORRECTLY?");
     			System.out.println("####################################################################################################");
     		}
 
@@ -202,10 +207,25 @@ public class TilemapCustom extends Tilemap
 		return 0;
 	}
 
+    /**
+	 * fabri1983
+	 */
+    private static int getTilesetIndexFor(Tile tile, TileOptimization opt, List<Tileset> tilesets) {
+    	for (int i=0; i < tilesets.size(); ++i) {
+    		Tileset tileset = tilesets.get(i);
+    		int index = tileset.getTileIndex(tile, opt);
+    		if (index != -1) // tile found in current tileset
+    			return i;
+    	}
+    	System.out.print("\nTile not found in any of the " + tilesets.size() + " tilesets");
+    	return 0;
+    }
+
 	public static Tilemap getTilemap(String id, Tileset tileset, int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int widthTile, int heightTile, 
 			TileOptimization opt, Compression compression, boolean extendedMapWidth64)
     {
-        return TilemapCustom.getTilemap(id, tileset, toggleMapTileBaseIndexFlag, mapBase, image8bpp, widthTile * 8, heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, 
+		List<Tileset> tilesets = Arrays.asList(tileset);
+        return TilemapCustom.getTilemap(id, tilesets, new int[]{0}, toggleMapTileBaseIndexFlag, mapBase, image8bpp, widthTile * 8, heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, 
         		extendedMapWidth64);
     }
 

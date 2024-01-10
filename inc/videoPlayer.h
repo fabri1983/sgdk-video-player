@@ -14,11 +14,11 @@
 // IMPL 2: Use the delta between vtimer (system's internal frame counter) and current video frame
 #define VIDEO_FRAME_ADVANCE_STRATEGY 0
 
-#define VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE 370 // Got experimentally from rescomp output (biggest numTile from one of two halves). If odd then use next even number.
-#define VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE 716 // Got experimentally from rescomp output (biggest numTile1 + numTile2). If odd then use next even number.
+#define VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE 370 // Got experimentally from rescomp output (biggest summation of numTile). If odd then use next even number.
+#define VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE 716 // Got experimentally from rescomp output (biggest operand from numTile1 + numTile2 + ...). If odd then use next even number.
 #define VIDEO_FRAME_MAX_TILEMAP_NUM MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES
-#define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2)
-#define VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2 MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES - 2*(MOVIE_FRAME_HEIGHT_IN_TILES/2)))
+#define VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2)
+#define VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK_LAST MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES % 2))
 
 #define HINT_USE_DMA TRUE // TRUE: DMA. FALSE: CPU
 

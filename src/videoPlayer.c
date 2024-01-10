@@ -327,18 +327,16 @@ void playMovie () {
 			VDP_loadTileData(unpackedTilesetHalf, baseTileIndex, numTile1, DMA_QUEUE);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
-			if ((*dataPtr)->tileset2 != NULL) {
-				u16 numTile2 = (*dataPtr)->tileset2->numTile;
-				unpackFrameTileset((*dataPtr)->tileset2);
-				VDP_loadTileData(unpackedTilesetHalf, baseTileIndex + numTile1, numTile2, DMA_QUEUE);
-				waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
-			}
+			u16 numTile2 = (*dataPtr)->tileset2->numTile;
+			unpackFrameTileset((*dataPtr)->tileset2);
+			VDP_loadTileData(unpackedTilesetHalf, baseTileIndex + numTile1, numTile2, DMA_QUEUE);
+			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
 			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE
 			baseTileIndex ^= VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE;
 
-			unpackFrameTilemap((*dataPtr)->tilemap1, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1, 0);
-			unpackFrameTilemap((*dataPtr)->tilemap2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_2, VIDEO_FRAME_MAX_TILEMAP_NUM_HALF_1);
+			unpackFrameTilemap((*dataPtr)->tilemap1, VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK, 0);
+			unpackFrameTilemap((*dataPtr)->tilemap2, VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK_LAST, VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK);
 			unpackFramePalettes(pals_data[vFrame]);
 
 			// Loops until time consumes the MOVIE_FRAME_RATE before moving into next frame

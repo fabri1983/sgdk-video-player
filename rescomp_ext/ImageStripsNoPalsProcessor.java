@@ -180,10 +180,14 @@ public class ImageStripsNoPalsProcessor implements Processor
 //	public static void main(String[] args) throws Exception
 //	{
 //		ImageStripsNoPalsProcessor p = new ImageStripsNoPalsProcessor();
-//		String[] fields = {
+//		String[] fields_testA = {
 //			resId, "mv_frame_47_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_47_0_RGB.png", "22", 
 //			"2", "1", "TRUE", "FAST", "ALL" 
 //		};
-//		p.execute(fields);
+//		String[] fields_testB = {
+//			resId, "mv_frame_160_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_159_0_RGB.png", "22", 
+//			"3", "1", "TRUE", "FAST", "ALL" 
+//		};
+//		p.execute(fields_testB);
 //	}
 }

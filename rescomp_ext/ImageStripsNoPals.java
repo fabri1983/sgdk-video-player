@@ -40,7 +40,8 @@ public class ImageStripsNoPals extends Resource
         tileset = (Tileset) addInternalResource(new Tileset(id + "_tileset", finalImageData, w, h, 0, 0, wt, ht, tileOpt, compression, false, false));
         System.out.print(" " + id + " -> numTiles:\t  " + tileset.getNumTile() + ". ");
         // build TILEMAP with wanted compression
-        tilemap = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_tilemap", tileset, toggleMapTileBaseIndexFlag, mapBase, finalImageData, wt, ht, tileOpt, compression, extendedMapWidth64));
+        tilemap = (Tilemap) addInternalResource(TilemapCustom.getTilemap(
+        		id + "_tilemap", tileset, toggleMapTileBaseIndexFlag, mapBase, finalImageData, wt, ht, tileOpt, compression, extendedMapWidth64));
 
         // compute hash code
         hc = tileset.hashCode() ^ tilemap.hashCode();

@@ -85,7 +85,7 @@ and extract the audio in correct format for the SGDK rescomp tool.
 	See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
 	See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
 - Implement custom rescomp plugin to create a cache of most common tiles.
-	- Read all tiles from all frames and count their occurrences so we can cached them at the start of tileset RAM section.
+	- Read all tiles from all frames and count their occurrences so we can cached them at the start of tileset VRAM section.
 	- At least 34 tiles should be cached = 34*32=1088 bytes
 	- Check for big frames (min 600 tiles?) that at least have cached 34 tiles.
 	- Then in SGDK pre load cached tiles into VRAM for both tile index 1 and 716+1.
