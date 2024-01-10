@@ -39,7 +39,13 @@ const sortedFileNamesEveryFirstStrip = sortedFileNames
 	.filter((_, index) => index % stripsPerFrame === 0);
 
 // split tileset in N chunks. Current valid values are [1, 2, 3]
-const tilesetSplit = 2;
+const tilesetSplit = 3;
+
+var type_ImageNoPals = "ImageNoPals";
+if (tilesetSplit == 2)
+	type_ImageNoPals = "ImageNoPalsTilesetSplit2";
+else if (tilesetSplit == 3)
+	type_ImageNoPals = "ImageNoPalsTilesetSplit3";
 
 // This activates the use of a map base tile index which sets the initial tile index for the tilemap of the resource.
 // As the video player uses a buffer to allocate next frame's tilemaps (among tilesets and palettes) whilst current frame 
@@ -92,7 +98,7 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data.h`,
 #include "movie_sound.h"
 #include "generated/movie_data_consts.h"
 
-const ImageNoPalsTilesetSplit2* data[${sortedFileNamesEveryFirstStrip.length}] = {
+const ${type_ImageNoPals}* data[${sortedFileNamesEveryFirstStrip.length}] = {
 	${sortedFileNamesEveryFirstStrip.map(s => `&mv_${removeExtension(s)}`).join(',\n	')}
 };
 
