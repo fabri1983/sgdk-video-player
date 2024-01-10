@@ -36,7 +36,7 @@ Once rgb images with palettes were generated and before saving them ensure the n
 	- enter 22 (strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
 - Download the images and move them at res\rgb folder.
 
-4) `node generator.js 272 176 8 15`
+4) `node header_generator.js 272 176 8 15`
 frame width: 272
 frame height: 176
 rows per strip: 8
@@ -53,9 +53,9 @@ Blastem binary location set in the bat script.
 
 ### NOTES
 - I recommend to use a video resize and filter program like *VirtualDub 2*, which allows you to keep image crisp when resizing, 
-use custom ratio with black regions when resizing, lets you crop the video, and also comes with all kind of useful filters. 
-That way the extract.bat script which calls ffmpeg will only extract the frames without resizing (already resized by the editor program) 
-and extract the audio in correct format for the SGDK rescomp tool.
+uses custom ratio with black regions when resizing, lets you crop the video, and also comes with all kind of useful filters. 
+That way the extract.bat script which calls ffmpeg will only extract the frames without resizing and extract the audio in correct 
+format for the SGDK rescomp tool.
 
 
 ### TODO
@@ -114,7 +114,7 @@ from failed folder, and do:
 reduce_colors.bat tmpmv\frame_*.png 14
 Repeat step 3.
 
-6) node generator.js
+6) node header_generator.js
 
 7) compile_n_run.bat
 rom.bin generated at out folder

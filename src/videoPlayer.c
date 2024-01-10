@@ -210,7 +210,7 @@ static void fadeToBlack () {
 	while (loopFrames >= 0) {
 		if ((loopFrames-- % FADE_TO_BLACK_STEP_FREQ) == 0) {
 			u16* palsPtr = unpackedPalsRender;
-			for (u16 i=MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP; i > 0; --i) {
+			for (u16 i=MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP; --i;) {
                 // IMPL A:
                 u16 d = *palsPtr - 0x222; // decrement 1 unit in every component
                 switch (d & 0b1000100010000) {
@@ -344,6 +344,14 @@ void playMovie () {
 			unpackFrameTilemap((*dataPtr)->tilemap2, VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK_LAST, VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK);
 			unpackFramePalettes(pals_data[vFrame]);
 
+			#if EXIT_PLAYER_WITH_JOY_START
+			JOY_update();
+			if (JOY_readJoypad(JOY_1) & BUTTON_START) {
+				exitPlayer = TRUE;
+				break;
+			}
+			#endif
+
 			// Loops until time consumes the MOVIE_FRAME_RATE before moving into next frame
 			u16 prevFrame = vFrame;
 			for (;;) {
@@ -361,13 +369,6 @@ void playMovie () {
 					// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
 					//waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 					waitVInt();
-					#if EXIT_PLAYER_WITH_JOY_START
-					JOY_update();
-					if (JOY_readJoypad(JOY_1) & BUTTON_START) {
-						exitPlayer = TRUE;
-						break;
-					}
-					#endif
 				}
 				#endif
 
@@ -381,13 +382,6 @@ void playMovie () {
 					// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
 					//waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 					waitVInt();
-					#if EXIT_PLAYER_WITH_JOY_START
-					JOY_update();
-					if (JOY_readJoypad(JOY_1) & BUTTON_START) {
-						exitPlayer = TRUE;
-						break;
-					}
-					#endif
 				}
 				#endif
 			}

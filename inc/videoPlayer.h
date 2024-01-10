@@ -16,11 +16,12 @@
 
 #define VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE 370 // Got experimentally from rescomp output (biggest summation of numTile). If odd then use next even number.
 #define VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE 716 // Got experimentally from rescomp output (biggest operand from numTile1 + numTile2 + ...). If odd then use next even number.
-#define VIDEO_FRAME_MAX_TILEMAP_NUM MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES
-#define VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2)
-#define VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK_LAST MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES % 2))
+#define VIDEO_FRAME_MAX_TILEMAP_NUM (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES)
+#define VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES/2))
+#define VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK_LAST (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES/2) + (MOVIE_FRAME_HEIGHT_IN_TILES % 2)))
 
-#define HINT_USE_DMA TRUE // TRUE: DMA. FALSE: CPU
+// Enables HInt callbakc implementatio using DMA (TRUE) or pure CPU (FALSE)
+#define HINT_USE_DMA TRUE
 
 /// If you are 100% sure all the palettes were compressed by rescomp tool (by looking at the console output) then set this to TRUE. Otherwise FALSE.
 #define ALL_PALETTES_ARE_COMPRESSED TRUE

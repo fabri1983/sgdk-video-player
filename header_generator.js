@@ -1,8 +1,8 @@
 /**
  * Usage:
- *   node generator.js <frame Width in px> <frame Height in px> <strip Height in px> <frame rate>
+ *   node header_generator.js <frame Width in px> <frame Height in px> <strip Height in px> <frame rate>
  * Eg:
- *   node generator.js 264 168 8 15
+ *   node header_generator.js 264 168 8 15
 */
 
 const fs = require('fs');
@@ -76,7 +76,7 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 
 #define MOVIE_FRAME_COLORS_PER_STRIP 32
 // in case you were to split any calculation over the colors of strip by an odd divisor n
-#define MOVIE_FRAME_COLORS_PER_STRIP_REMINDER(n) (MOVIE_FRAME_COLORS_PER_STRIP - n*(MOVIE_FRAME_COLORS_PER_STRIP/n))
+#define MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(n) (MOVIE_FRAME_COLORS_PER_STRIP % n)
 
 #endif // _MOVIE_DATA_CONSTS_H
 `);
@@ -148,7 +148,7 @@ const headerappender2 = `HEADER_APPENDER\t\headerCustomTypes2\t\t\"${headerConte
 const headerappender3 = `HEADER_APPENDER\t\headerCustomTypes3\t\t\"${headerContent3}\"\n`;
 const headerappender4 = `HEADER_APPENDER\t\headerCustomTypes4\t\t\"${headerContent4}\"\n\n`;
 
-// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  21  2  FAST  ALL  2047
+// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  2  1  TRUE  FAST  ALL
 const imageResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesetSplit}\t\t${toggleMapTileBaseIndexFlag}\t\t${extendMapWidthTo64_str}\t\tFAST\t\tALL`)
 	.join('\n') + '\n\n';
