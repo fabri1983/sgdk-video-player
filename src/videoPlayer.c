@@ -121,34 +121,34 @@ static void clearFontTiles () {
 	VDP_fillTileData(0, TILE_FONT_INDEX, FONT_LEN, TRUE);
 }
 
-static u32* unpackedTilesetHalf;
+static u32* unpackedTilesetChunk;
 
 static void allocateTilesetBuffer () {
-	unpackedTilesetHalf = (u32*) MEM_alloc((VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE / 2) * 32);
-	memsetU16((u16*) unpackedTilesetHalf, 0x0, (VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE / 2) * 16); // zero all the buffer
+	unpackedTilesetChunk = (u32*) MEM_alloc((VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE / 2) * 32);
+	memsetU16((u16*) unpackedTilesetChunk, 0x0, (VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE / 2) * 16); // zero all the buffer
 }
 
-static void unpackFrameTileset (TileSet* src) {
+static FORCE_INLINE void unpackFrameTileset (TileSet* src) {
 	const u16 size = src->numTile * 32;
 	if (src->compression != COMPRESSION_NONE)
-		lz4w_unpack((u8*) FAR_SAFE(src->tiles, size), (u8*) unpackedTilesetHalf);
+		lz4w_unpack((u8*) FAR_SAFE(src->tiles, size), (u8*) unpackedTilesetChunk);
 	else
-        memcpy((u8*) unpackedTilesetHalf, FAR_SAFE(src->tiles, size), size);
+        memcpy((u8*) unpackedTilesetChunk, FAR_SAFE(src->tiles, size), size);
 }
 
 static void freeTilesetBuffer () {
-	MEM_free((void*) unpackedTilesetHalf);
-    unpackedTilesetHalf = NULL;
+	MEM_free((void*) unpackedTilesetChunk);
+    unpackedTilesetChunk = NULL;
 }
 
 static u16* unpackedTilemap;
 
 static void allocateTilemapBuffer () {
 	unpackedTilemap = (u16*) MEM_alloc(VIDEO_FRAME_MAX_TILEMAP_NUM * 2);
-	memsetU16(unpackedTilemap, TILE_SYSTEM_INDEX, VIDEO_FRAME_MAX_TILEMAP_NUM); // set TILE_SYSTEM_INDEX (black tile) all the buffer
+	memsetU16(unpackedTilemap, TILE_SYSTEM_INDEX, VIDEO_FRAME_MAX_TILEMAP_NUM); // set TILE_SYSTEM_INDEX (black tile) all over the buffer
 }
 
-static void unpackFrameTilemap (TileMap* src, u16 len, u16 offset) {
+static FORCE_INLINE void unpackFrameTilemap (TileMap* src, u16 len, u16 offset) {
 	const u16 size = len * 2;
 	if (src->compression != COMPRESSION_NONE)
 		lz4w_unpack((u8*) FAR_SAFE(src->tilemap, size), (u8*) (unpackedTilemap + offset));
@@ -171,16 +171,27 @@ static void allocatePalettesBuffer () {
 	memsetU16(unpackedPalsBuffer, 0x0, MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP); // black all the buffer
 }
 
-static void unpackFramePalettes (const Palette32AllStrips* pals32) {
-    if (pals32->compression != COMPRESSION_NONE) {
-        // No need to use FAR_SAFE() macro here because palette data is always stored near
-        lz4w_unpack((u8*) pals32->data, (u8*) unpackedPalsBuffer);
-    }
-    else {
+static FORCE_INLINE void unpackFramePalettes (const Palette32AllStrips* pals32) {
+	#if ALL_PALETTES_ARE_COMPRESSED
+	// No need to use FAR_SAFE() macro here because palette data is always stored near
+	lz4w_unpack((u8*) pals32->data, (u8*) unpackedPalsBuffer);
+	#else
+	if (pals32->compression != COMPRESSION_NONE) {
+		// No need to use FAR_SAFE() macro here because palette data is always stored near
+		lz4w_unpack((u8*) pals32->data, (u8*) unpackedPalsBuffer);
+	}
+	else {
 		// Copy the palette data. No FAR_SAFE() needed here because palette data is always stored at near region.
 		const u16 size = (MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP) * 2;
-        memcpy((u8*) unpackedPalsBuffer, pals32->data, size);
+		memcpy((u8*) unpackedPalsBuffer, pals32->data, size);
     }
+	#endif
+}
+
+static FORCE_INLINE void swapPalsBuffers () {
+	u16* tmp = unpackedPalsRender;
+	unpackedPalsRender = unpackedPalsBuffer;
+	unpackedPalsBuffer = tmp;
 }
 
 static void freePalettesBuffer () {
@@ -188,12 +199,6 @@ static void freePalettesBuffer () {
 	MEM_free((void*) unpackedPalsBuffer);
     unpackedPalsRender = NULL;
 	unpackedPalsBuffer = NULL;
-}
-
-void swapBuffersForPals () {
-	u16* tmp = unpackedPalsRender;
-	unpackedPalsRender = unpackedPalsBuffer;
-	unpackedPalsBuffer = tmp;
 }
 
 static void fadeToBlack () {
@@ -260,7 +265,7 @@ void playMovie () {
 	allocateTilemapBuffer();
 	allocatePalettesBuffer();
 	MEM_pack();
-// KLog_U1("Free Mem: ", MEM_getFree()); // 36782 bytes
+// KLog_U1("Free Mem: ", MEM_getFree()); // 36778 bytes
 
 	// Position in screen (in tiles)
 	u16 xp = (screenWidth - MOVIE_FRAME_WIDTH_IN_TILES*8 + 7)/8/2; // centered in X axis
@@ -314,7 +319,7 @@ void playMovie () {
 		vtimer = DEBUG_FIXED_FRAME;
 		u16 vFrame = DEBUG_FIXED_FRAME;
 		#else
-		vtimer = 0; // reset vTimer so we can use it as our frame counter
+		vtimer = 0; // reset vTimer so we can use it as our hardware frame counter
 		u16 vFrame = 0;
 		#endif
 
@@ -324,12 +329,12 @@ void playMovie () {
 		{
 			u16 numTile1 = (*dataPtr)->tileset1->numTile;
 			unpackFrameTileset((*dataPtr)->tileset1);
-			VDP_loadTileData(unpackedTilesetHalf, baseTileIndex, numTile1, DMA_QUEUE);
+			VDP_loadTileData(unpackedTilesetChunk, baseTileIndex, numTile1, DMA_QUEUE);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
 			u16 numTile2 = (*dataPtr)->tileset2->numTile;
 			unpackFrameTileset((*dataPtr)->tileset2);
-			VDP_loadTileData(unpackedTilesetHalf, baseTileIndex + numTile1, numTile2, DMA_QUEUE);
+			VDP_loadTileData(unpackedTilesetChunk, baseTileIndex + numTile1, numTile2, DMA_QUEUE);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
 			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE
@@ -398,7 +403,7 @@ void playMovie () {
 			VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_MAX_TILEMAP_NUM, 2, DMA_QUEUE);
 
 			// Swaps buffers pals so now the pals render buffer points to the unpacked pals
-			swapBuffersForPals();
+			swapPalsBuffers();
 
 			// NOTE: first 2 strips' palettes which were previously unpacked will be enqueued in waitVInt_AND_flushDMA()
 			// NOTE2: not true until TODO PALS_1 is done

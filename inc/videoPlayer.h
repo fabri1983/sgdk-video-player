@@ -22,6 +22,9 @@
 
 #define HINT_USE_DMA TRUE // TRUE: DMA. FALSE: CPU
 
+/// If you are 100% sure all the palettes were compressed by rescomp tool (by looking at the console output) then set this to TRUE. Otherwise FALSE.
+#define ALL_PALETTES_ARE_COMPRESSED TRUE
+
 /// SGDK reserves 16 tiles starting at address 0. That's the purpose of using SGDK's TILE_USER_INDEX.
 /// Tile address 0 holds a black tile and it shouldn't be overriden since is what an empty tilemap in VRAM points to. Also other internal effects use it.
 /// Remaining 15 tiles are OK to override for re use. So we start using tiles at index 1.

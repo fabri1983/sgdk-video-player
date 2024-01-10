@@ -60,8 +60,7 @@ and extract the audio in correct format for the SGDK rescomp tool.
 
 ### TODO
 - Idea: call waitVInt_AND_flushDMA() with immediate flag so it starts flushing DMA. 
-	- Move the enable/disable VDP into HInt (use conditions when not need to start pals swap) .
-- Idea: try audio sample rate 26600. Or 26300 which is the max PCM sample rate supported by software accordingly wikipedia.
+	- Move the enable/disable VDP into HInt (use conditions when not need to start the pals swap steps).
 - Split tileset and tilemap in 3 chunks so the unpack is less CPU intense and we can do it inside the active display period.
 - Idea to avoid sending the first 2 strips'pals and send only first strip's pals:
 	- DMA_QUEUE the first 32 colors at VInt. This forces the use of DMA_getQueueSize() in fastDMA_flushQueue().
