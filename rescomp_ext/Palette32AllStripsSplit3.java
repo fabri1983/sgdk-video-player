@@ -16,13 +16,13 @@ import sgdk.tool.ImageUtil.BasicImageInfo;
 /**
  * Palette with all the colors of every strip's palette.
  */
-public class Palette32AllStrips extends Resource
+public class Palette32AllStripsSplit3 extends Resource
 {
     final int hc;
 
-    public Bin bin;
+    private Bin bin1, bin2, bin3;
 
-    public Palette32AllStrips(String id, List<String> stripsFileList, final PalettesPositionEnum palsPosition, final boolean togglePalsLocation, Compression compression) throws Exception
+    public Palette32AllStripsSplit3(String id, List<String> stripsFileList, final PalettesPositionEnum palsPosition, final boolean togglePalsLocation, Compression compression) throws Exception
     {
         super(id);
 
@@ -87,11 +87,23 @@ public class Palette32AllStrips extends Resource
         	System.arraycopy(palette, 0, palettesAll, i * 32, 32);
         }
 
-        // build BIN (we never compress palette)
-        bin = (Bin) addInternalResource(new Bin(id + "_data", palettesAll, compression, false));
+        int size1 = palettesAll.length / 3;
+        int size2 = palettesAll.length / 3;
+        int size3 = (palettesAll.length / 3) + (palettesAll.length % 3);
+        short[] chunk1 = new short[size1];
+        short[] chunk2 = new short[size2];
+        short[] chunk3 = new short[size3];
+        System.arraycopy(palettesAll, 0, chunk1, 0, size1);
+        System.arraycopy(palettesAll, size1, chunk2, 0, size2);
+        System.arraycopy(palettesAll, size1 + size2, chunk3, 0, size3);
+
+        // build BIN
+        bin1 = (Bin) addInternalResource(new Bin(id + "_chunk1_data", chunk1, compression, false));
+        bin2 = (Bin) addInternalResource(new Bin(id + "_chunk2_data", chunk2, compression, false));
+        bin3 = (Bin) addInternalResource(new Bin(id + "_chunk3_data", chunk3, compression, false));
 
         // compute hash code
-        hc = bin.hashCode();
+        hc = bin1.hashCode() ^ bin2.hashCode() ^ bin3.hashCode();
     }
 
 //    private boolean allSameColor (short[] palette, int i, int j) {
@@ -114,10 +126,10 @@ public class Palette32AllStrips extends Resource
     @Override
     public boolean internalEquals(Object obj)
     {
-        if (obj instanceof Palette32AllStrips)
+        if (obj instanceof Palette32AllStripsSplit3)
         {
-            final Palette32AllStrips palette = (Palette32AllStrips) obj;
-            return bin.equals(palette.bin);
+            final Palette32AllStripsSplit3 palette = (Palette32AllStripsSplit3) obj;
+            return bin1.equals(palette.bin1) && bin2.equals(palette.bin2) && bin3.equals(palette.bin3);
         }
 
         return false;
@@ -126,19 +138,19 @@ public class Palette32AllStrips extends Resource
     @Override
     public List<Bin> getInternalBinResources()
     {
-        return Arrays.asList(bin);
+        return Arrays.asList(bin1, bin2, bin3);
     }
 
     @Override
     public int shallowSize()
     {
-        return 4;
+        return 4 + 4 + 4;
     }
 
     @Override
     public int totalSize()
     {
-        return bin.totalSize() + shallowSize();
+        return bin1.totalSize() + bin2.totalSize() + bin3.totalSize() + shallowSize();
     }
 
     @Override
@@ -148,11 +160,13 @@ public class Palette32AllStrips extends Resource
 		outB.reset();
 
 		// declare
-		Util.decl(outS, outH, "Palette32AllStrips", id, 2, global);
+		Util.decl(outS, outH, "Palette32AllStripsSplit3", id, 2, global);
 		// set compression info (very important that binary data had already been exported at this point)
-		//outS.append("    dc.w    " + (bin.doneCompression.ordinal() - 1) + "\n");
+		//outS.append("    dc.w    " + (bin1.doneCompression.ordinal() - 1) + "\n");
 		// set palette data pointer
-		outS.append("    dc.l    " + bin.id + "\n");
+		outS.append("    dc.l    " + bin1.id + "\n");
+		outS.append("    dc.l    " + bin2.id + "\n");
+		outS.append("    dc.l    " + bin3.id + "\n");
 		outS.append("\n");
     }
 }

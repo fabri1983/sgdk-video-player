@@ -172,19 +172,13 @@ static void allocatePalettesBuffer () {
 }
 
 static FORCE_INLINE void unpackFramePalettes (const Palette32AllStrips* pals32) {
-	#if ALL_PALETTES_ARE_COMPRESSED
+	#if ALL_PALETTES_COMPRESSED
 	// No need to use FAR_SAFE() macro here because palette data is always stored near
 	lz4w_unpack((u8*) pals32->data, (u8*) unpackedPalsBuffer);
 	#else
-	if (pals32->compression != COMPRESSION_NONE) {
-		// No need to use FAR_SAFE() macro here because palette data is always stored near
-		lz4w_unpack((u8*) pals32->data, (u8*) unpackedPalsBuffer);
-	}
-	else {
-		// Copy the palette data. No FAR_SAFE() needed here because palette data is always stored at near region.
-		const u16 size = (MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP) * 2;
-		memcpy((u8*) unpackedPalsBuffer, pals32->data, size);
-    }
+	// Copy the palette data. No FAR_SAFE() needed here because palette data is always stored at near region.
+	const u16 size = (MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP) * 2;
+	memcpy((u8*) unpackedPalsBuffer, pals32->data, size);
 	#endif
 }
 
@@ -210,7 +204,7 @@ static void fadeToBlack () {
 	while (loopFrames >= 0) {
 		if ((loopFrames-- % FADE_TO_BLACK_STEP_FREQ) == 0) {
 			u16* palsPtr = unpackedPalsRender;
-			for (u16 i=MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP; --i;) {
+			for (u16 i=MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP; i--;) {
                 // IMPL A:
                 u16 d = *palsPtr - 0x222; // decrement 1 unit in every component
                 switch (d & 0b1000100010000) {

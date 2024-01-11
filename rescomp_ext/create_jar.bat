@@ -38,6 +38,8 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/ImageStripsNoPalsTilesetSplit2.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPalsTilesetSplit3.class ^
 	./sgdk/rescomp/resource/Palette32AllStrips.class ^
+	./sgdk/rescomp/resource/Palette32AllStripsSplit2.class ^
+	./sgdk/rescomp/resource/Palette32AllStripsSplit3.class ^
 	./sgdk/rescomp/resource/Palette32.class ^
 	./sgdk/rescomp/resource/TilemapCustom.class ^
 	./sgdk/rescomp/resource/ext.resource.properties ^

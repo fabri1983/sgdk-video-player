@@ -59,9 +59,9 @@ format for the SGDK rescomp tool.
 
 
 ### TODO
+- Try MOVIE_FRAME_RATE 15 at the end of optimization changes.
 - Idea: call waitVInt_AND_flushDMA() with immediate flag so it starts flushing DMA. 
 	- Move the enable/disable VDP into HInt (use conditions when not need to start the pals swap steps).
-- Split tileset and tilemap in 3 chunks so the unpack is less CPU intense and we can do it inside the active display period.
 - Idea to avoid sending the first 2 strips'pals and send only first strip's pals:
 	- DMA_QUEUE the first 32 colors at VInt. This forces the use of DMA_getQueueSize() in fastDMA_flushQueue().
 	- Add +32 and -32 accordingly in VInt and videoPlayer.c.
@@ -73,16 +73,12 @@ format for the SGDK rescomp tool.
 	- use ++dataPtr; instead of dataPtr += vFrame - prevFrame;
 	- search for TODO PALS_1 and act accordingly.
 	- If the first 2 strips' pals are DMA_QUEUE in waitVInt_AND_flushDMA() then use DMA_getQueueSize() in fastDMA_flushQueue().
-- Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
 - Clear mem used by sound when exiting the video loop?
 - Try using XGM PCM driver:
 	- extract audio with sample rate 14k (or 13.3k for XGMv2 yet to be released)
 		(I used VirtualDub2 to extract as 8bit signed 14KHz 1 channel (mono), but the extract.bat script is the correct approach and needs to be updated)
 	- in movie_sound.res: WAV sound_wav "sound/sound.wav" XGM
 	- Use the XGM_PCM methods
-- Try to change from H40 to H32 on HInt Callback, and hope for any any speed gain?
-	See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
-	See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
 - Implement custom rescomp plugin to create a cache of most common tiles.
 	- Read all tiles from all frames and count their occurrences so we can cached them at the start of tileset VRAM section.
 	- At least 34 tiles should be cached = 34*32=1088 bytes
@@ -92,6 +88,10 @@ format for the SGDK rescomp tool.
 	- update MOVIE_FRAME_RATE at movie_data_consts.h.
 	- update README.md steps 2 and 4.
 	- update videoPlayer in order to do the unpack/load of all the elements along 3 display loops.
+- Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
+- Try to change from H40 to H32 on HInt Callback, and hope for any any speed gain?
+	See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
+	See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
 
 
 ----

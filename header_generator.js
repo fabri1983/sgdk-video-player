@@ -40,12 +40,19 @@ const sortedFileNamesEveryFirstStrip = sortedFileNames
 
 // split tileset in N chunks. Current valid values are [1, 2, 3]
 const tilesetSplit = 3;
-
 var type_ImageNoPals = "ImageNoPals";
 if (tilesetSplit == 2)
 	type_ImageNoPals = "ImageNoPalsTilesetSplit2";
 else if (tilesetSplit == 3)
 	type_ImageNoPals = "ImageNoPalsTilesetSplit3";
+
+// split palettes in N chunks. Current valid values are [1, 2, 3]
+const palette32Split = 1;
+var type_Palette32AllStrips = "Palette32AllStrips";
+if (palette32Split == 2)
+	type_Palette32AllStrips = "Palette32AllStripsSplit2";
+else if (palette32Split == 3)
+	type_Palette32AllStrips = "Palette32AllStripsSplit3";
 
 // This activates the use of a map base tile index which sets the initial tile index for the tilemap of the resource.
 // As the video player uses a buffer to allocate next frame's tilemaps (among tilesets and palettes) whilst current frame 
@@ -102,7 +109,7 @@ const ${type_ImageNoPals}* data[${sortedFileNamesEveryFirstStrip.length}] = {
 	${sortedFileNamesEveryFirstStrip.map(s => `&mv_${removeExtension(s)}`).join(',\n	')}
 };
 
-const Palette32AllStrips* pals_data[${sortedFileNamesEveryFirstStrip.length}] = {
+const ${type_Palette32AllStrips}* pals_data[${sortedFileNamesEveryFirstStrip.length}] = {
 	${sortedFileNamesEveryFirstStrip.map(s => `&pal_${removeExtension(s)}`).join(',\n	')}
 };
 
@@ -144,25 +151,44 @@ typedef struct
 const headerContent4 = `
 typedef struct
 {
-    u16 compression;
     u16* data;
 } Palette32AllStrips;
+`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+
+const headerContent5 = `
+typedef struct
+{
+    u16* data1;
+    u16* data2;
+} Palette32AllStripsSplit2;
+`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+
+const headerContent6 = `
+typedef struct
+{
+    u16* data1;
+    u16* data2;
+    u16* data4;
+} Palette32AllStripsSplit3;
 `.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
 const headerappender1 = `HEADER_APPENDER\t\headerCustomTypes1\t\t\"${headerContent1}\"\n`;
 const headerappender2 = `HEADER_APPENDER\t\headerCustomTypes2\t\t\"${headerContent2}\"\n`;
 const headerappender3 = `HEADER_APPENDER\t\headerCustomTypes3\t\t\"${headerContent3}\"\n`;
-const headerappender4 = `HEADER_APPENDER\t\headerCustomTypes4\t\t\"${headerContent4}\"\n\n`;
+const headerappender4 = `HEADER_APPENDER\t\headerCustomTypes4\t\t\"${headerContent4}\"\n`;
+const headerappender5 = `HEADER_APPENDER\t\headerCustomTypes3\t\t\"${headerContent5}\"\n`;
+const headerappender6 = `HEADER_APPENDER\t\headerCustomTypes4\t\t\"${headerContent6}\"\n\n`;
 
 // Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  2  1  TRUE  FAST  ALL
 const imageResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesetSplit}\t\t${toggleMapTileBaseIndexFlag}\t\t${extendMapWidthTo64_str}\t\tFAST\t\tALL`)
 	.join('\n') + '\n\n';
 
-// Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  21  PAL0PAL1  TRUE  FAST
+// Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  21  3  PAL0PAL1  TRUE  FAST
 const paletteResListStr = sortedFileNamesEveryFirstStrip
-	.map(s => `PALETTE_32_COLORS_ALL_STRIPS\t\tpal_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\tPAL0PAL1\t\tTRUE\t\tFAST`)
+	.map(s => `PALETTE_32_COLORS_ALL_STRIPS\t\tpal_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${palette32Split}\t\tPAL0PAL1\t\tTRUE\t\tFAST`)
 	.join('\n') + '\n\n';
 
 // Create .res file
-fs.writeFileSync(`${RES_DIR}/movie_frames.res`, headerappender1 + headerappender2 + headerappender3 + headerappender4 + imageResListStr + paletteResListStr);
+fs.writeFileSync(`${RES_DIR}/movie_frames.res`, headerappender1 + headerappender2 + headerappender3 + headerappender4 + headerappender5 + headerappender6 
+		+ imageResListStr + paletteResListStr);
