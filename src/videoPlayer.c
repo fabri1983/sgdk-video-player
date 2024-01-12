@@ -124,8 +124,8 @@ static void clearFontTiles () {
 static u32* unpackedTilesetChunk;
 
 static void allocateTilesetBuffer () {
-	unpackedTilesetChunk = (u32*) MEM_alloc((VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE / 2) * 32);
-	memsetU16((u16*) unpackedTilesetChunk, 0x0, (VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE / 2) * 16); // zero all the buffer
+	unpackedTilesetChunk = (u32*) MEM_alloc(VIDEO_FRAME_TILESET_CHUNK_SIZE * 32);
+	memsetU16((u16*) unpackedTilesetChunk, 0x0, VIDEO_FRAME_TILESET_CHUNK_SIZE * 16); // zero all the buffer
 }
 
 static FORCE_INLINE void unpackFrameTileset (TileSet* src) {
@@ -144,16 +144,17 @@ static void freeTilesetBuffer () {
 static u16* unpackedTilemap;
 
 static void allocateTilemapBuffer () {
-	unpackedTilemap = (u16*) MEM_alloc(VIDEO_FRAME_MAX_TILEMAP_NUM * 2);
-	memsetU16(unpackedTilemap, TILE_SYSTEM_INDEX, VIDEO_FRAME_MAX_TILEMAP_NUM); // set TILE_SYSTEM_INDEX (black tile) all over the buffer
+	unpackedTilemap = (u16*) MEM_alloc(VIDEO_FRAME_TILEMAP_NUM * 2);
+	memsetU16(unpackedTilemap, TILE_SYSTEM_INDEX, VIDEO_FRAME_TILEMAP_NUM); // set TILE_SYSTEM_INDEX (black tile) all over the buffer
 }
 
 static FORCE_INLINE void unpackFrameTilemap (TileMap* src, u16 len, u16 offset) {
 	const u16 size = len * 2;
-	if (src->compression != COMPRESSION_NONE)
-		lz4w_unpack((u8*) FAR_SAFE(src->tilemap, size), (u8*) (unpackedTilemap + offset));
-	else
-        memcpy((u8*) (unpackedTilemap + offset), FAR_SAFE(src->tilemap, size), size);
+	#if ALL_TILEMAPS_COMPRESSED
+	lz4w_unpack((u8*) FAR_SAFE(src->tilemap, size), (u8*) (unpackedTilemap + offset));
+	#else
+    memcpy((u8*) (unpackedTilemap + offset), FAR_SAFE(src->tilemap, size), size);
+	#endif
 }
 
 static void freeTilemapBuffer () {
@@ -165,20 +166,20 @@ static u16* unpackedPalsRender;
 static u16* unpackedPalsBuffer;
 
 static void allocatePalettesBuffer () {
-	unpackedPalsRender = (u16*) MEM_alloc(MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP * 2);
-	unpackedPalsBuffer = (u16*) MEM_alloc(MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP * 2);
-	memsetU16(unpackedPalsRender, 0x0, MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP); // black all the buffer
-	memsetU16(unpackedPalsBuffer, 0x0, MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP); // black all the buffer
+	unpackedPalsRender = (u16*) MEM_alloc(VIDEO_FRAME_PALS_TOTAL_SIZE * 2);
+	unpackedPalsBuffer = (u16*) MEM_alloc(VIDEO_FRAME_PALS_TOTAL_SIZE * 2);
+	memsetU16(unpackedPalsRender, 0x0, VIDEO_FRAME_PALS_TOTAL_SIZE); // black all the buffer
+	memsetU16(unpackedPalsBuffer, 0x0, VIDEO_FRAME_PALS_TOTAL_SIZE); // black all the buffer
 }
 
-static FORCE_INLINE void unpackFramePalettes (const Palette32AllStrips* pals32) {
+static FORCE_INLINE void unpackFramePalettes (u16* data, u16 len, u16 offset) {
 	#if ALL_PALETTES_COMPRESSED
 	// No need to use FAR_SAFE() macro here because palette data is always stored near
-	lz4w_unpack((u8*) pals32->data, (u8*) unpackedPalsBuffer);
+	lz4w_unpack((u8*)data, (u8*) (unpackedPalsBuffer + offset));
 	#else
 	// Copy the palette data. No FAR_SAFE() needed here because palette data is always stored at near region.
-	const u16 size = (MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP) * 2;
-	memcpy((u8*) unpackedPalsBuffer, pals32->data, size);
+	const u16 size = len * 2;
+	memcpy((u8*) (unpackedPalsBuffer + offset), data, size);
 	#endif
 }
 
@@ -241,9 +242,9 @@ static void fadeToBlack () {
 void playMovie () {
 
     // size: min queue size is 20.
-	// capacity: experimentally we won't have more than (VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE * 32) = 11840 bytes of data to transfer in VBlank period.
+	// capacity: experimentally we won't have more than (VIDEO_FRAME_TILESET_CHUNK_SIZE * 32) = 11840 bytes of data to transfer in VBlank period.
 	// bufferSize: we won't use temporary allocation, so set it at its min size.
-	DMA_initEx(20, (VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE * 32), DMA_BUFFER_SIZE_MIN);
+	DMA_initEx(20, (VIDEO_FRAME_TILESET_CHUNK_SIZE * 32), DMA_BUFFER_SIZE_MIN);
 
 	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 
@@ -294,7 +295,7 @@ void playMovie () {
 		SYS_enableInts();
 
 		// As frames are indexed in a 0 based access layout, we know that even indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM, 
-		// and odd indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE.
+		// and odd indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE.
 		// We know vFrame always starts with a even value.
 		u16 baseTileIndex = TILE_USER_INDEX_CUSTOM;
 
@@ -318,31 +319,34 @@ void playMovie () {
 		#endif
 
 		ImageNoPalsTilesetSplit3** dataPtr = (ImageNoPalsTilesetSplit3**)data + vFrame;
+		Palette32AllStripsSplit3** palsDataPtr = (Palette32AllStripsSplit3**)pals_data + vFrame;
 
 		while (vFrame < MOVIE_FRAME_COUNT)
 		{
 			u16 numTile1 = (*dataPtr)->tileset1->numTile;
 			unpackFrameTileset((*dataPtr)->tileset1);
 			VDP_loadTileData(unpackedTilesetChunk, baseTileIndex, numTile1, DMA_QUEUE);
+			unpackFramePalettes((*palsDataPtr)->data1, VIDEO_FRAME_PALS_CHUNK_SIZE, 0);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
 			u16 numTile2 = (*dataPtr)->tileset2->numTile;
 			unpackFrameTileset((*dataPtr)->tileset2);
 			VDP_loadTileData(unpackedTilesetChunk, baseTileIndex + numTile1, numTile2, DMA_QUEUE);
+			unpackFramePalettes((*palsDataPtr)->data2, VIDEO_FRAME_PALS_CHUNK_SIZE, VIDEO_FRAME_PALS_CHUNK_SIZE);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
 			u16 numTile3 = (*dataPtr)->tileset3->numTile;
 			unpackFrameTileset((*dataPtr)->tileset3);
 			VDP_loadTileData(unpackedTilesetChunk, baseTileIndex + numTile1 + numTile2, numTile3, DMA_QUEUE);
+			unpackFramePalettes((*palsDataPtr)->data3, VIDEO_FRAME_PALS_CHUNK_SIZE_LAST, 2*VIDEO_FRAME_PALS_CHUNK_SIZE);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
-			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE
-			baseTileIndex ^= VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE;
+			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE
+			baseTileIndex ^= VIDEO_FRAME_TILESET_TOTAL_SIZE;
 
-			unpackFrameTilemap((*dataPtr)->tilemap1, VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK, 0);
-			unpackFrameTilemap((*dataPtr)->tilemap2, VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK, VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK);
-			unpackFrameTilemap((*dataPtr)->tilemap3, VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK_LAST, 2*VIDEO_FRAME_MAX_TILEMAP_NUM_CHUNK);
-			unpackFramePalettes(pals_data[vFrame]);
+			unpackFrameTilemap((*dataPtr)->tilemap1, VIDEO_FRAME_TILEMAP_NUM_CHUNK, 0);
+			unpackFrameTilemap((*dataPtr)->tilemap2, VIDEO_FRAME_TILEMAP_NUM_CHUNK, VIDEO_FRAME_TILEMAP_NUM_CHUNK);
+			unpackFrameTilemap((*dataPtr)->tilemap3, VIDEO_FRAME_TILEMAP_NUM_CHUNK_LAST, 2*VIDEO_FRAME_TILEMAP_NUM_CHUNK);
 
 			#if EXIT_PLAYER_WITH_JOY_START
 			JOY_update();
@@ -394,7 +398,7 @@ void playMovie () {
 			#endif
 
 			// Enqueue tilemap into VRAM
-			VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_MAX_TILEMAP_NUM, 2, DMA_QUEUE);
+			VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_TILEMAP_NUM, 2, DMA_QUEUE);
 
 			// Swaps buffers pals so now the pals render buffer points to the unpacked pals
 			swapPalsBuffers();
@@ -426,8 +430,10 @@ void playMovie () {
 			if (prevFrame != DEBUG_FIXED_FRAME) {
 				vFrame = DEBUG_FIXED_FRAME;
 				--dataPtr;
+				--palsDataPtr;
 			} else {
 				++dataPtr;
+				++palsDataPtr;
 			}
 			#else
 			#if FORCE_NO_MISSING_FRAMES
@@ -440,6 +446,7 @@ void playMovie () {
 				++vFrame; // move into next frame so parity is not shared with previous frame
 			#endif
 			dataPtr += vFrame - prevFrame;
+			palsDataPtr += vFrame - prevFrame;
 			#endif
 
 			#if EXIT_PLAYER_WITH_START

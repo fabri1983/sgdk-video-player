@@ -44,9 +44,9 @@ frame rate: 15
 
 5) `compile_n_run.bat`
 Run it once to catch rescomp output to know max tiles number and then:
-- manually set VIDEO_FRAME_MAX_TILESET_CHUNK_SIZE constant at `videoPlayer.h`.
-- manually set VIDEO_FRAME_MAX_TILESET_TOTAL_SIZE constant at `videoPlayer.h`.
-- edit `res/ext.resource.properties` and update same constants with suffix .
+- manually set VIDEO_FRAME_TILESET_CHUNK_SIZE constant at `videoPlayer.h`.
+- manually set VIDEO_FRAME_TILESET_TOTAL_SIZE constant at `videoPlayer.h`.
+- edit `res/ext.resource.properties` and update same constants having suffix SPLIT2 or SPLIT3 accordingly to your case.
 rom.bin generated at out folder.  
 Blastem binary location set in the bat script.  
 

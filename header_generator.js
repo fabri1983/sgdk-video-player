@@ -47,7 +47,7 @@ else if (tilesetSplit == 3)
 	type_ImageNoPals = "ImageNoPalsTilesetSplit3";
 
 // split palettes in N chunks. Current valid values are [1, 2, 3]
-const palette32Split = 1;
+const palette32Split = 3;
 var type_Palette32AllStrips = "Palette32AllStrips";
 if (palette32Split == 2)
 	type_Palette32AllStrips = "Palette32AllStripsSplit2";
@@ -168,7 +168,7 @@ typedef struct
 {
     u16* data1;
     u16* data2;
-    u16* data4;
+    u16* data3;
 } Palette32AllStripsSplit3;
 `.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
