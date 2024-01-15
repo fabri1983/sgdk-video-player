@@ -15,7 +15,7 @@ SET /A rowsPerStrip=%5
 SET /A fps=%6
 SET "COLORS=%7"
 
-ffmpeg -i %1 -r %fps% -qmin 1 -qmax 2 -qscale:v 1 -s %frameW%x%frameH% %TARGET_FOLDER%/frame_%%d.png -ar 32000 -ac 1 -acodec pcm_u8 res/sound/sound.wav
+ffmpeg -i %1 -r %fps% -qmin 1 -qmax 2 -qscale:v 1 -s %frameW%x%frameH% %TARGET_FOLDER%/frame_%%d.png -ar 22050 -ac 1 -acodec pcm_u8 res/sound/sound.wav
 :: The -vsync 0 parameter avoids needing to specify -r, and means all frames in the input file are processed
 
 IF "%COLORS%" == "" (

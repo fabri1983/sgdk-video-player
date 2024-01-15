@@ -63,16 +63,18 @@ format for the SGDK rescomp tool.
 - Idea: call waitVInt_AND_flushDMA() with immediate flag so it starts flushing DMA. 
 	- Move the enable/disable VDP into HInt (use conditions when not need to start the pals swap steps).
 - Idea to avoid sending the first 2 strips'pals and send only first strip's pals:
-	- DMA_QUEUE the first 32 colors at VInt. This forces the use of DMA_getQueueSize() in fastDMA_flushQueue().
+	- DMA_QUEUE the first 32 colors at VInt.
+	- Use flushQueue from Stef's dma_a.s and flushQueue(DMA_getQueueSize())
 	- Add +32 and -32 accordingly in VInt and videoPlayer.c.
 	- Set HINT_PALS_CMD_ADDRR_RESET_VALUE to 32 in movieHVInterrupts.h.
 	- Hint now starts 1 row of tiles more than the already calculated in movieHVInterrupts.h.
+	- DMA_init() needs more capacity now.
 - Once the unpack/load of tileset/tilemap/pals happen during the time of an active display loop we can:
 	- discard palInFrameRootPtr and just use the setPalsPointer() call made in waitVInt_AND_flushDMA() without the bool parameter resetPalsPtrsForHInt.
 	- remove the condition if (!((prevFrame ^ vFrame) & 1))
 	- use ++dataPtr; instead of dataPtr += vFrame - prevFrame;
 	- search for TODO PALS_1 and act accordingly.
-	- If the first 2 strips' pals are DMA_QUEUE in waitVInt_AND_flushDMA() then use DMA_getQueueSize() in fastDMA_flushQueue().
+	- If the first 2 strips' pals are DMA_QUEUE in waitVInt_AND_flushDMA() then use flushQueue from Stef's dma_a.s and flushQueue(DMA_getQueueSize())
 - Clear mem used by sound when exiting the video loop?
 - Try using XGM PCM driver:
 	- extract audio with sample rate 14k (or 13.3k for XGMv2 yet to be released)

@@ -2,6 +2,7 @@
 #include "generated/movie_data.h"
 #include "movieHVInterrupts.h"
 #include "videoPlayer.h"
+#include "mddecomp\kosinski_plus.h"
 
 /// @brief Waits for a certain amount of millisecond (~3.33 ms based timer when wait is >= 100ms). 
 /// Lightweight implementation without calling SYS_doVBlankProcess().
@@ -49,7 +50,8 @@ static void setBusProtection_Z80 (bool value) {
 	Z80_releaseBus();
 }
 
-extern void flushQueue(u16 num);
+//extern void flushQueue(u16 num); // call with parameter DMA_getQueueSize()
+extern void flushQueue_1elem();
 
 /// @brief This implementation differs from DMA_flushQueue() in that:
 /// - it doesn't check if transfer size exceeds capacity because we know before hand the max capacity.
@@ -61,7 +63,7 @@ static void fastDMA_flushQueue () {
 	#endif
     // u8 autoInc = VDP_getAutoInc(); // save autoInc
 	Z80_requestBus(FALSE);
-	flushQueue(1); // We know DMA_getQueueSize() is 1 because we only do one DMA_QUEUE before each DMA flush.
+	flushQueue_1elem();
 	Z80_releaseBus();
     DMA_clearQueue();
     // VDP_setAutoInc(autoInc); // restore autoInc
@@ -260,7 +262,7 @@ void playMovie () {
 	allocateTilemapBuffer();
 	allocatePalettesBuffer();
 	MEM_pack();
-// KLog_U1("Free Mem: ", MEM_getFree()); // 36778 bytes
+//KLog_U1("Free Mem: ", MEM_getFree()); // 39530 bytes
 
 	// Position in screen (in tiles)
 	u16 xp = (screenWidth - MOVIE_FRAME_WIDTH_IN_TILES*8 + 7)/8/2; // centered in X axis
@@ -302,7 +304,7 @@ void playMovie () {
 		bool exitPlayer = FALSE;
 
 		// Start sound
-		SND_startPlay_PCM(sound_wav, sizeof(sound_wav), SOUND_RATE_32000, SOUND_PAN_CENTER, FALSE);
+		SND_startPlay_PCM(sound_wav, sizeof(sound_wav), SOUND_RATE_22050, SOUND_PAN_CENTER, FALSE);
 		// XGM_setPCM(1, sound_wav, sizeof(sound_wav));
 		// XGM_startPlayPCM(1, 1, SOUND_PCM_CH1);
 		// XGM_setLoopNumber(0);
