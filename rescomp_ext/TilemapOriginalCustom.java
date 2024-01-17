@@ -19,7 +19,7 @@ import sgdk.rescomp.type.Tile;
 import sgdk.rescomp.type.TilemapCreationData;
 import sgdk.tool.ArrayUtil;
 
-public class TilemapCustom extends Resource
+public class TilemapOriginalCustom extends Resource
 {
 	private static TilemapCreationData createTilemap(String id, List<Tileset> tilesets, int[] offsetForTilesets,
 			int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int imageWidth, int imageHeight,
@@ -118,22 +118,22 @@ public class TilemapCustom extends Resource
         return new TilemapCreationData(id, data, w, h, compression, compressionCustom);
 	}
 
-	public static TilemapCustom getTilemap(String id, List<Tileset> tilesets, int[] offsetForTilesets, int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, 
+	public static TilemapOriginalCustom getTilemap(String id, List<Tileset> tilesets, int[] offsetForTilesets, int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, 
 			int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt, Compression compression, 
 			CompressionCustom compressionCustom, boolean extendedMapWidth64)
 	{
 		TilemapCreationData tmData = createTilemap(id, tilesets, offsetForTilesets, toggleMapTileBaseIndexFlag, mapBase, image8bpp,
 				imageWidth, imageHeight, startTileX, startTileY, widthTile, heightTile, opt, compression, compressionCustom, extendedMapWidth64);
-		return new TilemapCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, tmData.compressionCustom);
+		return new TilemapOriginalCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, tmData.compressionCustom);
 	}
 
-	public static TilemapCustom getTilemap(String id, Tileset tileset, int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int widthTile, int heightTile, 
+	public static TilemapOriginalCustom getTilemap(String id, Tileset tileset, int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int widthTile, int heightTile, 
 			TileOptimization opt, Compression compression, CompressionCustom compressionCustom, boolean extendedMapWidth64)
     {
 		List<Tileset> tilesets = Arrays.asList(tileset);
 		TilemapCreationData tmData = createTilemap(id, tilesets, new int[]{0}, toggleMapTileBaseIndexFlag, mapBase, image8bpp, widthTile * 8, 
 				heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, compressionCustom, extendedMapWidth64);
-		return new TilemapCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, tmData.compressionCustom);
+		return new TilemapOriginalCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, tmData.compressionCustom);
     }
 
     public final int w;
@@ -143,7 +143,7 @@ public class TilemapCustom extends Resource
     // binary data for tilemap
     public final BinCustom bin;
 
-	public TilemapCustom(String id, short[] data, int w, int h, Compression compression, CompressionCustom compressionCustom) {
+	public TilemapOriginalCustom(String id, short[] data, int w, int h, Compression compression, CompressionCustom compressionCustom) {
 		super(id);
 
         this.w = w;
@@ -182,9 +182,9 @@ public class TilemapCustom extends Resource
     @Override
     public boolean internalEquals(Object obj)
     {
-        if (obj instanceof TilemapCustom)
+        if (obj instanceof TilemapOriginalCustom)
         {
-            final TilemapCustom tilemap = (TilemapCustom) obj;
+            final TilemapOriginalCustom tilemap = (TilemapOriginalCustom) obj;
             return (w == tilemap.w) && (h == tilemap.h) && bin.equals(tilemap.bin);
         }
 
@@ -200,7 +200,7 @@ public class TilemapCustom extends Resource
     @Override
     public int shallowSize()
     {
-        return /*2 + 2 + 2*/ + 4;
+        return 2 + 2 + 2 + 4;
     }
 
     @Override
@@ -216,16 +216,16 @@ public class TilemapCustom extends Resource
         outB.reset();
 
         // output TileMap structure
-        Util.decl(outS, outH, "TileMapCustom", id, 2, global);
+        Util.decl(outS, outH, "TileMap", id, 2, global);
         // set compression info (very important that binary data had already been exported at this point)
-//        int compOrdinal = 0;
-//        if (bin.doneCompression != Compression.NONE)
-//        	compOrdinal = bin.doneCompression.ordinal() - 1;
-//        else if (bin.doneCompressionCustom != CompressionCustom.NONE)
-//        	compOrdinal = bin.doneCompressionCustom.getDefineValue(); 
-//        outS.append("    dc.w    " + compOrdinal + "\n");
+        int compOrdinal = 0;
+        if (bin.doneCompression != Compression.NONE)
+        	compOrdinal = bin.doneCompression.ordinal() - 1;
+        else if (bin.doneCompressionCustom != CompressionCustom.NONE)
+        	compOrdinal = bin.doneCompressionCustom.getDefineValue(); 
+        outS.append("    dc.w    " + compOrdinal + "\n");
         // set size in tile
-//        outS.append("    dc.w    " + w + ", " + h + "\n");
+        outS.append("    dc.w    " + w + ", " + h + "\n");
         // set data pointer
         outS.append("    dc.l    " + bin.id + "\n");
         outS.append("\n");

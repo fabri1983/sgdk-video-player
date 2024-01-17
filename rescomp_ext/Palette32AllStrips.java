@@ -7,6 +7,7 @@ import java.util.List;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
+import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.PalettesPositionEnum;
 import sgdk.rescomp.type.TSX;
 import sgdk.tool.FileUtil;
@@ -20,9 +21,10 @@ public class Palette32AllStrips extends Resource
 {
     final int hc;
 
-    public Bin bin;
+    public BinCustom bin;
 
-    public Palette32AllStrips(String id, List<String> stripsFileList, final PalettesPositionEnum palsPosition, final boolean togglePalsLocation, Compression compression) throws Exception
+    public Palette32AllStrips(String id, List<String> stripsFileList, final PalettesPositionEnum palsPosition, final boolean togglePalsLocation, 
+    		Compression compression, CompressionCustom compressionCustom) throws Exception
     {
         super(id);
 
@@ -88,7 +90,7 @@ public class Palette32AllStrips extends Resource
         }
 
         // build BIN (we never compress palette)
-        bin = (Bin) addInternalResource(new Bin(id + "_data", palettesAll, compression, false));
+        bin = (BinCustom) addInternalResource(new BinCustom(id + "_data", palettesAll, compression, compressionCustom, false));
 
         // compute hash code
         hc = bin.hashCode();

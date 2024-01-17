@@ -14,6 +14,7 @@ import sgdk.rescomp.resource.Palette32AllStripsSplit2;
 import sgdk.rescomp.resource.Palette32AllStripsSplit3;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
+import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.PalettesPositionEnum;
 import sgdk.tool.FileUtil;
 import sgdk.tool.StringUtil;
@@ -44,6 +45,11 @@ public class Palette32AllStripsProcessor implements Processor
             System.out.println("  compression         compression type, accepted values:");
 			System.out.println("                       0 / NONE        = no compression (default)");
 			System.out.println("                       2 / FAST / LZ4W = custom lz4 compression (average compression ratio but fast)");
+			System.out.println("  compressionCustom   custom compression type, accepted values:");
+			System.out.println("                       " + CompressionCustom.NONE.getValue());
+			System.out.println("                       " + CompressionCustom.COMPER.getValue());
+			System.out.println("                       " + CompressionCustom.KOSINSKI.getValue());
+			System.out.println("                       " + CompressionCustom.KOSINSKI_PLUS.getValue());
             return null;
         }
 
@@ -81,18 +87,23 @@ public class Palette32AllStripsProcessor implements Processor
 		if (fields.length >= 8)
 			compression = Util.getCompression(fields[7]);
 		// Only Compression.NONE or Compression.LZW4 (FAST)
-		if (compression == Compression.NONE || compression == Compression.APLIB)
+		if (compression == Compression.APLIB)
 			compression = Compression.LZ4W;
+
+		// get custom compression value
+        CompressionCustom compressionCustom = CompressionCustom.NONE;
+        if (fields.length >= 9)
+        	compressionCustom = CompressionCustom.from(fields[8]);
 
 		// add resource file (used for deps generation)
 //		Compiler.addResourceFile(fileIn);
 
 		if (splitChunks == 1)
-			return new Palette32AllStrips(id, stripsInList, palsPosition, togglePalsLocation, compression);
+			return new Palette32AllStrips(id, stripsInList, palsPosition, togglePalsLocation, compression, compressionCustom);
 		else if (splitChunks == 2)
-			return new Palette32AllStripsSplit2(id, stripsInList, palsPosition, togglePalsLocation, compression);
+			return new Palette32AllStripsSplit2(id, stripsInList, palsPosition, togglePalsLocation, compression, compressionCustom);
 		else
-			return new Palette32AllStripsSplit3(id, stripsInList, palsPosition, togglePalsLocation, compression);
+			return new Palette32AllStripsSplit3(id, stripsInList, palsPosition, togglePalsLocation, compression, compressionCustom);
     }
 
 	private List<String> generateFilesInForStrips(String absPath, String baseFileName, Matcher baseFileNameMatcher, int strips)
@@ -117,7 +128,7 @@ public class Palette32AllStripsProcessor implements Processor
 //		Palette32AllStripsProcessor p = new Palette32AllStripsProcessor();
 //		String[] fields = {
 //			resId, "pal_frame_47", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_47_0_RGB.png", 
-//			"22", "1", PalettesPositionEnum.PAL0PAL1.getValue(), "TRUE", "FAST"
+//			"22", "1", PalettesPositionEnum.PAL0PAL1.getValue(), "TRUE", "FAST", "NONE"
 //		};
 //		p.execute(fields);
 //	}

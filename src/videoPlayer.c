@@ -2,7 +2,6 @@
 #include "generated/movie_data.h"
 #include "movieHVInterrupts.h"
 #include "videoPlayer.h"
-#include "mddecomp\kosinski_plus.h"
 
 /// @brief Waits for a certain amount of millisecond (~3.33 ms based timer when wait is >= 100ms). 
 /// Lightweight implementation without calling SYS_doVBlankProcess().
@@ -150,7 +149,7 @@ static void allocateTilemapBuffer () {
 	memsetU16(unpackedTilemap, TILE_SYSTEM_INDEX, VIDEO_FRAME_TILEMAP_NUM); // set TILE_SYSTEM_INDEX (black tile) all over the buffer
 }
 
-static FORCE_INLINE void unpackFrameTilemap (TileMap* src, u16 len, u16 offset) {
+static FORCE_INLINE void unpackFrameTilemap (TileMapCustom* src, u16 len, u16 offset) {
 	const u16 size = len * 2;
 	#if ALL_TILEMAPS_COMPRESSED
 	lz4w_unpack((u8*) FAR_SAFE(src->tilemap, size), (u8*) (unpackedTilemap + offset));
@@ -196,6 +195,14 @@ static void freePalettesBuffer () {
 	MEM_free((void*) unpackedPalsBuffer);
     unpackedPalsRender = NULL;
 	unpackedPalsBuffer = NULL;
+}
+
+static void enqueueTilesetData (u16 startTileIndex, u16 length) {
+	VDP_loadTileData(unpackedTilesetChunk, startTileIndex, length, DMA_QUEUE);
+}
+
+static void enqueueTilemapData (u16 tilemapAddrInPlane) {
+	VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_TILEMAP_NUM, 2, DMA_QUEUE);
 }
 
 static void fadeToBlack () {
@@ -327,19 +334,19 @@ void playMovie () {
 		{
 			u16 numTile1 = (*dataPtr)->tileset1->numTile;
 			unpackFrameTileset((*dataPtr)->tileset1);
-			VDP_loadTileData(unpackedTilesetChunk, baseTileIndex, numTile1, DMA_QUEUE);
+			enqueueTilesetData(baseTileIndex, numTile1);
 			unpackFramePalettes((*palsDataPtr)->data1, VIDEO_FRAME_PALS_CHUNK_SIZE, 0);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
 			u16 numTile2 = (*dataPtr)->tileset2->numTile;
 			unpackFrameTileset((*dataPtr)->tileset2);
-			VDP_loadTileData(unpackedTilesetChunk, baseTileIndex + numTile1, numTile2, DMA_QUEUE);
+			enqueueTilesetData(baseTileIndex + numTile1, numTile2);
 			unpackFramePalettes((*palsDataPtr)->data2, VIDEO_FRAME_PALS_CHUNK_SIZE, VIDEO_FRAME_PALS_CHUNK_SIZE);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
 			u16 numTile3 = (*dataPtr)->tileset3->numTile;
 			unpackFrameTileset((*dataPtr)->tileset3);
-			VDP_loadTileData(unpackedTilesetChunk, baseTileIndex + numTile1 + numTile2, numTile3, DMA_QUEUE);
+			enqueueTilesetData(baseTileIndex + numTile1 + numTile2, numTile3);
 			unpackFramePalettes((*palsDataPtr)->data3, VIDEO_FRAME_PALS_CHUNK_SIZE_LAST, 2*VIDEO_FRAME_PALS_CHUNK_SIZE);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
@@ -400,7 +407,7 @@ void playMovie () {
 			#endif
 
 			// Enqueue tilemap into VRAM
-			VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_TILEMAP_NUM, 2, DMA_QUEUE);
+			enqueueTilemapData(tilemapAddrInPlane);
 
 			// Swaps buffers pals so now the pals render buffer points to the unpacked pals
 			swapPalsBuffers();

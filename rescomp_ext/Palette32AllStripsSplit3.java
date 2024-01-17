@@ -7,6 +7,7 @@ import java.util.List;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
+import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.PalettesPositionEnum;
 import sgdk.rescomp.type.TSX;
 import sgdk.tool.FileUtil;
@@ -20,9 +21,10 @@ public class Palette32AllStripsSplit3 extends Resource
 {
     final int hc;
 
-    private Bin bin1, bin2, bin3;
+    private BinCustom bin1, bin2, bin3;
 
-    public Palette32AllStripsSplit3(String id, List<String> stripsFileList, final PalettesPositionEnum palsPosition, final boolean togglePalsLocation, Compression compression) throws Exception
+    public Palette32AllStripsSplit3(String id, List<String> stripsFileList, final PalettesPositionEnum palsPosition, final boolean togglePalsLocation, 
+    		Compression compression, CompressionCustom compressionCustom) throws Exception
     {
         super(id);
 
@@ -98,9 +100,9 @@ public class Palette32AllStripsSplit3 extends Resource
         System.arraycopy(palettesAll, size1 + size2, chunk3, 0, size3);
 
         // build BIN
-        bin1 = (Bin) addInternalResource(new Bin(id + "_chunk1_data", chunk1, compression, false));
-        bin2 = (Bin) addInternalResource(new Bin(id + "_chunk2_data", chunk2, compression, false));
-        bin3 = (Bin) addInternalResource(new Bin(id + "_chunk3_data", chunk3, compression, false));
+        bin1 = (BinCustom) addInternalResource(new BinCustom(id + "_chunk1_data", chunk1, compression, compressionCustom, false));
+        bin2 = (BinCustom) addInternalResource(new BinCustom(id + "_chunk2_data", chunk2, compression, compressionCustom, false));
+        bin3 = (BinCustom) addInternalResource(new BinCustom(id + "_chunk3_data", chunk3, compression, compressionCustom, false));
 
         // compute hash code
         hc = bin1.hashCode() ^ bin2.hashCode() ^ bin3.hashCode();

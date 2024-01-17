@@ -8,6 +8,7 @@ import java.util.List;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.ExtProperties;
 import sgdk.rescomp.tool.Util;
+import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.tool.ImageUtil;
@@ -18,10 +19,10 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
     final int hc;
 
 	public final Tileset tileset1, tileset2;
-	public final Tilemap tilemap1, tilemap2;
+	public final TilemapCustom tilemap1, tilemap2;
 
     public ImageStripsNoPalsTilesetSplit2(String id, List<String> stripsFileList, int toggleMapTileBaseIndexFlag, boolean extendedMapWidth64, 
-    		Compression compression, TileOptimization tileOpt, int mapBase) throws Exception
+    		Compression compression, TileOptimization tileOpt, int mapBase, CompressionCustom compressionCustom) throws Exception
     {
         super(id);
 
@@ -55,12 +56,12 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
         int[] offsetForTilesets = {0, tileset1.getNumTile()};
 
         List<Tileset> tilesetsList_t1 = Arrays.asList(tileset1);
-		tilemap1 = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList_t1, offsetForTilesets, 
-        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, 0, wt, ht_1, tileOpt, compression, extendedMapWidth64));
+		tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList_t1, offsetForTilesets, 
+        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, 0, wt, ht_1, tileOpt, compression, compressionCustom, extendedMapWidth64));
 
 		List<Tileset> tilesetsList_t2 = Arrays.asList(tileset1, tileset2);
-        tilemap2 = (Tilemap) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tilesetsList_t2, offsetForTilesets, 
-        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, ht_1, wt, ht_2, tileOpt, compression, extendedMapWidth64));
+        tilemap2 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tilesetsList_t2, offsetForTilesets, 
+        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, ht_1, wt, ht_2, tileOpt, compression, compressionCustom, extendedMapWidth64));
 
         // compute hash code
         int hcTemp = tileset1.hashCode() ^ tileset2.hashCode() ^ tilemap1.hashCode() ^ tilemap2.hashCode();

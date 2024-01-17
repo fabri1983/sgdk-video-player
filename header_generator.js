@@ -118,7 +118,20 @@ const ${type_Palette32AllStrips}* pals_data[${sortedFileNamesEveryFirstStrip.len
 
 // --------- Generate .res file
 // Next struct type definitions will be added at the top of generated movie_frames.h
+const headerDefineCompressionCustom = `
+#define COMPER 4
+#define KOSINSKI 5
+#define KOSINSKI_PLUS 6
+`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+
 const headerContent1 = `
+typedef struct
+{
+    u16 *tilemap;
+} TileMapCustom;
+`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+
+const headerContent2 = `
 typedef struct
 {
     TileSet *tileset;
@@ -126,36 +139,36 @@ typedef struct
 } ImageNoPals;
 `.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
-const headerContent2 = `
-typedef struct
-{
-    TileSet *tileset1;
-    TileSet *tileset2;
-    TileMap *tilemap1;
-    TileMap *tilemap2;
-} ImageNoPalsTilesetSplit2;
-`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
-
 const headerContent3 = `
 typedef struct
 {
     TileSet *tileset1;
     TileSet *tileset2;
-    TileSet *tileset3;
-    TileMap *tilemap1;
-    TileMap *tilemap2;
-    TileMap *tilemap3;
-} ImageNoPalsTilesetSplit3;
+    TileMapCustom *tilemap1;
+    TileMapCustom *tilemap2;
+} ImageNoPalsTilesetSplit2;
 `.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
 const headerContent4 = `
+typedef struct
+{
+    TileSet *tileset1;
+    TileSet *tileset2;
+    TileSet *tileset3;
+    TileMapCustom *tilemap1;
+    TileMapCustom *tilemap2;
+    TileMapCustom *tilemap3;
+} ImageNoPalsTilesetSplit3;
+`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+
+const headerContent5 = `
 typedef struct
 {
     u16* data;
 } Palette32AllStrips;
 `.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
-const headerContent5 = `
+const headerContent6 = `
 typedef struct
 {
     u16* data1;
@@ -163,7 +176,7 @@ typedef struct
 } Palette32AllStripsSplit2;
 `.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
-const headerContent6 = `
+const headerContent7 = `
 typedef struct
 {
     u16* data1;
@@ -172,23 +185,26 @@ typedef struct
 } Palette32AllStripsSplit3;
 `.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
+const headerappenderDefine1 = `HEADER_APPENDER\t\headerDefineCompressionCustom\t\t\"${headerDefineCompressionCustom}\"\n\n`;
+
 const headerappender1 = `HEADER_APPENDER\t\headerCustomTypes1\t\t\"${headerContent1}\"\n`;
 const headerappender2 = `HEADER_APPENDER\t\headerCustomTypes2\t\t\"${headerContent2}\"\n`;
 const headerappender3 = `HEADER_APPENDER\t\headerCustomTypes3\t\t\"${headerContent3}\"\n`;
 const headerappender4 = `HEADER_APPENDER\t\headerCustomTypes4\t\t\"${headerContent4}\"\n`;
-const headerappender5 = `HEADER_APPENDER\t\headerCustomTypes3\t\t\"${headerContent5}\"\n`;
-const headerappender6 = `HEADER_APPENDER\t\headerCustomTypes4\t\t\"${headerContent6}\"\n\n`;
+const headerappender5 = `HEADER_APPENDER\t\headerCustomTypes5\t\t\"${headerContent5}\"\n`;
+const headerappender6 = `HEADER_APPENDER\t\headerCustomTypes6\t\t\"${headerContent6}\"\n`;
+const headerappender7 = `HEADER_APPENDER\t\headerCustomTypes7\t\t\"${headerContent7}\"\n\n`;
 
 // Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  2  1  TRUE  FAST  ALL
 const imageResListStr = sortedFileNamesEveryFirstStrip
-	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesetSplit}\t\t${toggleMapTileBaseIndexFlag}\t\t${extendMapWidthTo64_str}\t\tFAST\t\tALL`)
+	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesetSplit}\t\t${toggleMapTileBaseIndexFlag}\t\t${extendMapWidthTo64_str}\t\tFAST\t\tNONE\t\tALL`)
 	.join('\n') + '\n\n';
 
 // Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  21  3  PAL0PAL1  TRUE  FAST
 const paletteResListStr = sortedFileNamesEveryFirstStrip
-	.map(s => `PALETTE_32_COLORS_ALL_STRIPS\t\tpal_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${palette32Split}\t\tPAL0PAL1\t\tTRUE\t\tFAST`)
+	.map(s => `PALETTE_32_COLORS_ALL_STRIPS\t\tpal_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${palette32Split}\t\tPAL0PAL1\t\tTRUE\t\tFAST\t\tNONE`)
 	.join('\n') + '\n\n';
 
 // Create .res file
-fs.writeFileSync(`${RES_DIR}/movie_frames.res`, headerappender1 + headerappender2 + headerappender3 + headerappender4 + headerappender5 + headerappender6 
-		+ imageResListStr + paletteResListStr);
+fs.writeFileSync(`${RES_DIR}/movie_frames.res`, headerappenderDefine1 + headerappender1 + headerappender2 + headerappender3 + headerappender4 + headerappender5 
+		+ headerappender6 + headerappender7 + imageResListStr + paletteResListStr);

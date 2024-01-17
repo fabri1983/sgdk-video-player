@@ -59,6 +59,8 @@ format for the SGDK rescomp tool.
 
 
 ### TODO
+- Use DMA_queueFast(..) which avoids the 128KB bank check. Which isn't needed when transferring from RAM.
+- If the use of new compression/decompression methods speed up the decompression then try to use new video (better definition and correct width and height)
 - Try MOVIE_FRAME_RATE 15 at the end of optimization changes.
 - Idea: call waitVInt_AND_flushDMA() with immediate flag so it starts flushing DMA. 
 	- Move the enable/disable VDP into HInt (use conditions when not need to start the pals swap steps).
