@@ -2,6 +2,7 @@
 #include "generated/movie_data.h"
 #include "movieHVInterrupts.h"
 #include "videoPlayer.h"
+#include "dma_1elem.h"
 
 /// @brief Waits for a certain amount of millisecond (~3.33 ms based timer when wait is >= 100ms). 
 /// Lightweight implementation without calling SYS_doVBlankProcess().
@@ -27,12 +28,12 @@ static void waitSubTick_ (u32 subtick) {
 		// next code seems to loops 7 times to simulate a tick
 		// TODO: use cycle accurate wait loop in asm (about 100 cycles for 1 subtick)
 		ASM_STATEMENT volatile (
-			"moveq #7,%0\n"
+			"moveq #7, %0\n"
 			"1:\n"
-			"\t  dbra %0,1b"   // decrement register dx by 1 and branch if not zero
+			"\t  dbra %0, 1b"   // decrement register dx by 1 and branch back (b) to label 1 if not zero
 			: "=d" (tmp)
 			:
-			: "cc" // Clobbers: condition codes
+			: "cc"              // Clobbers: condition codes
 		);
 	}
 }
@@ -49,9 +50,6 @@ static void setBusProtection_Z80 (bool value) {
 	Z80_releaseBus();
 }
 
-//extern void flushQueue(u16 num); // call with parameter DMA_getQueueSize()
-extern void flushQueue_1elem();
-
 /// @brief This implementation differs from DMA_flushQueue() in that:
 /// - it doesn't check if transfer size exceeds capacity because we know before hand the max capacity.
 /// - it assumes Z80 bus wasn't requested and hence request it.
@@ -62,7 +60,7 @@ static void fastDMA_flushQueue () {
 	#endif
     // u8 autoInc = VDP_getAutoInc(); // save autoInc
 	Z80_requestBus(FALSE);
-	flushQueue_1elem();
+	flushDMA_1elem();
 	Z80_releaseBus();
     DMA_clearQueue();
     // VDP_setAutoInc(autoInc); // restore autoInc
@@ -198,19 +196,17 @@ static void freePalettesBuffer () {
 }
 
 static void enqueueTilesetData (u16 startTileIndex, u16 length) {
-	// This was the previous way which
+	// This was the previous way
 	// VDP_loadTileData(unpackedTilesetChunk, startTileIndex, length, DMA_QUEUE);
-
-	// Now we'll use DMA_queueDmaFast() because the tilemap is in RAM so no 128KB bank check is needed
-	DMA_queueDmaFast(DMA_VRAM, (void*) unpackedTilesetChunk, startTileIndex * 32, length * 16, 2);
+	// Now we use custom DMA_queueDmaFast() because the data is in RAM so no 128KB bank check is needed
+	enqueueDMA_1elem((void*) unpackedTilesetChunk, startTileIndex * 32, length * 16, 2);
 }
 
 static void enqueueTilemapData (u16 tilemapAddrInPlane) {
 	// This was the previous way which benefits from tilemap width being 64 tiles
 	// VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_TILEMAP_NUM, 2, DMA_QUEUE);
-
-	// Now we'll use DMA_queueDmaFast() because the tilemap is in RAM so no 128KB bank check is needed
-	DMA_queueDmaFast(DMA_VRAM, (void*) unpackedTilemap, tilemapAddrInPlane + (0 * 2), VIDEO_FRAME_TILEMAP_NUM, 2);
+	// Now we use custom DMA_queueDmaFast() because the data is in RAM so no 128KB bank check is needed
+	enqueueDMA_1elem((void*) unpackedTilemap, tilemapAddrInPlane + (0 * 2), VIDEO_FRAME_TILEMAP_NUM, 2);
 }
 
 static void fadeToBlack () {
@@ -258,18 +254,12 @@ static void fadeToBlack () {
 
 void playMovie () {
 
-    // size: min queue size is 20.
-	// capacity: experimentally we won't have more than (VIDEO_FRAME_TILESET_CHUNK_SIZE * 32) = 11840 bytes of data to transfer in VBlank period.
-	// bufferSize: we won't use temporary allocation, so set it at its min size.
-	DMA_initEx(20, (VIDEO_FRAME_TILESET_CHUNK_SIZE * 32), DMA_BUFFER_SIZE_MIN);
-	DMA_setAutoFlush(FALSE);
+	// Blacks out everything in screen while first frame is being loaded
+	PAL_setColors(0, palette_black, 64, DMA);
 
 	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 
     VDP_setPlaneSize(MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES, 32, TRUE);
-
-	// Hides first frame whilst is being loaded
-	PAL_setColors(0, palette_black, 64, DMA);
 
 	// Clear font tiles from VRAM. We will need that space, and it has to be cleared
 	clearFontTiles();
@@ -278,7 +268,7 @@ void playMovie () {
 	allocateTilemapBuffer();
 	allocatePalettesBuffer();
 	MEM_pack();
-//KLog_U1("Free Mem: ", MEM_getFree()); // 39530 bytes
+//KLog_U1("Free Mem: ", MEM_getFree()); // 32600 bytes. Previously 39530 because of DMA_initEx() with minimum values.
 
 	// Position in screen (in tiles)
 	u16 xp = (screenWidth - MOVIE_FRAME_WIDTH_IN_TILES*8 + 7)/8/2; // centered in X axis

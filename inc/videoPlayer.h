@@ -3,6 +3,24 @@
 
 #include "generated/movie_data_consts.h"
 
+#ifdef __GNUC__
+#define FORCE_INLINE            inline __attribute__ ((always_inline))
+#elif defined(_MSC_VER)
+#define FORCE_INLINE            inline __forceinline
+#endif
+
+#ifdef __GNUC__
+#define NO_INLINE               __attribute__ ((noinline))
+#elif defined(_MSC_VER)
+#define NO_INLINE               __declspec(noinline)
+#endif
+
+#ifdef __GNUC__
+#define ASM_STATEMENT __asm__
+#elif defined(_MSC_VER)
+#define ASM_STATEMENT __asm
+#endif
+
 // #define DEBUG_VIDEO_PLAYER
 // #define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the static map base tile index statically set on each frame by our custom rescomp extension
 // #define LOG_DIFF_BETWEEN_VIDEO_FRAMES

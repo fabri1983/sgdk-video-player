@@ -1,4 +1,5 @@
-#include <genesis.h>
+#include <types.h>
+#include <sys.h>
 #include "videoPlayer.h"
 
 int main (bool hard)

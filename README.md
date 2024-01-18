@@ -64,11 +64,11 @@ format for the SGDK rescomp tool.
 	- new dims are 272 width x 200 height (34 * 25 tiles).
 	- update this README.txt steps.
 - If decomp algorithms aren't faster than Stef's LZ4W doesn't work, then use video height 192 (24 tiles).
-- Try MOVIE_FRAME_RATE 15 at the end of optimization changes.
+- Try MOVIE_FRAME_RATE 15 once I finished all optimization changes.
 - Idea: call waitVInt_AND_flushDMA() with immediate flag so it starts flushing DMA. 
 	- Move the enable/disable VDP into HInt (use conditions when not need to start the pals swap steps).
 - Idea to avoid sending the first 2 strips'pals and send only first strip's pals:
-	- DMA_QUEUE the first 32 colors at VInt.
+	- DMA_QUEUE the first 32 colors (2 pals) at VInt.
 	- Use flushQueue from Stef's dma_a.s and flushQueue(DMA_getQueueSize())
 	- Add +32 and -32 accordingly in VInt and videoPlayer.c.
 	- Set HINT_PALS_CMD_ADDRR_RESET_VALUE to 32 in movieHVInterrupts.h.

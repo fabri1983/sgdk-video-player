@@ -6,9 +6,27 @@
 #include "generated/movie_data_consts.h"
 
 #ifdef __GNUC__
+#define FORCE_INLINE            inline __attribute__ ((always_inline))
+#elif defined(_MSC_VER)
+#define FORCE_INLINE            inline __forceinline
+#endif
+
+#ifdef __GNUC__
+#define NO_INLINE               __attribute__ ((noinline))
+#elif defined(_MSC_VER)
+#define NO_INLINE               __declspec(noinline)
+#endif
+
+#ifdef __GNUC__
 #define ASM_STATEMENT __asm__
 #elif defined(_MSC_VER)
 #define ASM_STATEMENT __asm
+#endif
+
+#ifdef __GNUC__
+#define INTERRUPT_ATTRIBUTE HINTERRUPT_CALLBACK
+#else
+#define INTERRUPT_ATTRIBUTE void
 #endif
 
 #define HINT_PALS_CMD_ADDRR_RESET_VALUE 0 // 0 if HInt starts swap for [PAL0,PAL1]. MOVIE_DATA_COLORS_PER_STRIP if HInt starts swap for [PAL2,PAL3].
