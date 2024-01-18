@@ -198,11 +198,19 @@ static void freePalettesBuffer () {
 }
 
 static void enqueueTilesetData (u16 startTileIndex, u16 length) {
-	VDP_loadTileData(unpackedTilesetChunk, startTileIndex, length, DMA_QUEUE);
+	// This was the previous way which
+	// VDP_loadTileData(unpackedTilesetChunk, startTileIndex, length, DMA_QUEUE);
+
+	// Now we'll use DMA_queueDmaFast() because the tilemap is in RAM so no 128KB bank check is needed
+	DMA_queueDmaFast(DMA_VRAM, (void*) unpackedTilesetChunk, startTileIndex * 32, length * 16, 2);
 }
 
 static void enqueueTilemapData (u16 tilemapAddrInPlane) {
-	VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_TILEMAP_NUM, 2, DMA_QUEUE);
+	// This was the previous way which benefits from tilemap width being 64 tiles
+	// VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_TILEMAP_NUM, 2, DMA_QUEUE);
+
+	// Now we'll use DMA_queueDmaFast() because the tilemap is in RAM so no 128KB bank check is needed
+	DMA_queueDmaFast(DMA_VRAM, (void*) unpackedTilemap, tilemapAddrInPlane + (0 * 2), VIDEO_FRAME_TILEMAP_NUM, 2);
 }
 
 static void fadeToBlack () {
@@ -254,6 +262,7 @@ void playMovie () {
 	// capacity: experimentally we won't have more than (VIDEO_FRAME_TILESET_CHUNK_SIZE * 32) = 11840 bytes of data to transfer in VBlank period.
 	// bufferSize: we won't use temporary allocation, so set it at its min size.
 	DMA_initEx(20, (VIDEO_FRAME_TILESET_CHUNK_SIZE * 32), DMA_BUFFER_SIZE_MIN);
+	DMA_setAutoFlush(FALSE);
 
 	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 

@@ -59,8 +59,11 @@ format for the SGDK rescomp tool.
 
 
 ### TODO
-- Use DMA_queueFast(..) which avoids the 128KB bank check. Which isn't needed when transferring from RAM.
-- If the use of new compression/decompression methods speed up the decompression then try to use new video (better definition and correct width and height)
+- If the use of new compression/decompression methods speed up the decompression over Stef's LZ4W then:
+	- use new video (better definition and correct width and height) from VirtualDub2 project.
+	- new dims are 272 width x 200 height (34 * 25 tiles).
+	- update this README.txt steps.
+- If decomp algorithms aren't faster than Stef's LZ4W doesn't work, then use video height 192 (24 tiles).
 - Try MOVIE_FRAME_RATE 15 at the end of optimization changes.
 - Idea: call waitVInt_AND_flushDMA() with immediate flag so it starts flushing DMA. 
 	- Move the enable/disable VDP into HInt (use conditions when not need to start the pals swap steps).
