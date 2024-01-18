@@ -195,14 +195,14 @@ static void freePalettesBuffer () {
 	unpackedPalsBuffer = NULL;
 }
 
-static void enqueueTilesetData (u16 startTileIndex, u16 length) {
+static FORCE_INLINE void enqueueTilesetData (u16 startTileIndex, u16 length) {
 	// This was the previous way
 	// VDP_loadTileData(unpackedTilesetChunk, startTileIndex, length, DMA_QUEUE);
 	// Now we use custom DMA_queueDmaFast() because the data is in RAM so no 128KB bank check is needed
 	enqueueDMA_1elem((void*) unpackedTilesetChunk, startTileIndex * 32, length * 16, 2);
 }
 
-static void enqueueTilemapData (u16 tilemapAddrInPlane) {
+static FORCE_INLINE void enqueueTilemapData (u16 tilemapAddrInPlane) {
 	// This was the previous way which benefits from tilemap width being 64 tiles
 	// VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_TILEMAP_NUM, 2, DMA_QUEUE);
 	// Now we use custom DMA_queueDmaFast() because the data is in RAM so no 128KB bank check is needed
@@ -364,41 +364,17 @@ void playMovie () {
 			}
 			#endif
 
-			// Loops until time consumes the MOVIE_FRAME_RATE before moving into next frame
 			u16 prevFrame = vFrame;
-			for (;;) {
-				u16 hwFrameCntr = vtimer;
+			u16 hwFrameCntr = vtimer;
 
-				#if (VIDEO_FRAME_ADVANCE_STRATEGY == 0)
-				vFrame = divu(hwFrameCntr * MOVIE_FRAME_RATE, sysFrameRate);
-				#elif (VIDEO_FRAME_ADVANCE_STRATEGY == 1)
-				vFrame = (hwFrameCntr * sysFrameRateReciprocal) >> 16;
-				#endif
-				#if (VIDEO_FRAME_ADVANCE_STRATEGY < 2)
-				if (vFrame != prevFrame) {
-					break;
-				} else {
-					// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
-					//waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
-					waitVInt();
-				}
-				#endif
-
-				#if (VIDEO_FRAME_ADVANCE_STRATEGY == 2)
-				u16 deltaFrames = isPal ? divu(hwFrameCntr, 50/MOVIE_FRAME_RATE) : divu(hwFrameCntr, 60/MOVIE_FRAME_RATE);
-				deltaFrames -= vFrame;
-				if (deltaFrames >= 1) {
-					vFrame += deltaFrames;
-					break;
-				} else {
-					// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
-					//waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
-					waitVInt();
-				}
-				#endif
-			}
-
-			if (exitPlayer) break;
+			#if (VIDEO_FRAME_ADVANCE_STRATEGY == 0)
+			vFrame = divu(hwFrameCntr * MOVIE_FRAME_RATE, sysFrameRate);
+			#elif (VIDEO_FRAME_ADVANCE_STRATEGY == 1)
+			vFrame = (hwFrameCntr * sysFrameRateReciprocal) >> 16;
+			#elif (VIDEO_FRAME_ADVANCE_STRATEGY == 2)
+			u16 deltaFrames = isPal ? divu(hwFrameCntr, 50/MOVIE_FRAME_RATE) : divu(hwFrameCntr, 60/MOVIE_FRAME_RATE);
+			vFrame += deltaFrames - vFrame;
+			#endif
 
 			#ifdef DEBUG_FIXED_FRAME
 			// If previous frame is same than fixed frame, it means this current frame must be displayed

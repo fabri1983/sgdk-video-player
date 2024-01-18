@@ -63,7 +63,6 @@ format for the SGDK rescomp tool.
 	- use new video (better definition and correct width and height) from VirtualDub2 project.
 	- new dims are 272 width x 200 height (34 * 25 tiles).
 	- update this README.txt steps.
-- If decomp algorithms aren't faster than Stef's LZ4W doesn't work, then use video height 192 (24 tiles).
 - Try MOVIE_FRAME_RATE 15 once I finished all optimization changes.
 - Idea: call waitVInt_AND_flushDMA() with immediate flag so it starts flushing DMA. 
 	- Move the enable/disable VDP into HInt (use conditions when not need to start the pals swap steps).
@@ -76,8 +75,9 @@ format for the SGDK rescomp tool.
 	- DMA_init() needs more capacity now.
 - Once the unpack/load of tileset/tilemap/pals happen during the time of an active display loop we can:
 	- discard palInFrameRootPtr and just use the setPalsPointer() call made in waitVInt_AND_flushDMA() without the bool parameter resetPalsPtrsForHInt.
+	- remove #define #if FORCE_NO_MISSING_FRAMES
 	- remove the condition if (!((prevFrame ^ vFrame) & 1))
-	- use ++dataPtr; instead of dataPtr += vFrame - prevFrame;
+	- use ++dataPtr; instead of dataPtr += vFrame - prevFrame; (same for palsDataPtr)
 	- search for TODO PALS_1 and act accordingly.
 	- If the first 2 strips' pals are DMA_QUEUE in waitVInt_AND_flushDMA() then use flushQueue from Stef's dma_a.s and flushQueue(DMA_getQueueSize())
 - Clear mem used by sound when exiting the video loop?
