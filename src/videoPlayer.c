@@ -268,7 +268,14 @@ void playMovie () {
 	allocateTilemapBuffer();
 	allocatePalettesBuffer();
 	MEM_pack();
-//KLog_U1("Free Mem: ", MEM_getFree()); // 32600 bytes. Previously 39530 because of DMA_initEx() with minimum values.
+
+	// Get more RAM space
+	DMA_initEx(DMA_QUEUE_SIZE_MIN, (VIDEO_FRAME_TILESET_CHUNK_SIZE * 32), DMA_BUFFER_SIZE_MIN);
+	MEM_free(dmaQueues); // free up DMA_QUEUE_SIZE_MIN * sizeof(DMAOpInfo) bytes
+	dmaQueues = MEM_alloc(1 * sizeof(DMAOpInfo));
+	MEM_pack();
+
+//KLog_U1("Free Mem: ", MEM_getFree()); // 40010 bytes.
 
 	// Position in screen (in tiles)
 	u16 xp = (screenWidth - MOVIE_FRAME_WIDTH_IN_TILES*8 + 7)/8/2; // centered in X axis
