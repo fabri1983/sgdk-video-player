@@ -20,6 +20,7 @@ import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.rescomp.type.CompressionCustom;
+import sgdk.rescomp.type.ToggleMapTileBaseIndex;
 import sgdk.tool.FileUtil;
 import sgdk.tool.ImageUtil;
 import sgdk.tool.ImageUtil.BasicImageInfo;
@@ -42,27 +43,38 @@ public class ImageStripsNoPalsProcessor implements Processor
 		{
 			System.out.println("Wrong " + resId + " definition");
 			System.out.println(resId + " name \"baseFile\" strips mergeOpts [compression [map_opt [map_base]]]");
-			System.out.println("  name             Image variable name. Eg: frame_12");
-			System.out.println("  baseFile         path of the first strip for input RGB image file with palettes (BMP or PNG image). Eg: \"res/rgb/frame_12_0.png\" or \"res/rgb/frame_12_0_RGB.png\"");
-			System.out.println("  strips           how many strips is the final image composed of. Eg: 21. It means there are frame_12_0.png, frame_12_1.png, ... frame_12_20.png");
-			System.out.println("  splitTileset     how many chunks is the tileset split. Default 1 (no split), otherwise 2 or 3.");
-			System.out.println("  toggleMapTileBaseIndexFlag   -1 disable. 0 if first frame num is even, 1 if odd. This is for the video frame swap buffer mechanism.");
-			System.out.println("  mapWidth64       extends the map width to 64 tiles (filled with 0s) so you can use VDP_setTileMapData() if your plane width is 64 tiles. TRUE or FALSE");
-			System.out.println("  compression      compression type, accepted values:");
-			System.out.println("                    -1 / BEST / AUTO = use best compression");
-			System.out.println("                     0 / NONE        = no compression (default)");
-			System.out.println("                     1 / APLIB       = aplib library (good compression ratio but slow)");
-			System.out.println("                     2 / FAST / LZ4W = custom lz4 compression (average compression ratio but fast)");
-			System.out.println("  compressionCustom  custom compression type, accepted values:");
+			System.out.println("  name               Image variable name. Eg: frame_12");
+			System.out.println("  baseFile           Path of the first strip for input RGB image file with palettes (BMP or PNG image). Eg: \"res/rgb/frame_12_0.png\" or \"res/rgb/frame_12_0_RGB.png\"");
+			System.out.println("  strips             How many strips is the final image composed of. Eg: 21. It means there are frame_12_0.png, frame_12_1.png, ... frame_12_20.png");
+			System.out.println("  splitTileset       How many chunks is the tileset splitted into. Default 1 (no split), otherwise 2 or 3.");
+			System.out.println("  splitTilemap       How many chunks is the tilemap splitted into. Always less or equal than splitTileset.");
+			System.out.println("  toggleMapTileBaseIndexFlag   This is for a swap buffer mechanism.");
+			System.out.println("                      " + ToggleMapTileBaseIndex.NONE.getValue() + " disabled.");
+			System.out.println("                      " + ToggleMapTileBaseIndex.EVEN.getValue() + " if first frame num is even.");
+			System.out.println("                      " + ToggleMapTileBaseIndex.ODD.getValue() + " if first frame is odd.");
+			System.out.println("  mapWidth64         Extends the map width to 64 tiles (filled with 0s) so you can use VDP_setTileMapData() if your plane width is 64 tiles. TRUE or FALSE");
+			System.out.println("  compression        Compression type for Tileset and Tilemaps. Accepted values:");
+			System.out.println("                      -1 / BEST / AUTO = use best compression");
+			System.out.println("                       0 / NONE        = no compression (default)");
+			System.out.println("                       1 / APLIB       = aplib library (good compression ratio but slow)");
+			System.out.println("                       2 / FAST / LZ4W = custom lz4 compression (average compression ratio but fast)");
+			System.out.println("  compressionCustom  Overrides the compression parameter ONLY FOR TILES. Accepted values:");
 			System.out.println("                      " + CompressionCustom.NONE.getValue());
 			System.out.println("                      " + CompressionCustom.COMPER.getValue());
+			System.out.println("                      " + CompressionCustom.COMPERX.getValue());
 			System.out.println("                      " + CompressionCustom.KOSINSKI.getValue());
 			System.out.println("                      " + CompressionCustom.KOSINSKI_PLUS.getValue());
-			System.out.println("  map_opt          define the map optimisation level, accepted values:");
-			System.out.println("                    0 / NONE        = no optimisation (each tile is unique)");
-			System.out.println("                    1 / ALL         = find duplicate and flipped tile (default)");
-			System.out.println("                    2 / DUPLICATE   = find duplicate tile only");
-			System.out.println("  map_base         define the base tilemap value, useful to set a default priority, palette and base tile index offset.");
+			System.out.println("                      " + CompressionCustom.LZKN1.getValue());
+			System.out.println("                      " + CompressionCustom.ROCKET.getValue());
+			System.out.println("                      " + CompressionCustom.SAXMAN.getValue());
+			System.out.println("                      " + CompressionCustom.SNKRLE.getValue());
+			System.out.println("                      " + CompressionCustom.UFTC.getValue());
+			System.out.println("                      " + CompressionCustom.UFTC_15.getValue());
+			System.out.println("  map_opt            Define the map optimisation level, accepted values:");
+			System.out.println("                      0 / NONE        = no optimisation (each tile is unique)");
+			System.out.println("                      1 / ALL         = find duplicate and flipped tile (default)");
+			System.out.println("                      2 / DUPLICATE   = find duplicate tile only");
+			System.out.println("  map_base           Define the base tilemap value, useful to set a default priority, palette and base tile index offset.");
 			return null;
 		}
 
@@ -90,39 +102,45 @@ public class ImageStripsNoPalsProcessor implements Processor
 			splitTileset = Math.min(3, Math.max(1, value)); // clamp(1, 3, value)
         }
 
-        // get the value for toggling map tile base index for video frame swap buffer
-        int toggleMapTileBaseIndexFlag = -1;
+        // get tilemap split number
+        int splitTilemap = 1;
         if (fields.length >= 6) {
         	int value = StringUtil.parseInt(fields[5], 1);
-        	if (value == 0 || value == 1)
-        		toggleMapTileBaseIndexFlag = value;
+        	splitTilemap = Math.min(3, Math.max(1, value)); // clamp(1, 3, value)
+        	splitTilemap = Math.min(splitTileset, splitTilemap); // can't be bigger than splitTileset value
+        }
+
+        // get the value for toggling map tile base index for video frame swap buffer
+        ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag = ToggleMapTileBaseIndex.NONE;
+        if (fields.length >= 7) {
+        	toggleMapTileBaseIndexFlag = ToggleMapTileBaseIndex.from(fields[6]);
         }
 
         // extend map width to 64 tiles
         boolean extendedMapWidth64 = false;
-        if (fields.length >= 7) {
-        	extendedMapWidth64 = Boolean.parseBoolean(fields[6]);
+        if (fields.length >= 8) {
+        	extendedMapWidth64 = Boolean.parseBoolean(fields[7]);
         }
 
         // get packed value
         Compression compression = Compression.NONE;
-        if (fields.length >= 8)
-            compression = Util.getCompression(fields[7]);
+        if (fields.length >= 9)
+            compression = Util.getCompression(fields[8]);
 
         // get custom compression value
         CompressionCustom compressionCustom = CompressionCustom.NONE;
-        if (fields.length >= 9)
-        	compressionCustom = CompressionCustom.from(fields[8]);
+        if (fields.length >= 10)
+        	compressionCustom = CompressionCustom.from(fields[9]);
 
         // get map optimization value
         TileOptimization tileOpt = TileOptimization.ALL;
-        if (fields.length >= 10)
-            tileOpt = Util.getTileOpt(fields[9]);
+        if (fields.length >= 11)
+            tileOpt = Util.getTileOpt(fields[10]);
 
         // get map base
         int mapBase = 0;
-        if (fields.length >= 11)
-            mapBase = Integer.parseInt(fields[10]);
+        if (fields.length >= 12)
+            mapBase = Integer.parseInt(fields[11]);
 
         // generate the list of strip files
         List<String> stripsInList = generateFilesInForStrips(baseFileAbsPath, baseFileName, baseFileNameMatcher, strips);
@@ -136,9 +154,11 @@ public class ImageStripsNoPalsProcessor implements Processor
         if (splitTileset == 1)
         	return new ImageStripsNoPals(name, stripsInList, toggleMapTileBaseIndexFlag, extendedMapWidth64, compression, tileOpt, mapBase, compressionCustom);
         else if (splitTileset == 2)
-        	return new ImageStripsNoPalsTilesetSplit2(name, stripsInList, toggleMapTileBaseIndexFlag, extendedMapWidth64, compression, tileOpt, mapBase, compressionCustom);
+        	return new ImageStripsNoPalsTilesetSplit2(name, stripsInList, splitTilemap, toggleMapTileBaseIndexFlag, extendedMapWidth64, compression, 
+        			tileOpt, mapBase, compressionCustom);
         else
-        	return new ImageStripsNoPalsTilesetSplit3(name, stripsInList, toggleMapTileBaseIndexFlag, extendedMapWidth64, compression, tileOpt, mapBase, compressionCustom);
+        	return new ImageStripsNoPalsTilesetSplit3(name, stripsInList, splitTilemap, toggleMapTileBaseIndexFlag, extendedMapWidth64, compression, 
+        			tileOpt, mapBase, compressionCustom);
     }
 
 	private List<String> generateFilesInForStrips(String absPath, String baseFileName, Matcher baseFileNameMatcher, int strips)
@@ -193,11 +213,11 @@ public class ImageStripsNoPalsProcessor implements Processor
 //		ImageStripsNoPalsProcessor p = new ImageStripsNoPalsProcessor();
 //		String[] fields_testA = {
 //			resId, "mv_frame_47_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_47_0_RGB.png", "22", 
-//			"2", "1", "TRUE", "FAST", "NONE", "ALL" 
+//			"2", "2", "ODD", "TRUE", "FAST", "NONE", "ALL" 
 //		};
 //		String[] fields_testB = {
 //			resId, "mv_frame_160_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_160_0_RGB.png", "22", 
-//			"3", "1", "TRUE", "FAST", "NONE", "ALL" 
+//			"3", "3", "ODD", "TRUE", "FAST", "NONE", "ALL" 
 //		};
 //		p.execute(fields_testB);
 //	}

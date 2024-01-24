@@ -14,17 +14,16 @@ import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileEquality;
 import sgdk.rescomp.type.Basics.TileOptimization;
-import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.Tile;
 import sgdk.rescomp.type.TilemapCreationData;
+import sgdk.rescomp.type.ToggleMapTileBaseIndex;
 import sgdk.tool.ArrayUtil;
 
 public class TilemapCustom extends Resource
 {
-	private static TilemapCreationData createTilemap(String id, List<Tileset> tilesets, int[] offsetForTilesets,
-			int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int imageWidth, int imageHeight,
-			int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt,
-			Compression compression, CompressionCustom compressionCustom, boolean extendedMapWidth64) {
+	private static TilemapCreationData createTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetForTilesets,
+			ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int imageWidth, int imageHeight,
+			int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt, Compression compression, boolean extendedMapWidth64) {
 		int w = widthTile;
         int h = heightTile;
 
@@ -50,7 +49,7 @@ public class TilemapCustom extends Resource
 
     	// fabri1983: here we calculate videoFrameBufferOffsetIndex according frameNum
     	int videoFrameBufferOffsetIndex = 0;
-    	if (toggleMapTileBaseIndexFlag != -1) {
+    	if (toggleMapTileBaseIndexFlag != ToggleMapTileBaseIndex.NONE) {
     		int tileIndexA = ExtProperties.getInt(ExtProperties.STARTING_TILESET_ON_SGDK);
     		int tileIndexB = tileIndexA + ExtProperties.getInt(ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
     		videoFrameBufferOffsetIndex = TilemapCustomTools.calculateVideoFrameBufferOffsetIndex(toggleMapTileBaseIndexFlag, frameNum, tileIndexA, tileIndexB);
@@ -90,7 +89,7 @@ public class TilemapCustom extends Resource
                     else
                     {
                     	int tilesetsListIdx = TilemapCustomTools.getTilesetIndexFor(tile, opt, tilesets);
-                    	Tileset tileset = tilesets.get(tilesetsListIdx);
+                    	TilesetOriginalCustom tileset = tilesets.get(tilesetsListIdx);
 
                         // otherwise we try to get tile index in the tileset
                         index = tileset.getTileIndex(tile, opt);
@@ -115,25 +114,25 @@ public class TilemapCustom extends Resource
         	w = 64;
         }
 
-        return new TilemapCreationData(id, data, w, h, compression, compressionCustom);
+        return new TilemapCreationData(id, data, w, h, compression);
 	}
 
-	public static TilemapCustom getTilemap(String id, List<Tileset> tilesets, int[] offsetForTilesets, int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, 
-			int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt, Compression compression, 
-			CompressionCustom compressionCustom, boolean extendedMapWidth64)
+	public static TilemapCustom getTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetForTilesets, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, 
+			int mapBase, byte[] image8bpp, int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile, 
+			TileOptimization opt, Compression compression, boolean extendedMapWidth64)
 	{
 		TilemapCreationData tmData = createTilemap(id, tilesets, offsetForTilesets, toggleMapTileBaseIndexFlag, mapBase, image8bpp,
-				imageWidth, imageHeight, startTileX, startTileY, widthTile, heightTile, opt, compression, compressionCustom, extendedMapWidth64);
-		return new TilemapCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, tmData.compressionCustom);
+				imageWidth, imageHeight, startTileX, startTileY, widthTile, heightTile, opt, compression, extendedMapWidth64);
+		return new TilemapCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression);
 	}
 
-	public static TilemapCustom getTilemap(String id, Tileset tileset, int toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int widthTile, int heightTile, 
-			TileOptimization opt, Compression compression, CompressionCustom compressionCustom, boolean extendedMapWidth64)
+	public static TilemapCustom getTilemap(String id, TilesetOriginalCustom tileset, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapBase, 
+			byte[] image8bpp, int widthTile, int heightTile, TileOptimization opt, Compression compression, boolean extendedMapWidth64)
     {
-		List<Tileset> tilesets = Arrays.asList(tileset);
+		List<TilesetOriginalCustom> tilesets = Arrays.asList(tileset);
 		TilemapCreationData tmData = createTilemap(id, tilesets, new int[]{0}, toggleMapTileBaseIndexFlag, mapBase, image8bpp, widthTile * 8, 
-				heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, compressionCustom, extendedMapWidth64);
-		return new TilemapCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, tmData.compressionCustom);
+				heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, extendedMapWidth64);
+		return new TilemapCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression);
     }
 
     public final int w;
@@ -141,19 +140,19 @@ public class TilemapCustom extends Resource
     final int hc;
 
     // binary data for tilemap
-    public final BinCustom bin;
+    public final Bin bin;
 
-	public TilemapCustom(String id, short[] data, int w, int h, Compression compression, CompressionCustom compressionCustom) {
+	public TilemapCustom(String id, short[] data, int w, int h, Compression compression) {
 		super(id);
 
         this.w = w;
         this.h = h;
 
         // build BIN (tilemap data) with wanted compression
-        final BinCustom binResource = new BinCustom(id + "_data", data, compression, compressionCustom);
+        final Bin binResource = new Bin(id + "_data", data, compression);
 
         // add as resource (avoid duplicate)
-        bin = (BinCustom) addInternalResource(binResource);
+        bin = (Bin) addInternalResource(binResource);
 
         // compute hash code
         hc = bin.hashCode() ^ (w << 8) ^ (h << 16);
@@ -218,12 +217,7 @@ public class TilemapCustom extends Resource
         // output TileMap structure
         Util.decl(outS, outH, "TileMapCustom", id, 2, global);
         // set compression info (very important that binary data had already been exported at this point)
-//        int compOrdinal = 0;
-//        if (bin.doneCompression != Compression.NONE)
-//        	compOrdinal = bin.doneCompression.ordinal() - 1;
-//        else if (bin.doneCompressionCustom != CompressionCustom.NONE)
-//        	compOrdinal = bin.doneCompressionCustom.getDefineValue(); 
-//        outS.append("    dc.w    " + compOrdinal + "\n");
+//        outS.append("    dc.w    " + (bin.doneCompression.ordinal() - 1) + "\n");
         // set size in tile
 //        outS.append("    dc.w    " + w + ", " + h + "\n");
         // set data pointer

@@ -40,11 +40,24 @@ const sortedFileNamesEveryFirstStrip = sortedFileNames
 
 // split tileset in N chunks. Current valid values are [1, 2, 3]
 const tilesetSplit = 3;
+// split tilemap in N chunks. Current values are [1, 2, 3]. Always <= tilesetSplit
+const tilemapSplit = 1;
+
 var type_ImageNoPals = "ImageNoPals";
-if (tilesetSplit == 2)
-	type_ImageNoPals = "ImageNoPalsTilesetSplit2";
-else if (tilesetSplit == 3)
-	type_ImageNoPals = "ImageNoPalsTilesetSplit3";
+if (tilesetSplit == 2) {
+    if (tilemapSplit == 1)
+	    type_ImageNoPals = "ImageNoPalsTilesetSplit21";
+    else
+        type_ImageNoPals = "ImageNoPalsTilesetSplit22";
+}
+else if (tilesetSplit == 3) {
+    if (tilemapSplit == 1)
+        type_ImageNoPals = "ImageNoPalsTilesetSplit31";
+    else if (tilemapSplit == 2)
+        type_ImageNoPals = "ImageNoPalsTilesetSplit32";
+    else
+	    type_ImageNoPals = "ImageNoPalsTilesetSplit33";
+}
 
 // split palettes in N chunks. Current valid values are [1, 2, 3]
 const palette32Split = 3;
@@ -59,9 +72,9 @@ else if (palette32Split == 3)
 // was sent to VRAM previously and is being display, we need a way to toggle between the initial tile index: user base tile index, 
 // and the next tile index: 716 (or max frame tileset size) + user base tile index.
 // So we can take the first frame number from its name/id, knowing that they are declared in ascendant order, and test its parity: even or odd.
-// 0 if first frame num is even, 1 if odd.
+// Values: NONE disabled, EVEN if first frame num is even, ODD if odd.
 const matchFirstFrame = FILE_REGEX_2.exec(sortedFileNamesEveryFirstStrip[0]);
-const toggleMapTileBaseIndexFlag = parseInt(matchFirstFrame[1]) % 2;
+const toggleMapTileBaseIndexFlag = parseInt(matchFirstFrame[1]) % 2 == 0 ? "EVEN" : "ODD";
 
 // extends map width to 64 tiles
 const extendMapWidthTo64 = true;
@@ -118,12 +131,6 @@ const ${type_Palette32AllStrips}* pals_data[${sortedFileNamesEveryFirstStrip.len
 
 // --------- Generate .res file
 // Next struct type definitions will be added at the top of generated movie_frames.h
-const headerDefineCompressionCustom = `
-#define COMPER 4
-#define KOSINSKI 5
-#define KOSINSKI_PLUS 6
-`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
-
 const headerContent1 = `
 typedef struct
 {
@@ -139,17 +146,47 @@ typedef struct
 } ImageNoPals;
 `.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
-const headerContent3 = `
+const headerContent3_A = `
+typedef struct
+{
+    TileSet *tileset1;
+    TileSet *tileset2;
+    TileMapCustom *tilemap1;
+} ImageNoPalsTilesetSplit21;
+`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+
+const headerContent3_B = `
 typedef struct
 {
     TileSet *tileset1;
     TileSet *tileset2;
     TileMapCustom *tilemap1;
     TileMapCustom *tilemap2;
-} ImageNoPalsTilesetSplit2;
+} ImageNoPalsTilesetSplit22;
 `.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
-const headerContent4 = `
+const headerContent4_A = `
+typedef struct
+{
+    TileSet *tileset1;
+    TileSet *tileset2;
+    TileSet *tileset3;
+    TileMapCustom *tilemap1;
+} ImageNoPalsTilesetSplit31;
+`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+
+const headerContent4_B = `
+typedef struct
+{
+    TileSet *tileset1;
+    TileSet *tileset2;
+    TileSet *tileset3;
+    TileMapCustom *tilemap1;
+    TileMapCustom *tilemap2;
+} ImageNoPalsTilesetSplit32;
+`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+
+const headerContent4_C = `
 typedef struct
 {
     TileSet *tileset1;
@@ -158,7 +195,7 @@ typedef struct
     TileMapCustom *tilemap1;
     TileMapCustom *tilemap2;
     TileMapCustom *tilemap3;
-} ImageNoPalsTilesetSplit3;
+} ImageNoPalsTilesetSplit33;
 `.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
 const headerContent5 = `
@@ -185,26 +222,30 @@ typedef struct
 } Palette32AllStripsSplit3;
 `.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
 
-const headerappenderDefine1 = `HEADER_APPENDER\t\headerDefineCompressionCustom\t\t\"${headerDefineCompressionCustom}\"\n\n`;
+const headerappenderDefine1 = `HEADER_APPENDER_COMPRESSION_CUSTOM\t\tcompressionCustomHeader1\n\n`;
 
 const headerappender1 = `HEADER_APPENDER\t\headerCustomTypes1\t\t\"${headerContent1}\"\n`;
 const headerappender2 = `HEADER_APPENDER\t\headerCustomTypes2\t\t\"${headerContent2}\"\n`;
-const headerappender3 = `HEADER_APPENDER\t\headerCustomTypes3\t\t\"${headerContent3}\"\n`;
-const headerappender4 = `HEADER_APPENDER\t\headerCustomTypes4\t\t\"${headerContent4}\"\n`;
+const headerappender3_A = `HEADER_APPENDER\t\headerCustomTypes3_A\t\t\"${headerContent3_A}\"\n`;
+const headerappender3_B = `HEADER_APPENDER\t\headerCustomTypes3_B\t\t\"${headerContent3_B}\"\n`;
+const headerappender4_A = `HEADER_APPENDER\t\headerCustomTypes4_A\t\t\"${headerContent4_A}\"\n`;
+const headerappender4_B = `HEADER_APPENDER\t\headerCustomTypes4_B\t\t\"${headerContent4_B}\"\n`;
+const headerappender4_C = `HEADER_APPENDER\t\headerCustomTypes4_C\t\t\"${headerContent4_C}\"\n`;
 const headerappender5 = `HEADER_APPENDER\t\headerCustomTypes5\t\t\"${headerContent5}\"\n`;
 const headerappender6 = `HEADER_APPENDER\t\headerCustomTypes6\t\t\"${headerContent6}\"\n`;
 const headerappender7 = `HEADER_APPENDER\t\headerCustomTypes7\t\t\"${headerContent7}\"\n\n`;
 
-// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  2  1  TRUE  FAST  ALL
+// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  3  ODD  TRUE  FAST  NONE  ALL
 const imageResListStr = sortedFileNamesEveryFirstStrip
-	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesetSplit}\t\t${toggleMapTileBaseIndexFlag}\t\t${extendMapWidthTo64_str}\t\tFAST\t\tNONE\t\tALL`)
+	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesetSplit}\t\t${tilemapSplit}\t\t${toggleMapTileBaseIndexFlag}\t\t${extendMapWidthTo64_str}\t\tFAST\t\tNONE\t\tALL`)
 	.join('\n') + '\n\n';
 
-// Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  21  3  PAL0PAL1  TRUE  FAST
+// Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  PAL0PAL1  TRUE  FAST  NONE
 const paletteResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `PALETTE_32_COLORS_ALL_STRIPS\t\tpal_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${palette32Split}\t\tPAL0PAL1\t\tTRUE\t\tFAST\t\tNONE`)
 	.join('\n') + '\n\n';
 
 // Create .res file
-fs.writeFileSync(`${RES_DIR}/movie_frames.res`, headerappenderDefine1 + headerappender1 + headerappender2 + headerappender3 + headerappender4 + headerappender5 
-		+ headerappender6 + headerappender7 + imageResListStr + paletteResListStr);
+fs.writeFileSync(`${RES_DIR}/movie_frames.res`, headerappenderDefine1 + headerappender1 + headerappender2 + headerappender3_A + headerappender3_B 
+		+ headerappender4_A + headerappender4_B + headerappender4_C + headerappender5 + headerappender6 + headerappender7 + imageResListStr 
+		+ paletteResListStr);

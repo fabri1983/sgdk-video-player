@@ -4,16 +4,17 @@ Originally inspired by [sgdk-video-player](https://github.com/haroldo-ok/sgdk-vi
 
 
 ### Features
-- Supports up to 252 colors per frame (at the expense of a smaller frame size).
+- Supports up to 252 colors per frame (at the expense of a slightly smaller frame size).
 - Supports both NTSC and PAL console systems.
 - Currently running at 15 FPS in NTSC and 12 FPS in PAL, with a frame size of 272x176 pixels.
+- Uses custom extensions for the [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
 
 
 ### Config theese first:
 - You need to have *Image Magick v7.x* tools installed and set in _PATH_.
 - You need to have *ffmpeg* installed and set in the _PATH_.
 - Set `ENABLE_BANK_SWITCH` 1 in _SGDK_'s `config.h` if the rom size is bigger than 4MB, and re build the _SGDK_ lib.
-- You need to have *NodeJs* installed and set NODEJS_HOME in your user/systems variables.
+- You need to have *NodeJs* installed and set *NODEJS_HOME* in your user/system variables.
 
 
 ### Instructions using custom tiledpalettequant app

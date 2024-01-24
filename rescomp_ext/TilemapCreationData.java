@@ -9,15 +9,13 @@ public class TilemapCreationData {
 	public int w;
 	public int h;
 	public Compression compression;
-	public CompressionCustom compressionCustom;
 
-	public TilemapCreationData(String id, short[] data, int w, int h, Compression compression, CompressionCustom compressionCustom) {
+	public TilemapCreationData(String id, short[] data, int w, int h, Compression compression) {
 		super();
 		this.id = id;
 		this.data = data;
 		this.w = w;
 		this.h = h;
 		this.compression = compression;
-		this.compressionCustom = compressionCustom;
 	}
 }

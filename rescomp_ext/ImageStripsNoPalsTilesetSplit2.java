@@ -8,9 +8,10 @@ import java.util.List;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.ExtProperties;
 import sgdk.rescomp.tool.Util;
-import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileOptimization;
+import sgdk.rescomp.type.CompressionCustom;
+import sgdk.rescomp.type.ToggleMapTileBaseIndex;
 import sgdk.tool.ImageUtil;
 import sgdk.tool.ImageUtil.BasicImageInfo;
 
@@ -18,11 +19,11 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
 {
     final int hc;
 
-	public final Tileset tileset1, tileset2;
+	public final TilesetOriginalCustom tileset1, tileset2;
 	public final TilemapCustom tilemap1, tilemap2;
 
-    public ImageStripsNoPalsTilesetSplit2(String id, List<String> stripsFileList, int toggleMapTileBaseIndexFlag, boolean extendedMapWidth64, 
-    		Compression compression, TileOptimization tileOpt, int mapBase, CompressionCustom compressionCustom) throws Exception
+    public ImageStripsNoPalsTilesetSplit2(String id, List<String> stripsFileList, int splitTilemap, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, 
+    		boolean extendedMapWidth64, Compression compression, TileOptimization tileOpt, int mapBase, CompressionCustom compressionCustom) throws Exception
     {
         super(id);
 
@@ -40,31 +41,44 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
         int ht = h / 8;
 
         boolean isTempTileset = true;
-        Tileset tilesetTemp = new Tileset(id + "_tileset", finalImageData, w, h, 0, 0, wt, ht, tileOpt, compression, false, isTempTileset);
+        TilesetOriginalCustom tilesetTemp = new TilesetOriginalCustom(id + "_tileset", finalImageData, w, h, 0, 0, wt, ht, tileOpt, compression, 
+        		compressionCustom, false, isTempTileset);
         checkTilesetMaxSizeForSplitIn2(tilesetTemp.getNumTile());
 
-        int ht_1 =  ht/2;
+        int ht_1 = ht/2;
         int ht_2 = ht/2 + (ht % 2); // tileset2 height in tiles is calculated considering if ht is even or odd
 
-    	tileset1 = (Tileset) addInternalResource(new Tileset(id + "_chunk1_tileset", finalImageData, w, h, 0, 0, wt, ht_1, tileOpt, compression, false, false));
+    	tileset1 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk1_tileset", finalImageData, w, h, 0, 0, wt, ht_1, 
+    			tileOpt, compression, compressionCustom, false, false));
     	checkTilesetMaxChunkSize(tileset1.getNumTile());
-    	tileset2 = (Tileset) addInternalResource(new Tileset(id + "_chunk2_tileset", finalImageData, w, h, 0, ht_1, wt, ht_2, tileOpt, compression, false, false));
+    	tileset2 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk2_tileset", finalImageData, w, h, 0, ht_1, wt, ht_2, 
+    			tileOpt, compression, compressionCustom, false, false));
     	checkTilesetMaxChunkSize(tileset2.getNumTile());
     	System.out.print(" " + id + " -> numTiles (chunk1 + chunk2):\t  " + tileset1.getNumTile() + " + " + tileset2.getNumTile() + " = " + 
     			(tileset1.getNumTile() + tileset2.getNumTile()) + ". ");
 
         int[] offsetForTilesets = {0, tileset1.getNumTile()};
 
-        List<Tileset> tilesetsList_t1 = Arrays.asList(tileset1);
-		tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList_t1, offsetForTilesets, 
-        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, 0, wt, ht_1, tileOpt, compression, compressionCustom, extendedMapWidth64));
-
-		List<Tileset> tilesetsList_t2 = Arrays.asList(tileset1, tileset2);
-        tilemap2 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tilesetsList_t2, offsetForTilesets, 
-        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, ht_1, wt, ht_2, tileOpt, compression, compressionCustom, extendedMapWidth64));
-
+        if (splitTilemap == 1) {
+	        List<TilesetOriginalCustom> tilesetsList = Arrays.asList(tileset1, tileset2);
+			tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList, offsetForTilesets, 
+	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, 0, wt, ht, tileOpt, compression, extendedMapWidth64));
+			tilemap2 = null;
+        }
+        else {
+        	List<TilesetOriginalCustom> tilesetsList_t1 = Arrays.asList(tileset1);
+			tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList_t1, offsetForTilesets, 
+	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, 0, wt, ht_1, tileOpt, compression, extendedMapWidth64));
+	
+			List<TilesetOriginalCustom> tilesetsList_t2 = Arrays.asList(tileset1, tileset2);
+	        tilemap2 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tilesetsList_t2, offsetForTilesets, 
+	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, ht_1, wt, ht_2, tileOpt, compression, extendedMapWidth64));
+        	
+        }
         // compute hash code
-        int hcTemp = tileset1.hashCode() ^ tileset2.hashCode() ^ tilemap1.hashCode() ^ tilemap2.hashCode();
+        int hcTemp = tileset1.hashCode() ^ tileset2.hashCode() ^ tilemap1.hashCode();
+        if (tilemap2 != null)
+        	hcTemp ^= tilemap2.hashCode();
         hc = hcTemp;
     }
 
@@ -135,12 +149,15 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
 
 	public int getWidth()
     {
-        return tilemap1.w * 8;
+        return tilemap1.w * 8; // width is the same for every splitted tilemap 
     }
 
     public int getHeight()
     {
-    	return tilemap1.h * 8 + tilemap2.h * 8;
+    	if (tilemap2 == null)
+    		return tilemap1.h * 8;
+    	else
+    		return tilemap1.h * 8 + tilemap2.h * 8;
     }
 
     @Override
@@ -154,9 +171,11 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
     {
         if (obj instanceof ImageStripsNoPalsTilesetSplit2)
         {
-        	final ImageStripsNoPalsTilesetSplit2 image = (ImageStripsNoPalsTilesetSplit2) obj;
-            return tileset1.equals(image.tileset1) && tileset2.equals(image.tileset2) 
-            		&& tilemap1.equals(image.tilemap1) && tilemap2.equals(image.tilemap2);
+        	final ImageStripsNoPalsTilesetSplit2 other = (ImageStripsNoPalsTilesetSplit2) obj;
+        	boolean tilemap2equality = (tilemap2 == null && other.tilemap2 == null) 
+        			|| (tilemap2 != null && other.tilemap2 != null && tilemap2.equals(other.tilemap2));
+            return tileset1.equals(other.tileset1) && tileset2.equals(other.tileset2) 
+            		&& tilemap1.equals(other.tilemap1) && tilemap2equality;
         }
 
         return false;
@@ -172,13 +191,14 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
     public int shallowSize()
     {
     	// 4 bytes (a long) per pointer declaration
-        return 4 + 4 + 4 + 4;
+        return 4 + 4 + 4 + (tilemap2 == null ? 0 : 4);
     }
 
     @Override
     public int totalSize()
     {
-   		return shallowSize() + tileset1.totalSize() + tileset2.totalSize() + tilemap1.totalSize() + tilemap2.totalSize();
+    	int tm2TotalSize = tilemap2 == null ? 0 : tilemap2.totalSize();
+   		return shallowSize() + tileset1.totalSize() + tileset2.totalSize() + tilemap1.totalSize() + tm2TotalSize;
     }
 
     @Override
@@ -188,7 +208,10 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
 		outB.reset();
 
 		// output Image structure
-		Util.decl(outS, outH, "ImageNoPalsTilesetSplit2", id, 2, global);
+		if (tilemap2 == null)
+			Util.decl(outS, outH, "ImageNoPalsTilesetSplit21", id, 2, global);
+		else
+			Util.decl(outS, outH, "ImageNoPalsTilesetSplit22", id, 2, global);
 		// Tileset1 pointer
 		outS.append("    dc.l    " + tileset1.id + "\n");
 		// Tileset2 pointer
@@ -196,7 +219,8 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
 		// Tilemap1 pointer
 		outS.append("    dc.l    " + tilemap1.id + "\n");
 		// Tilemap2 pointer
-		outS.append("    dc.l    " + tilemap2.id + "\n");
+		if (tilemap2 != null)
+			outS.append("    dc.l    " + tilemap2.id + "\n");
 		outS.append("\n");
     }
 }

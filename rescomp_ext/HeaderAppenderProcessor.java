@@ -42,31 +42,7 @@ public class HeaderAppenderProcessor implements Processor
 //				+ "{\n"
 //				+ "    TileSet *tileset;\n"
 //				+ "    TileMap *tilemap;\n"
-//				+ "} ImageNoPals;\n"
-//				+ "\n"
-//				+ "typedef struct\n"
-//				+ "{\n"
-//				+ "	   TileSet *tileset1;\n"
-//				+ "	   TileSet *tileset2;\n"
-//				+ "	   TileMap *tilemap1;\n"
-//				+ "	   TileMap *tilemap2;\n"
-//				+ "} ImageNoPalsTilesetSplit2;\n"
-//				+ "\n"
-//				+ "typedef struct\n"
-//				+ "{\n"
-//				+ "	   TileSet *tileset1;\n"
-//				+ "	   TileSet *tileset2;\n"
-//				+ "	   TileSet *tileset3;\n"
-//				+ "	   TileMap *tilemap1;\n"
-//				+ "	   TileMap *tilemap2;\n"
-//				+ "	   TileMap *tilemap3;\n"
-//				+ "} ImageNoPalsTilesetSplit3;\n"
-//				+ "\n"
-//				+ "typedef struct\n"
-//				+ "{\n"
-//				+ "    u16 compression;\n"
-//				+ "    u16* data;\n"
-//				+ "} Palette32AllStrips;\n";
+//				+ "} ImageNoPals;\n";
 //
 //		String[] fields = {
 //			resId, "headerForMovie_1", content

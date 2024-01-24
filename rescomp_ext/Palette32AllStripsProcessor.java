@@ -45,11 +45,8 @@ public class Palette32AllStripsProcessor implements Processor
             System.out.println("  compression         compression type, accepted values:");
 			System.out.println("                       0 / NONE        = no compression (default)");
 			System.out.println("                       2 / FAST / LZ4W = custom lz4 compression (average compression ratio but fast)");
-			System.out.println("  compressionCustom   custom compression type, accepted values:");
+			System.out.println("  compressionCustom   overrides the compression parameter. Accepted values:");
 			System.out.println("                       " + CompressionCustom.NONE.getValue());
-			System.out.println("                       " + CompressionCustom.COMPER.getValue());
-			System.out.println("                       " + CompressionCustom.KOSINSKI.getValue());
-			System.out.println("                       " + CompressionCustom.KOSINSKI_PLUS.getValue());
             return null;
         }
 

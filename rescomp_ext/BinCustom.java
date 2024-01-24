@@ -3,9 +3,12 @@ package sgdk.rescomp.resource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import sgdk.rescomp.tool.MdComp;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
+import sgdk.rescomp.type.Basics.PackedData;
 import sgdk.rescomp.type.CompressionCustom;
+import sgdk.rescomp.type.PackedDataCustom;
 import sgdk.tool.ArrayUtil;
 
 public class BinCustom extends Bin
@@ -16,6 +19,7 @@ public class BinCustom extends Bin
     public BinCustom(String id, byte[] data, int align, int sizeAlign, int fill, Compression compression, CompressionCustom compressionCustom, boolean far, boolean embedded)
     {
         super(id, data, align, sizeAlign, fill, compression, far, embedded);
+        this.wantedCompressionCustom = compressionCustom;
     }
 
     public BinCustom(String id, byte[] data, int align, int sizeAlign, int fill, Compression compression, CompressionCustom compressionCustom, boolean far)
@@ -65,13 +69,14 @@ public class BinCustom extends Bin
         // do 'outB' align *before* doing compression (as LZ4W compression can use previous data block)
         Util.align(outB, align);
 
-        /*if (wantedCompression == Compression.NONE && wantedCompressionCustom != CompressionCustom.NONE) {
-        	PackedDataCustom packedDataCustom = MdComp.pack(data, wantedCompression, outB, !embedded);
+        // CompressionCustom option has priority over Compression option
+        if (wantedCompressionCustom != CompressionCustom.NONE) {
+        	PackedDataCustom packedDataCustom = MdComp.pack(data, wantedCompressionCustom);
         	packedData = (PackedData) packedDataCustom;
         	doneCompressionCustom = packedDataCustom.compressionCustom;
         	doneCompression = Compression.NONE;
         }
-        else*/ {
+        else {
 	        // pack data first if needed (force selected compression when not embedded resource)
 	        packedData = Util.pack(data, wantedCompression, outB, !embedded);
 	        doneCompression = packedData.compression;
@@ -81,8 +86,26 @@ public class BinCustom extends Bin
         final int baseSize = data.length;
         final int packedSize = packedData.data.length;
 
+        // data was custom compressed ?
+        if (wantedCompressionCustom != CompressionCustom.NONE) {
+            System.out.print("'" + id + "' ");
+
+            switch (doneCompressionCustom)
+            {
+                case NONE:
+                    System.out.println("not packed (size = " + baseSize + ")");
+                    break;
+
+                default: 
+                    System.out.print("packed with " + doneCompressionCustom.getValue() + ", ");
+                    break;
+            }
+
+            if (doneCompressionCustom != CompressionCustom.NONE)
+                System.out.println("size = " + packedSize + " (" + Math.round((packedSize * 100f) / baseSize) + "% - origin size = " + baseSize + ")");
+        }
         // data was compressed ?
-        if (wantedCompression != Compression.NONE)
+        else if (wantedCompression != Compression.NONE)
         {
             System.out.print("'" + id + "' ");
 
@@ -106,24 +129,6 @@ public class BinCustom extends Bin
             }
 
             if (doneCompression != Compression.NONE)
-                System.out.println("size = " + packedSize + " (" + Math.round((packedSize * 100f) / baseSize) + "% - origin size = " + baseSize + ")");
-        }
-        // data was compressedCustom ?
-        else if (wantedCompressionCustom != CompressionCustom.NONE) {
-            System.out.print("'" + id + "' ");
-
-            switch (doneCompressionCustom)
-            {
-                case NONE:
-                    System.out.println("not packed (size = " + baseSize + ")");
-                    break;
-
-                default: 
-                    System.out.print("packed with " + doneCompressionCustom.getValue() + ", ");
-                    break;
-            }
-
-            if (doneCompressionCustom != CompressionCustom.NONE)
                 System.out.println("size = " + packedSize + " (" + Math.round((packedSize * 100f) / baseSize) + "% - origin size = " + baseSize + ")");
         }
 

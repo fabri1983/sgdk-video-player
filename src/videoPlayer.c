@@ -27,7 +27,7 @@ static void waitSubTick_ (u32 subtick) {
 		u32 tmp;
 		// next code seems to loops 7 times to simulate a tick
 		// TODO: use cycle accurate wait loop in asm (about 100 cycles for 1 subtick)
-		ASM_STATEMENT volatile (
+		ASM_STATEMENT __volatile__ (
 			"moveq #7, %0\n"
 			"1:\n"
 			"\t  dbra %0, 1b"   // decrement register dx by 1 and branch back (b) to label 1 if not zero
@@ -333,7 +333,7 @@ void playMovie () {
 		u16 vFrame = 0;
 		#endif
 
-		ImageNoPalsTilesetSplit3** dataPtr = (ImageNoPalsTilesetSplit3**)data + vFrame;
+		ImageNoPalsTilesetSplit31** dataPtr = (ImageNoPalsTilesetSplit31**)data + vFrame;
 		Palette32AllStripsSplit3** palsDataPtr = (Palette32AllStripsSplit3**)pals_data + vFrame;
 
 		while (vFrame < MOVIE_FRAME_COUNT)
@@ -359,9 +359,11 @@ void playMovie () {
 			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE
 			baseTileIndex ^= VIDEO_FRAME_TILESET_TOTAL_SIZE;
 
-			unpackFrameTilemap((*dataPtr)->tilemap1, VIDEO_FRAME_TILEMAP_NUM_CHUNK, 0);
-			unpackFrameTilemap((*dataPtr)->tilemap2, VIDEO_FRAME_TILEMAP_NUM_CHUNK, VIDEO_FRAME_TILEMAP_NUM_CHUNK);
-			unpackFrameTilemap((*dataPtr)->tilemap3, VIDEO_FRAME_TILEMAP_NUM_CHUNK_LAST, 2*VIDEO_FRAME_TILEMAP_NUM_CHUNK);
+			unpackFrameTilemap((*dataPtr)->tilemap1, VIDEO_FRAME_TILEMAP_NUM, 0);
+			// In case we need to decompress in chunks
+			//unpackFrameTilemap((*dataPtr)->tilemap1, VIDEO_FRAME_TILEMAP_NUM_CHUNK, 0);
+			//unpackFrameTilemap((*dataPtr)->tilemap2, VIDEO_FRAME_TILEMAP_NUM_CHUNK, VIDEO_FRAME_TILEMAP_NUM_CHUNK);
+			//unpackFrameTilemap((*dataPtr)->tilemap3, VIDEO_FRAME_TILEMAP_NUM_CHUNK_LAST, 2*VIDEO_FRAME_TILEMAP_NUM_CHUNK);
 
 			#if EXIT_PLAYER_WITH_JOY_START
 			JOY_update();

@@ -2,24 +2,7 @@
 #define _MOVIE_PLAYER_H
 
 #include "generated/movie_data_consts.h"
-
-#ifdef __GNUC__
-#define FORCE_INLINE            inline __attribute__ ((always_inline))
-#elif defined(_MSC_VER)
-#define FORCE_INLINE            inline __forceinline
-#endif
-
-#ifdef __GNUC__
-#define NO_INLINE               __attribute__ ((noinline))
-#elif defined(_MSC_VER)
-#define NO_INLINE               __declspec(noinline)
-#endif
-
-#ifdef __GNUC__
-#define ASM_STATEMENT __asm__
-#elif defined(_MSC_VER)
-#define ASM_STATEMENT __asm
-#endif
+#include "compatibilities.h"
 
 // #define DEBUG_VIDEO_PLAYER
 // #define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the static map base tile index statically set on each frame by our custom rescomp extension
@@ -56,8 +39,8 @@
 #define VIDEO_FRAME_TILESET_CHUNK_SIZE 272 // Got experimentally from rescomp output (biggest summation of numTile). If odd then use next even number.
 #define VIDEO_FRAME_TILESET_TOTAL_SIZE 716 // Got experimentally from rescomp output (biggest operand from numTile1 + numTile2 + ...). If odd then use next even number.
 #define VIDEO_FRAME_TILEMAP_NUM (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES)
-#define VIDEO_FRAME_TILEMAP_NUM_CHUNK (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES / 3))
-#define VIDEO_FRAME_TILEMAP_NUM_CHUNK_LAST (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES / 3) + (MOVIE_FRAME_HEIGHT_IN_TILES % 3)))
+#define VIDEO_FRAME_TILEMAP_NUM_CHUNK (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES / 1))
+#define VIDEO_FRAME_TILEMAP_NUM_CHUNK_LAST (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES / 1) + (MOVIE_FRAME_HEIGHT_IN_TILES % 1)))
 #define VIDEO_FRAME_PALS_TOTAL_SIZE (MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP)
 #define VIDEO_FRAME_PALS_CHUNK_SIZE (VIDEO_FRAME_PALS_TOTAL_SIZE / 3)
 #define VIDEO_FRAME_PALS_CHUNK_SIZE_LAST ((VIDEO_FRAME_PALS_TOTAL_SIZE / 3) + (VIDEO_FRAME_PALS_TOTAL_SIZE % 3))
@@ -77,28 +60,28 @@
 
 #define STRINGIFY(x) #x
 /// Healthy consumption time measured in scanlines is up to 260, otherwise code will be interrupted by hardware VInt and HInt too. 
-/// HOWEVER VInt is executed at scanline 224 according to Shannon Birt.
+/// HOWEVER VInt is executed at scanline 224 according to Shannon Birt. So better keep the limit to 223.
 #define STOPWATCH_START(n) \
-			u16 lineStart_##n = GET_VCOUNTER;
+	u16 lineStart_##n = GET_VCOUNTER;
 #define STOPWATCH_STOP(n) \
-			u16 lineEnd_##n = GET_VCOUNTER;\
-			u16 frameTime_##n;\
-			char str_##n[] = "ft__"STRINGIFY(n)"     ";\
-			if (lineEnd_##n < lineStart_##n) {\
-				frameTime_##n = 261 - lineStart_##n;\
-				frameTime_##n += lineEnd_##n;\
-				/* Add a w to know this measure has wrapped around a display loop */ \
-				*(str_##n + 2) = 'w';\
-			} else {\
-				frameTime_##n = lineEnd_##n - lineStart_##n;\
-			}\
-			{\
-				*(str_##n + 8) = '0' + (frameTime_##n / 100);\
-				*(str_##n + 9) = '0' + ((frameTime_##n / 10) % 10);\
-				*(str_##n + 10) = '0' + (frameTime_##n % 10);\
-				*(str_##n + 11) = '\0';\
-				KLog(str_##n);\
-			}\
+	u16 lineEnd_##n = GET_VCOUNTER;\
+	u16 frameTime_##n;\
+	char str_##n[] = "ft__"STRINGIFY(n)"     ";\
+	if (lineEnd_##n < lineStart_##n) {\
+		frameTime_##n = 261 - lineStart_##n;\
+		frameTime_##n += lineEnd_##n;\
+		/* Add a w to know this measure has wrapped around a display loop */ \
+		*(str_##n + 2) = 'w';\
+	} else {\
+		frameTime_##n = lineEnd_##n - lineStart_##n;\
+	}\
+	{\
+		*(str_##n + 8) = '0' + (frameTime_##n / 100);\
+		*(str_##n + 9) = '0' + ((frameTime_##n / 10) % 10);\
+		*(str_##n + 10) = '0' + (frameTime_##n % 10);\
+		*(str_##n + 11) = '\0';\
+		KLog(str_##n);\
+	}\
 
 void playMovie ();
 

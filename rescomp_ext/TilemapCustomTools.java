@@ -2,9 +2,10 @@ package sgdk.rescomp.tool;
 
 import java.util.List;
 
-import sgdk.rescomp.resource.Tileset;
-import sgdk.rescomp.type.Tile;
+import sgdk.rescomp.resource.TilesetOriginalCustom;
 import sgdk.rescomp.type.Basics.TileOptimization;
+import sgdk.rescomp.type.Tile;
+import sgdk.rescomp.type.ToggleMapTileBaseIndex;
 
 public class TilemapCustomTools {
 
@@ -41,15 +42,15 @@ public class TilemapCustomTools {
 	 * fabri1983
 	 * @param id 
 	 */
-	public static void printMessageForParamToggleMapTileBaseIndexFlag(int toggleMapTileBaseIndexFlag, Integer frameNum, String id) {
-		if (toggleMapTileBaseIndexFlag != -1 && frameNum != null) {
+	public static void printMessageForParamToggleMapTileBaseIndexFlag(ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, Integer frameNum, String id) {
+		if (toggleMapTileBaseIndexFlag != ToggleMapTileBaseIndex.NONE && frameNum != null) {
     		boolean printMsg = false;
-    		// toggleMapTileBaseIndexFlag == 1 then expected first frame num has to be 1 (odd)
-    		if (toggleMapTileBaseIndexFlag == 1) {
+    		// toggleMapTileBaseIndexFlag == ODD then expected first frame num has to be 1
+    		if (toggleMapTileBaseIndexFlag == ToggleMapTileBaseIndex.ODD) {
     			printMsg = frameNum.intValue() == 1;
     		}
-    		// toggleMapTileBaseIndexFlag == 1 then expected first frame num has to be 0 (even)
-    		else if (toggleMapTileBaseIndexFlag == 0) {
+    		// toggleMapTileBaseIndexFlag == EVEN then expected first frame num has to be 0
+    		else if (toggleMapTileBaseIndexFlag == ToggleMapTileBaseIndex.EVEN) {
     			printMsg = frameNum.intValue() == 0;
     		}
     		else {
@@ -79,19 +80,19 @@ public class TilemapCustomTools {
 	/**
 	 * fabri1983
 	 */
-	public static int calculateVideoFrameBufferOffsetIndex(int toggleMapTileBaseIndexFlag, Integer frameNum, int tileIndexA, int tileIndexB) {
+	public static int calculateVideoFrameBufferOffsetIndex(ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, Integer frameNum, int tileIndexA, int tileIndexB) {
     	if (frameNum == null)
     		return 0;
 
-		// toggleMapTileBaseIndexFlag is 0 => frameNum is even then base tile index is tileIndexA, otherwise tileIndexB
-		if (toggleMapTileBaseIndexFlag == 0) {
+		// toggleMapTileBaseIndexFlag is EVEN => frameNum is even then base tile index is tileIndexA, otherwise tileIndexB
+		if (toggleMapTileBaseIndexFlag == ToggleMapTileBaseIndex.EVEN) {
 			if ((frameNum.intValue() % 2) == 0)
 				return tileIndexA;
 			else
 				return tileIndexB;
 		}
-		// toggleMapTileBaseIndexFlag is 1 => framNum is odd then base tile index is tileIndexA, otherwise tileIndexB
-		else if (toggleMapTileBaseIndexFlag == 1) {
+		// toggleMapTileBaseIndexFlag is ODD => framNum is odd then base tile index is tileIndexA, otherwise tileIndexB
+		else if (toggleMapTileBaseIndexFlag == ToggleMapTileBaseIndex.ODD) {
 			if ((frameNum.intValue() % 2) == 1)
 				return tileIndexA;
 			else
@@ -104,9 +105,9 @@ public class TilemapCustomTools {
     /**
 	 * fabri1983
 	 */
-	public static int getTilesetIndexFor(Tile tile, TileOptimization opt, List<Tileset> tilesets) {
+	public static int getTilesetIndexFor(Tile tile, TileOptimization opt, List<TilesetOriginalCustom> tilesets) {
     	for (int i=0; i < tilesets.size(); ++i) {
-    		Tileset tileset = tilesets.get(i);
+    		TilesetOriginalCustom tileset = tilesets.get(i);
     		int index = tileset.getTileIndex(tile, opt);
     		if (index != -1) // tile found in current tileset
     			return i;

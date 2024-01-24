@@ -9,6 +9,7 @@ import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.rescomp.type.CompressionCustom;
+import sgdk.rescomp.type.ToggleMapTileBaseIndex;
 import sgdk.tool.ImageUtil;
 import sgdk.tool.ImageUtil.BasicImageInfo;
 
@@ -16,10 +17,10 @@ public class ImageStripsNoPals extends Resource
 {
     final int hc;
 
-	public final Tileset tileset;
+	public final TilesetOriginalCustom tileset;
 	public final TilemapOriginalCustom tilemap;
 
-    public ImageStripsNoPals(String id, List<String> stripsFileList, int toggleMapTileBaseIndexFlag, boolean extendedMapWidth64, 
+    public ImageStripsNoPals(String id, List<String> stripsFileList, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, boolean extendedMapWidth64, 
     		Compression compression, TileOptimization tileOpt, int mapBase, CompressionCustom compressionCustom) throws Exception
     {
         super(id);
@@ -38,11 +39,12 @@ public class ImageStripsNoPals extends Resource
         int ht = h / 8;
 
         // build TILESET with wanted compression
-        tileset = (Tileset) addInternalResource(new Tileset(id + "_tileset", finalImageData, w, h, 0, 0, wt, ht, tileOpt, compression, false, false));
+        tileset = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_tileset", finalImageData, w, h, 0, 0, wt, ht, tileOpt, 
+        		compression, compressionCustom, false, false));
         System.out.print(" " + id + " -> numTiles:\t  " + tileset.getNumTile() + ". ");
         // build TILEMAP with wanted compression
         tilemap = (TilemapOriginalCustom) addInternalResource(TilemapOriginalCustom.getTilemap(id + "_tilemap", tileset, toggleMapTileBaseIndexFlag, 
-        		mapBase, finalImageData, wt, ht, tileOpt, compression, compressionCustom, extendedMapWidth64));
+        		mapBase, finalImageData, wt, ht, tileOpt, compression, extendedMapWidth64));
 
         // compute hash code
         hc = tileset.hashCode() ^ tilemap.hashCode();

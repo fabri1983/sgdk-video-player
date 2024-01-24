@@ -32,7 +32,7 @@ FORCE_INLINE void flushDMA_1elem () {
     // Slightly faster than Stef's dma_a.s: 244 cycles.
     //-------------------------------------------------------
     DMAOpInfo* elemPtr = &elem;
-	ASM_STATEMENT volatile (
+	ASM_STATEMENT __volatile__ (
 		"move.l %0, %%a0\n"
 		"move.l #0xC00004, %%a1\n"  // VDP_CTRL_PORT
 		"\n"

@@ -33,7 +33,7 @@ FORCE_INLINE void turnOnVDP (u8 reg01) {
  * Wait until HCounter 0xC00009 reaches nth position (in fact (n*2)th pixel since the VDP counts by 2)
 */
 FORCE_INLINE void waitHCounter (u16 n) {
-    ASM_STATEMENT volatile (
+    ASM_STATEMENT __volatile__ (
         ".LoopHC%=:\n"
         "\t  cmpi.b  %[hcLimit], 0xC00009.l;\n"  // we only interested in comparing byte since n won't be > 160 for our practical cases
         "\t  blo     .LoopHC%=;"

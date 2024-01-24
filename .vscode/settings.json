@@ -6,6 +6,7 @@
     "inc"
 ],
 "files.associations": {
+    "*.lst": "m68k",
     "types.h": "c",
     "config.h": "c",
     "genesis.h": "c",
@@ -22,7 +23,9 @@
     "moviehvinterrupts.h": "c",
     "movie_data.h": "c",
     "sstream": "c",
-    "videoplayer.h": "c"
+    "videoplayer.h": "c",
+    "movie_data_consts.h": "c",
+    "kosinski.h": "c"
 },
 "C_Cpp.errorSquiggles": "enabled",
 "[m68k]": {

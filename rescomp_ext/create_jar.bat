@@ -28,6 +28,7 @@ CD tempClassesDir
 ::DEL /Q LICENSE 2>NUL
 CD ..
 jar cvf rescomp_ext.jar ^
+	./sgdk/rescomp/processor/HeaderAppenderCompressionCustomProcessor.class ^
 	./sgdk/rescomp/processor/HeaderAppenderProcessor.class ^
 	./sgdk/rescomp/processor/ImageStripsNoPalsProcessor.class ^
 	./sgdk/rescomp/processor/Palette32AllStripsProcessor.class ^
@@ -35,6 +36,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/processor/ext.processor.properties ^
 	./sgdk/rescomp/resource/BinCustom.class ^
 	./sgdk/rescomp/resource/HeaderAppender.class ^
+	./sgdk/rescomp/resource/HeaderAppenderCompressionCustom.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPals.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPalsTilesetSplit2.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPalsTilesetSplit3.class ^
@@ -44,12 +46,16 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/Palette32AllStripsSplit3.class ^
 	./sgdk/rescomp/resource/TilemapCustom.class ^
 	./sgdk/rescomp/resource/TilemapOriginalCustom.class ^
+	./sgdk/rescomp/resource/TilesetOriginalCustom.class ^
 	./sgdk/rescomp/resource/ext.resource.properties ^
 	./sgdk/rescomp/tool/ExtProperties.class ^
+	./sgdk/rescomp/tool/MdComp.class ^
 	./sgdk/rescomp/tool/TilemapCustomTools.class ^
 	./sgdk/rescomp/type/CompressionCustom.class ^
+	./sgdk/rescomp/type/PackedDataCustom.class ^
 	./sgdk/rescomp/type/PalettesPositionEnum.class ^
-	./sgdk/rescomp/type/TilemapCreationData.class
+	./sgdk/rescomp/type/TilemapCreationData.class ^
+	./sgdk/rescomp/type/ToggleMapTileBaseIndex.class
 ::	-C tempClassesDir/ .
 RMDIR /S /Q tempClassesDir 2>NUL
 MOVE rescomp_ext.jar ../rescomp_ext.jar
