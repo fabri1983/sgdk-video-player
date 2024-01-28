@@ -12,14 +12,14 @@ public class TilemapCustomTools {
 	/**
 	 * fabri1983
 	 */
-	public static short[] convertDataTo64TilesWidth(short[] data, int wOrig, int hOrig) {
-		short[] dataExtended = new short[64 * hOrig];
+	public static short[] convertDataToNTilesWidth(short[] data, int wOrig, int hOrig, int newWidth) {
+		short[] dataExtended = new short[newWidth * hOrig];
 		for (int i = 0; i < hOrig; i++) {
 			// Copy each row from the original data to the expanded data
-			System.arraycopy(data, i * wOrig, dataExtended, i * 64, wOrig);
+			System.arraycopy(data, i * wOrig, dataExtended, i * newWidth, wOrig);
 			// Fill the remaining space in each row with zeros
-			for (int j = wOrig; j < 64; j++) {
-				dataExtended[i * 64 + j] = 0;
+			for (int j = wOrig; j < newWidth; j++) {
+				dataExtended[i * newWidth + j] = 0;
 			}
 		}
 		return dataExtended;
@@ -67,11 +67,13 @@ public class TilemapCustomTools {
     			System.out.println("");
 		    	System.out.println("####################################################################################################");
 		    	System.out.println("TilemapCustom class by fabri1983.");
-		    	System.out.println("Parameter toggleMapTileBaseIndexFlag was set to we use the frame num for toggling between ");
-		    	System.out.println("tile index " + a + " (" + ExtProperties.STARTING_TILESET_ON_SGDK + ") and " + b + " (" + ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX + ").");
-		    	System.out.println("(max tileset numTile value got experimentally in other runs).");
-		    	System.out.println("Use toggleMapTileBaseIndexFlag = 0 if first frame num is even.");
-		    	System.out.println("Use toggleMapTileBaseIndexFlag = 1 if first frame num is odd.");
+		    	System.out.println("Parameter toggleMapTileBaseIndexFlag was set to use the frame num for toggling between: ");
+		    	System.out.println("   tile index " + a + " (" + ExtProperties.STARTING_TILESET_ON_SGDK + ")");
+		    	System.out.println("and");
+		    	System.out.println("   tile index " + b + " (" + ExtProperties.STARTING_TILESET_ON_SGDK + " + " + ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX + ")");
+		    	System.out.println("(the later got experimentally in other runs).");
+		    	System.out.println("toggleMapTileBaseIndexFlag = EVEN when first frame num is even.");
+		    	System.out.println("toggleMapTileBaseIndexFlag = ODD when first frame num is odd.");
 		    	System.out.println("####################################################################################################");
     		}
     	}

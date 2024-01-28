@@ -5,31 +5,24 @@ import java.util.Collections;
 import java.util.List;
 
 import sgdk.rescomp.Resource;
-import sgdk.rescomp.type.CompressionCustom;
+import sgdk.rescomp.type.CustomDataTypes;
 
 /**
  * Just add a custom content to the auto generated header file.
  */
-public class HeaderAppenderCompressionCustom extends Resource
+public class HeaderAppenderAllCustomResource extends Resource
 {
     final int hc;
-    final String content;
+    final CustomDataTypes[] selection;
 
-    public HeaderAppenderCompressionCustom(String id) throws Exception
+    public HeaderAppenderAllCustomResource(String id, CustomDataTypes[] selection) throws Exception
     {
         super(id);
         
-        StringBuilder sb = new StringBuilder(256);
-        for (CompressionCustom cc : CompressionCustom.values()) {
-        	if (cc == CompressionCustom.NONE)
-        		continue;
-        	sb.append("#define ").append(cc.getValue()).append(" ").append(cc.getDefineValue()).append(System.lineSeparator());
-        }
-
-        content = sb.toString();
+        this.selection = selection;
 
         // compute hash code
-        hc = content.hashCode();
+        hc = selection.hashCode();
     }
 
 	@Override
@@ -41,10 +34,10 @@ public class HeaderAppenderCompressionCustom extends Resource
     @Override
     public boolean internalEquals(Object obj)
     {
-        if (obj instanceof HeaderAppenderCompressionCustom)
+        if (obj instanceof HeaderAppenderAllCustomResource)
         {
-            final HeaderAppenderCompressionCustom other = (HeaderAppenderCompressionCustom) obj;
-            return content.equals(other.content);
+            final HeaderAppenderAllCustomResource other = (HeaderAppenderAllCustomResource) obj;
+            return selection.equals(other.selection);
         }
 
         return false;
@@ -71,6 +64,14 @@ public class HeaderAppenderCompressionCustom extends Resource
     @Override
     public void out(ByteArrayOutputStream outB, StringBuilder outS, StringBuilder outH)
     {
-    	outH.append(content).append(System.lineSeparator());
+    	if (selection.length == 0)
+    		return;
+
+    	StringBuilder sb = new StringBuilder(1024);
+    	for (CustomDataTypes cdt : selection) {
+			sb.append(CustomDataTypes.getDefinition(cdt)).append(System.lineSeparator());
+		}
+
+    	outH.append(sb.toString());
     }
 }

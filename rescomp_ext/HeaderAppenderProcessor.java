@@ -20,7 +20,7 @@ public class HeaderAppenderProcessor implements Processor
         if (fields.length < 3)
         {
             System.out.println("Wrong " + resId + " definition");
-            System.out.println(resId + " name  contentString");
+            System.out.println(resId + " name contentString");
             System.out.println("  name              Just an internal name for this chunk of the header. Eg: headerForMovie_1");
             System.out.println("  contentString     Define your header content in a string. Eg: #define MAX_VALE 32\n\ntypedef struct {\n...\n} CustomStructTypeDef;\n");
             return null;

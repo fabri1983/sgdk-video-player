@@ -8,6 +8,7 @@ import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.CompressionCustom;
+import sgdk.rescomp.type.CustomDataTypes;
 import sgdk.rescomp.type.PalettesPositionEnum;
 import sgdk.rescomp.type.TSX;
 import sgdk.tool.FileUtil;
@@ -150,7 +151,7 @@ public class Palette32AllStrips extends Resource
 		outB.reset();
 
 		// declare
-		Util.decl(outS, outH, "Palette32AllStrips", id, 2, global);
+		Util.decl(outS, outH, CustomDataTypes.Palette32AllStrips.getValue(), id, 2, global);
 		// set compression info (very important that binary data had already been exported at this point)
 		//outS.append("    dc.w    " + (bin.doneCompression.ordinal() - 1) + "\n");
 		// set palette data pointer

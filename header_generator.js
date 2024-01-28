@@ -38,6 +38,13 @@ const sortedFileNames = fileNames
 const sortedFileNamesEveryFirstStrip = sortedFileNames
 	.filter((_, index) => index % stripsPerFrame === 0);
 
+// You first enable the stats and disable the loader, so you end up with the stats file.
+// Extract the tiles you want from the file and create a new one with the tiles you choose.
+// Then you disable the stats and enable the loader.
+const enableTilesCacheStats = false;
+const loadTilesCache = false;
+const tilesCacheId = "tilesCache_movie1"; // this is also the name of the variable contaning the Tileset with the cached tiles (it keeps the case)
+
 // split tileset in N chunks. Current valid values are [1, 2, 3]
 const tilesetSplit = 3;
 // split tilemap in N chunks. Current values are [1, 2, 3]. Always <= tilesetSplit
@@ -74,15 +81,14 @@ else if (palette32Split == 3)
 // So we can take the first frame number from its name/id, knowing that they are declared in ascendant order, and test its parity: even or odd.
 // Values: NONE disabled, EVEN if first frame num is even, ODD if odd.
 const matchFirstFrame = FILE_REGEX_2.exec(sortedFileNamesEveryFirstStrip[0]);
-const toggleMapTileBaseIndexFlag = parseInt(matchFirstFrame[1]) % 2 == 0 ? "EVEN" : "ODD";
+const toggleMapTileBaseIndexFlag = parseInt(matchFirstFrame[1]) % 2 == 0 ? "EVEN" : "ODD"; // use NONE to disable it
 
-// extends map width to 64 tiles
-const extendMapWidthTo64 = true;
-var widthTilesExt = 64;
-if (extendMapWidthTo64 == false) {
+// extends map width to 64 (0: not extended). Setting 0 demands you to update enqueueTilemapData() in videoPlayer.c
+const mapExtendedWidth = 64;
+var widthTilesExt = mapExtendedWidth;
+if (mapExtendedWidth == 0) {
 	widthTilesExt = widthTiles;
 }
-const extendMapWidthTo64_str = extendMapWidthTo64 ? "TRUE" : "FALSE";
 
 if (!fs.existsSync(GEN_INC_DIR)) {
 	fs.mkdirSync(GEN_INC_DIR, { recursive: true });
@@ -93,6 +99,12 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 `#ifndef _MOVIE_DATA_CONSTS_H
 #define _MOVIE_DATA_CONSTS_H
 
+/* -------------------------------- */
+/*         AUTO GENERATED           */
+/*     DO NOT MODIFY THIS FILE      */
+/* See header_generator.js instead. */
+/* -------------------------------- */
+
 #define MOVIE_FRAME_RATE (${frameRate}-1) // Minus 1 so it delays enough to be in sync with audio. IT'S A TEMPORARY HACK BUT WORKS FLAWLESSLY!
 #define MOVIE_FRAME_COUNT ${sortedFileNamesEveryFirstStrip.length}
 #define MOVIE_FRAME_WIDTH_IN_TILES ${widthTiles}
@@ -101,7 +113,7 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 #define MOVIE_FRAME_STRIPS ${stripsPerFrame}
 
 #define MOVIE_FRAME_COLORS_PER_STRIP 32
-// in case you were to split any calculation over the colors of strip by an odd divisor n
+// In case you were to split any calculation over the colors of strip by an odd divisor n
 #define MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(n) (MOVIE_FRAME_COLORS_PER_STRIP % n)
 
 #endif // _MOVIE_DATA_CONSTS_H
@@ -111,6 +123,12 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 fs.writeFileSync(`${GEN_INC_DIR}/movie_data.h`, 
 `#ifndef _MOVIE_DATA_H
 #define _MOVIE_DATA_H
+
+/* -------------------------------- */
+/*         AUTO GENERATED           */
+/*     DO NOT MODIFY THIS FILE      */
+/* See header_generator.js instead. */
+/* -------------------------------- */
 
 #include <types.h>
 #include <vdp_bg.h>
@@ -130,122 +148,40 @@ const ${type_Palette32AllStrips}* pals_data[${sortedFileNamesEveryFirstStrip.len
 `);
 
 // --------- Generate .res file
-// Next struct type definitions will be added at the top of generated movie_frames.h
-const headerContent1 = `
-typedef struct
-{
-    u16 *tilemap;
-} TileMapCustom;
-`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+const headerAppenderCompressionCustom = `HEADER_APPENDER_COMPRESSION_CUSTOM\t\tcompressionCustomHeader\n\n`;
 
-const headerContent2 = `
-typedef struct
-{
-    TileSet *tileset;
-    TileMap *tilemap;
-} ImageNoPals;
-`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+// You can provide a "comma separated list" of the types you want to include in the header file
+// Eg: "TileMapCustom, ImageNoPalsTilesetSplit31, Palette32AllStripsSplit3"
+const headerAppenderAllCustom = `HEADER_APPENDER_ALL_CUSTOM\t\theaderAllCustomTypes\n\n`;
 
-const headerContent3_A = `
-typedef struct
-{
-    TileSet *tileset1;
-    TileSet *tileset2;
-    TileMapCustom *tilemap1;
-} ImageNoPalsTilesetSplit21;
-`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+// Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  movieFrames_cache.txt
+// Flag enable possible values: FALSE, TRUE
+const loadTilesCacheStr = `TILES_CACHE_LOADER\t\t${tilesCacheId}\t\t${loadTilesCache?"TRUE":"FALSE"}\t\t${tilesCacheId}.txt\n\n`;
 
-const headerContent3_B = `
-typedef struct
-{
-    TileSet *tileset1;
-    TileSet *tileset2;
-    TileMapCustom *tilemap1;
-    TileMapCustom *tilemap2;
-} ImageNoPalsTilesetSplit22;
-`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
+// Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  600
+// Flag enable possible values: FALSE, TRUE
+const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER\t\t${tilesCacheId}\t\t${enableTilesCacheStats?"TRUE":"FALSE"}\t\t600\n\n`;
 
-const headerContent4_A = `
-typedef struct
-{
-    TileSet *tileset1;
-    TileSet *tileset2;
-    TileSet *tileset3;
-    TileMapCustom *tilemap1;
-} ImageNoPalsTilesetSplit31;
-`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
-
-const headerContent4_B = `
-typedef struct
-{
-    TileSet *tileset1;
-    TileSet *tileset2;
-    TileSet *tileset3;
-    TileMapCustom *tilemap1;
-    TileMapCustom *tilemap2;
-} ImageNoPalsTilesetSplit32;
-`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
-
-const headerContent4_C = `
-typedef struct
-{
-    TileSet *tileset1;
-    TileSet *tileset2;
-    TileSet *tileset3;
-    TileMapCustom *tilemap1;
-    TileMapCustom *tilemap2;
-    TileMapCustom *tilemap3;
-} ImageNoPalsTilesetSplit33;
-`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
-
-const headerContent5 = `
-typedef struct
-{
-    u16* data;
-} Palette32AllStrips;
-`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
-
-const headerContent6 = `
-typedef struct
-{
-    u16* data1;
-    u16* data2;
-} Palette32AllStripsSplit2;
-`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
-
-const headerContent7 = `
-typedef struct
-{
-    u16* data1;
-    u16* data2;
-    u16* data3;
-} Palette32AllStripsSplit3;
-`.replace(/\n{1}/, '').replace(/ {4}/g, '\\t').replace(/\n/g, '\\n'); // this convert a multiline string into a single line string
-
-const headerappenderDefine1 = `HEADER_APPENDER_COMPRESSION_CUSTOM\t\tcompressionCustomHeader1\n\n`;
-
-const headerappender1 = `HEADER_APPENDER\t\headerCustomTypes1\t\t\"${headerContent1}\"\n`;
-const headerappender2 = `HEADER_APPENDER\t\headerCustomTypes2\t\t\"${headerContent2}\"\n`;
-const headerappender3_A = `HEADER_APPENDER\t\headerCustomTypes3_A\t\t\"${headerContent3_A}\"\n`;
-const headerappender3_B = `HEADER_APPENDER\t\headerCustomTypes3_B\t\t\"${headerContent3_B}\"\n`;
-const headerappender4_A = `HEADER_APPENDER\t\headerCustomTypes4_A\t\t\"${headerContent4_A}\"\n`;
-const headerappender4_B = `HEADER_APPENDER\t\headerCustomTypes4_B\t\t\"${headerContent4_B}\"\n`;
-const headerappender4_C = `HEADER_APPENDER\t\headerCustomTypes4_C\t\t\"${headerContent4_C}\"\n`;
-const headerappender5 = `HEADER_APPENDER\t\headerCustomTypes5\t\t\"${headerContent5}\"\n`;
-const headerappender6 = `HEADER_APPENDER\t\headerCustomTypes6\t\t\"${headerContent6}\"\n`;
-const headerappender7 = `HEADER_APPENDER\t\headerCustomTypes7\t\t\"${headerContent7}\"\n\n`;
-
-// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  3  ODD  TRUE  FAST  NONE  ALL
+// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesCache_movie1  3  1  ODD  64  FAST  NONE  ALL
 const imageResListStr = sortedFileNamesEveryFirstStrip
-	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesetSplit}\t\t${tilemapSplit}\t\t${toggleMapTileBaseIndexFlag}\t\t${extendMapWidthTo64_str}\t\tFAST\t\tNONE\t\tALL`)
+	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesCacheId}\t\t${tilesetSplit}\t\t${tilemapSplit}`
+                + `\t\t${toggleMapTileBaseIndexFlag}\t\t${mapExtendedWidth}\t\tFAST\t\tNONE\t\tALL`)
 	.join('\n') + '\n\n';
 
 // Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  PAL0PAL1  TRUE  FAST  NONE
 const paletteResListStr = sortedFileNamesEveryFirstStrip
-	.map(s => `PALETTE_32_COLORS_ALL_STRIPS\t\tpal_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${palette32Split}\t\tPAL0PAL1\t\tTRUE\t\tFAST\t\tNONE`)
+	.map(s => `PALETTE_32_COLORS_ALL_STRIPS\t\tpal_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${palette32Split}`
+                + `\t\tPAL0PAL1\t\tTRUE\t\tFAST\t\tNONE`)
 	.join('\n') + '\n\n';
 
+// Eg: TILES_CACHE_STATS_PRINTER  movieFrames_cache  CONSOLE
+// Flag printTo possible values: CONSOLE, FILE, NONE
+const printTilesCacheStatsStr = `TILES_CACHE_STATS_PRINTER\t\t${tilesCacheId}\t\tFILE\n\n`;
+
 // Create .res file
-fs.writeFileSync(`${RES_DIR}/movie_frames.res`, headerappenderDefine1 + headerappender1 + headerappender2 + headerappender3_A + headerappender3_B 
-		+ headerappender4_A + headerappender4_B + headerappender4_C + headerappender5 + headerappender6 + headerappender7 + imageResListStr 
-		+ paletteResListStr);
+fs.writeFileSync(`${RES_DIR}/movie_frames.res`, 
+        headerAppenderCompressionCustom + headerAppenderAllCustom + 
+        loadTilesCacheStr + 
+        enableTilesCacheStatsStr + 
+        imageResListStr + paletteResListStr + 
+        printTilesCacheStatsStr);

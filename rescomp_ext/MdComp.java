@@ -75,6 +75,7 @@ public class MdComp {
 		try (FileOutputStream fos = new FileOutputStream(fileName)) {
 			fos.write(data);
 			fos.flush();
+			fos.close();
 		}
 	}
 

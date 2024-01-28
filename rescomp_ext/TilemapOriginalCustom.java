@@ -10,11 +10,13 @@ import java.util.regex.Pattern;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.ExtProperties;
 import sgdk.rescomp.tool.TilemapCustomTools;
+import sgdk.rescomp.tool.TilesCacheManager;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileEquality;
 import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.rescomp.type.Tile;
+import sgdk.rescomp.type.TileCacheMatch;
 import sgdk.rescomp.type.TilemapCreationData;
 import sgdk.rescomp.type.ToggleMapTileBaseIndex;
 import sgdk.tool.ArrayUtil;
@@ -23,7 +25,8 @@ public class TilemapOriginalCustom extends Resource
 {
 	private static TilemapCreationData createTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetForTilesets,
 			ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int imageWidth, int imageHeight,
-			int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt, Compression compression, boolean extendedMapWidth64) {
+			int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt, Compression compression, 
+			int mapExtendedWidth, String tilesCacheId) {
 		int w = widthTile;
         int h = heightTile;
 
@@ -52,7 +55,8 @@ public class TilemapOriginalCustom extends Resource
     	if (toggleMapTileBaseIndexFlag != ToggleMapTileBaseIndex.NONE) {
     		int tileIndexA = ExtProperties.getInt(ExtProperties.STARTING_TILESET_ON_SGDK);
     		int tileIndexB = tileIndexA + ExtProperties.getInt(ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
-    		videoFrameBufferOffsetIndex = TilemapCustomTools.calculateVideoFrameBufferOffsetIndex(toggleMapTileBaseIndexFlag, frameNum, tileIndexA, tileIndexB);
+    		videoFrameBufferOffsetIndex = TilemapCustomTools.calculateVideoFrameBufferOffsetIndex(
+    				toggleMapTileBaseIndexFlag, frameNum, tileIndexA, tileIndexB);
     	}
     	// fabri1983: add to current mapBaseTileInd value
     	mapBaseTileInd += videoFrameBufferOffsetIndex;
@@ -88,19 +92,32 @@ public class TilemapOriginalCustom extends Resource
                         index = tile.getPlainValue();
                     else
                     {
-                    	int tilesetsListIdx = TilemapCustomTools.getTilesetIndexFor(tile, opt, tilesets);
-                    	TilesetOriginalCustom tileset = tilesets.get(tilesetsListIdx);
+                    	TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
 
-                        // otherwise we try to get tile index in the tileset
-                        index = tileset.getTileIndex(tile, opt);
-                        // not found ? (should never happen)
-                        if (index == -1)
-                            throw new RuntimeException("Can't find tile [" + ti + "," + tj + "] in tileset, something wrong happened...");
-
-                        // get equality info
-                        equality = tile.getEquality(tileset.get(index));
-                        // can add base index now
-                        index += mapBaseTileInd + offsetForTilesets[tilesetsListIdx];
+                    	// we found the cached tile
+                    	if (match != null) {
+                    		Tile existentTile = match.getTile();
+	                        // get equality info
+	                        equality = tile.getEquality(existentTile);
+	                        // can add base index now
+	                        index = match.getIndexInCache();
+                    	}
+                    	else {
+	                    	int tilesetsListIdx = TilemapCustomTools.getTilesetIndexFor(tile, opt, tilesets);
+	                    	TilesetOriginalCustom tileset = tilesets.get(tilesetsListIdx);
+	
+	                        // otherwise we try to get tile index in the tileset
+	                        index = tileset.getTileIndex(tile, opt);
+	                        // not found ? (should never happen)
+	                        if (index == -1)
+	                            throw new RuntimeException("Can't find tile [" + ti + "," + tj + "] in tileset, something wrong happened...");
+	
+	                        Tile existentTile = tileset.get(index);
+	                        // get equality info
+							equality = tile.getEquality(existentTile);
+	                        // can add base index now
+	                        index += mapBaseTileInd + offsetForTilesets[tilesetsListIdx];
+                    	}
                     }
                 }
 
@@ -109,9 +126,9 @@ public class TilemapOriginalCustom extends Resource
             }
         }
 
-        if (extendedMapWidth64) {
-        	data = TilemapCustomTools.convertDataTo64TilesWidth(data, w, h);
-        	w = 64;
+        if (mapExtendedWidth != 0) {
+        	data = TilemapCustomTools.convertDataToNTilesWidth(data, w, h, mapExtendedWidth);
+        	w = mapExtendedWidth;
         }
 
         return new TilemapCreationData(id, data, w, h, compression);
@@ -119,19 +136,19 @@ public class TilemapOriginalCustom extends Resource
 
 	public static TilemapOriginalCustom getTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetForTilesets, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, 
 			int mapBase, byte[] image8bpp, int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile, 
-			TileOptimization opt, Compression compression, boolean extendedMapWidth64)
+			TileOptimization opt, Compression compression, int mapExtendedWidth, String tilesCacheId)
 	{
 		TilemapCreationData tmData = createTilemap(id, tilesets, offsetForTilesets, toggleMapTileBaseIndexFlag, mapBase, image8bpp,
-				imageWidth, imageHeight, startTileX, startTileY, widthTile, heightTile, opt, compression, extendedMapWidth64);
+				imageWidth, imageHeight, startTileX, startTileY, widthTile, heightTile, opt, compression, mapExtendedWidth, tilesCacheId);
 		return new TilemapOriginalCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression);
 	}
 
 	public static TilemapOriginalCustom getTilemap(String id, TilesetOriginalCustom tileset, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapBase, 
-			byte[] image8bpp, int widthTile, int heightTile, TileOptimization opt, Compression compression, boolean extendedMapWidth64)
+			byte[] image8bpp, int widthTile, int heightTile, TileOptimization opt, Compression compression, int mapExtendedWidth, String tilesCacheId)
     {
 		List<TilesetOriginalCustom> tilesets = Arrays.asList(tileset);
 		TilemapCreationData tmData = createTilemap(id, tilesets, new int[]{0}, toggleMapTileBaseIndexFlag, mapBase, image8bpp, widthTile * 8, 
-				heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, extendedMapWidth64);
+				heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, mapExtendedWidth, tilesCacheId);
 		return new TilemapOriginalCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression);
     }
 

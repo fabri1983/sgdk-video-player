@@ -17,11 +17,12 @@ public class HeaderAppenderCompressionCustomProcessor implements Processor
     @Override
     public Resource execute(String[] fields) throws Exception
     {
-        if (fields.length != 2)
+        if (fields.length < 2)
         {
-            System.out.println("Wrong " + resId + " definition. Just use the resource id to include a list of #define for each CompressionCustom value.");
+            System.out.println("Wrong " + resId + " definition.");
+            System.out.println("This processor includes a list of #define delcarations, one per each CompressionCustom value.");
+            System.out.println(resId + " name");
             System.out.println("  name        Just an internal name for this chunk of the header. Eg: compressionCustomHeader1");
-            System.out.println(resId);
             return null;
         }
 

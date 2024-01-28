@@ -5,10 +5,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import sgdk.rescomp.Resource;
+import sgdk.rescomp.tool.TilesCacheManager;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.rescomp.type.CompressionCustom;
+import sgdk.rescomp.type.CustomDataTypes;
 import sgdk.rescomp.type.ToggleMapTileBaseIndex;
 import sgdk.tool.ImageUtil;
 import sgdk.tool.ImageUtil.BasicImageInfo;
@@ -20,8 +22,8 @@ public class ImageStripsNoPals extends Resource
 	public final TilesetOriginalCustom tileset;
 	public final TilemapOriginalCustom tilemap;
 
-    public ImageStripsNoPals(String id, List<String> stripsFileList, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, boolean extendedMapWidth64, 
-    		Compression compression, TileOptimization tileOpt, int mapBase, CompressionCustom compressionCustom) throws Exception
+    public ImageStripsNoPals(String id, List<String> stripsFileList, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapExtendedWidth, 
+    		Compression compression, TileOptimization tileOpt, int mapBase, CompressionCustom compressionCustom, String tilesCacheId) throws Exception
     {
         super(id);
 
@@ -40,11 +42,17 @@ public class ImageStripsNoPals extends Resource
 
         // build TILESET with wanted compression
         tileset = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_tileset", finalImageData, w, h, 0, 0, wt, ht, tileOpt, 
-        		compression, compressionCustom, false, false));
+        		compression, compressionCustom, false, false, tilesCacheId));
         System.out.print(" " + id + " -> numTiles:\t  " + tileset.getNumTile() + ". ");
         // build TILEMAP with wanted compression
         tilemap = (TilemapOriginalCustom) addInternalResource(TilemapOriginalCustom.getTilemap(id + "_tilemap", tileset, toggleMapTileBaseIndexFlag, 
-        		mapBase, finalImageData, wt, ht, tileOpt, compression, extendedMapWidth64));
+        		mapBase, finalImageData, wt, ht, tileOpt, compression, mapExtendedWidth, tilesCacheId));
+
+        if (TilesCacheManager.isStatsEnabledFor(tilesCacheId) 
+        		&& tileset.getNumTile() >= TilesCacheManager.getMinTilesetSizeForStatsFor(tilesCacheId)) {
+        	TilesCacheManager.countResourcesPerTile(tilesCacheId, tileset.tiles);
+        	TilesCacheManager.countTotalTiles(tilesCacheId, tileset.tiles);
+        }
 
         // compute hash code
         hc = tileset.hashCode() ^ tilemap.hashCode();
@@ -150,7 +158,7 @@ public class ImageStripsNoPals extends Resource
 		outB.reset();
 
 		// output Image structure
-		Util.decl(outS, outH, "ImageNoPals", id, 2, global);
+		Util.decl(outS, outH, CustomDataTypes.ImageNoPals.getValue(), id, 2, global);
 		// Tileset pointer
 		outS.append("    dc.l    " + tileset.id + "\n");
 		// Tilemap pointer

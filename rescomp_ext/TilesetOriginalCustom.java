@@ -9,19 +9,21 @@ import java.util.HashMap;
 import java.util.List;
 
 import sgdk.rescomp.Resource;
+import sgdk.rescomp.tool.TilesCacheManager;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileEquality;
 import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.Tile;
+import sgdk.rescomp.type.TileCacheMatch;
 import sgdk.tool.ImageUtil;
 import sgdk.tool.ImageUtil.BasicImageInfo;
 
 public class TilesetOriginalCustom extends Resource
 {
     public static TilesetOriginalCustom getTileset(String id, String imgFile, Compression compression, CompressionCustom compressionCustom, 
-    		TileOptimization tileOpt, boolean addBlank, boolean temp)
+    		TileOptimization tileOpt, boolean addBlank, boolean temp, String tilesCacheId)
             throws Exception
     {
         // get 8bpp pixels and also check image dimension is aligned to tile
@@ -38,11 +40,11 @@ public class TilesetOriginalCustom extends Resource
         // we determine 'h' from data length and 'w' as we can crop image vertically to remove palette data
         final int h = image.length / w;
 
-        return new TilesetOriginalCustom(id, image, w, h, 0, 0, w / 8, h / 8, tileOpt, compression, compressionCustom,  addBlank, temp);
+        return new TilesetOriginalCustom(id, image, w, h, 0, 0, w / 8, h / 8, tileOpt, compression, compressionCustom,  addBlank, temp, tilesCacheId);
     }
 
     // tiles
-    final private List<Tile> tiles;
+    final public List<Tile> tiles;
     final int hc;
 
     // binary data block (tiles)
@@ -132,7 +134,7 @@ public class TilesetOriginalCustom extends Resource
     }
 
     public TilesetOriginalCustom(String id, byte[] image8bpp, int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile,
-            TileOptimization opt, Compression compression, CompressionCustom compressionCustom, boolean addBlank, boolean temp)
+            TileOptimization opt, Compression compression, CompressionCustom compressionCustom, boolean addBlank, boolean temp, String tilesCacheId)
     {
         super(id);
 
@@ -155,9 +157,14 @@ public class TilesetOriginalCustom extends Resource
                 // blank tile
                 hasBlank |= tile.isBlank();
 
-                // not found --> add it
-                if (index == -1)
-                    add(tile);
+                TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
+
+            	// we didn't find the cached tile
+            	if (match == null) {
+            		// not found in the current list of tiles --> add it
+	                if (index == -1)
+	                    add(tile);
+            	}
             }
         }
 

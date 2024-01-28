@@ -33,13 +33,14 @@ FORCE_INLINE void flushDMA_1elem () {
     //-------------------------------------------------------
     DMAOpInfo* elemPtr = &elem;
 	ASM_STATEMENT __volatile__ (
-		"move.l %0, %%a0\n"
-		"move.l #0xC00004, %%a1\n"  // VDP_CTRL_PORT
-		"\n"
-		"move.l (%%a0)+, (%%a1)\n"
-		"move.l (%%a0)+, (%%a1)\n"
-		"move.l (%%a0)+, (%%a1)\n"
-		"move.w (%%a0)+, (%%a1)\n"
+        "\n\t"
+		"move.l %0, %%a0\n\t"
+		"move.l #0xC00004, %%a1\n\t"  // VDP_CTRL_PORT
+		"\n\t"
+		"move.l (%%a0)+, (%%a1)\n\t"
+		"move.l (%%a0)+, (%%a1)\n\t"
+		"move.l (%%a0)+, (%%a1)\n\t"
+		"move.w (%%a0)+, (%%a1)\n\t"
 		"move.w (%%a0)+, (%%a1)\n"  // Stef: important to use word write for command triggering DMA (see SEGA notes)
 		: 
 		: "m" (elemPtr)

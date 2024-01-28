@@ -112,12 +112,12 @@ static FORCE_INLINE void waitVInt () {
 	while (vtimer == t) {;} // wait for next VInt
 }
 
-/*
- * Clearing FONT TILES from VRAM gives us additional VRAM space.
- * This is 53 tiles more per image and since we have 2 images loaded it accounts for 106 more tiles in VRAM.
- */
-static void clearFontTiles () {
-	VDP_fillTileData(0, TILE_FONT_INDEX, FONT_LEN, TRUE);
+static void loadTilesCache () {
+	if (tilesCache_movie1.numTile > 0) {
+		// Load tiles before our BG_A plane starting address 0xE000
+		u16 fromIndex = (0xE000 / 32) - tilesCache_movie1.numTile;
+		VDP_loadTileSet((TileSet* const) &tilesCache_movie1, fromIndex, DMA);
+	}
 }
 
 static u32* unpackedTilesetChunk;
@@ -198,14 +198,16 @@ static void freePalettesBuffer () {
 static FORCE_INLINE void enqueueTilesetData (u16 startTileIndex, u16 length) {
 	// This was the previous way
 	// VDP_loadTileData(unpackedTilesetChunk, startTileIndex, length, DMA_QUEUE);
-	// Now we use custom DMA_queueDmaFast() because the data is in RAM so no 128KB bank check is needed
+
+	// Now we use custom DMA_queueDmaFast() because the data is in RAM, so no 128KB bank boundary check is needed
 	enqueueDMA_1elem((void*) unpackedTilesetChunk, startTileIndex * 32, length * 16, 2);
 }
 
 static FORCE_INLINE void enqueueTilemapData (u16 tilemapAddrInPlane) {
 	// This was the previous way which benefits from tilemap width being 64 tiles
 	// VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_TILEMAP_NUM, 2, DMA_QUEUE);
-	// Now we use custom DMA_queueDmaFast() because the data is in RAM so no 128KB bank check is needed
+
+	// Now we use custom DMA_queueDmaFast() because the data is in RAM, so no 128KB bank boundary check is needed
 	enqueueDMA_1elem((void*) unpackedTilemap, tilemapAddrInPlane + (0 * 2), VIDEO_FRAME_TILEMAP_NUM, 2);
 }
 
@@ -254,33 +256,44 @@ static void fadeToBlack () {
 
 void playMovie () {
 
+	VDP_resetScreen();
+
 	// Blacks out everything in screen while first frame is being loaded
 	PAL_setColors(0, palette_black, 64, DMA);
 
 	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 
-    VDP_setPlaneSize(MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES, 32, TRUE);
+	// Only Plane size 64x32 due to internal VRAM setup made by SGDK and the use of fixed tilemap width
+    VDP_setPlaneSize(64, 32, TRUE);
+	// If we want to use up to 1791 tiles (remember we keep the reserved tile at address 0) then:
+	// - 0xE000 is where we set BG_A plane address to start at.
+	// - So last tile index address can be DFE0 (1791 * 32), 1 tile behind E000.
+	// - Move BG_B and Window planes to BG_A plane so we can use that space to achieve up to 1791 tiles.
+    VDP_setBGBAddress(VDP_getBGAAddress());
+    VDP_setWindowAddress(VDP_getBGAAddress());
 
-	// Clear font tiles from VRAM. We will need that space, and it has to be cleared
-	clearFontTiles();
+	// Clear all tileset VRAM until BG_B plane address (we can use the address as a counter because VRAM tileset starts at address 0)
+	VDP_fillTileData(0, 1, VDP_getBGBAddress(), TRUE);
 
+	loadTilesCache();
 	allocateTilesetBuffer();
 	allocateTilemapBuffer();
 	allocatePalettesBuffer();
 	MEM_pack();
 
 	// Get more RAM space
-	DMA_initEx(DMA_QUEUE_SIZE_MIN, (VIDEO_FRAME_TILESET_CHUNK_SIZE * 32), DMA_BUFFER_SIZE_MIN);
-	MEM_free(dmaQueues); // free up DMA_QUEUE_SIZE_MIN * sizeof(DMAOpInfo) bytes
-	dmaQueues = MEM_alloc(1 * sizeof(DMAOpInfo));
-	MEM_pack();
+	// DMA_initEx(DMA_QUEUE_SIZE_MIN, (VIDEO_FRAME_TILESET_CHUNK_SIZE * 32), DMA_BUFFER_SIZE_MIN);
+	// MEM_free(dmaQueues); // free up DMA_QUEUE_SIZE_MIN * sizeof(DMAOpInfo) bytes
+	// dmaQueues = MEM_alloc(1 * sizeof(DMAOpInfo));
+	// MEM_pack();
 
-//KLog_U1("Free Mem: ", MEM_getFree()); // 40010 bytes.
+//KLog_U1("Free Mem: ", MEM_getFree()); // 32602 bytes.
 
 	// Position in screen (in tiles)
 	u16 xp = (screenWidth - MOVIE_FRAME_WIDTH_IN_TILES*8 + 7)/8/2; // centered in X axis
 	u16 yp = (screenHeight - MOVIE_FRAME_HEIGHT_IN_TILES*8 + 7)/8/2; // centered in Y axis
 	yp = max(yp, MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER); // offsets the Y axis plane position to avoid the flickering due to DMA transfer leaking into active display area
+
 	u16 tilemapAddrInPlane = VDP_getPlaneAddress(BG_B, xp, yp);
 
     // Loop the entire video
@@ -309,13 +322,6 @@ void playMovie () {
 			#endif
 		SYS_enableInts();
 
-		// As frames are indexed in a 0 based access layout, we know that even indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM, 
-		// and odd indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE.
-		// We know vFrame always starts with a even value.
-		u16 baseTileIndex = TILE_USER_INDEX_CUSTOM;
-
-		bool exitPlayer = FALSE;
-
 		// Start sound
 		SND_startPlay_PCM(sound_wav, sizeof(sound_wav), SOUND_RATE_22050, SOUND_PAN_CENTER, FALSE);
 		// XGM_setPCM(1, sound_wav, sizeof(sound_wav));
@@ -332,6 +338,13 @@ void playMovie () {
 		vtimer = 0; // reset vTimer so we can use it as our hardware frame counter
 		u16 vFrame = 0;
 		#endif
+
+		// As frames are indexed in a 0 based access layout, we know that even indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM, 
+		// and odd indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE.
+		// We know vFrame always starts with a even value.
+		u16 baseTileIndex = TILE_USER_INDEX_CUSTOM;
+
+		bool exitPlayer = FALSE;
 
 		ImageNoPalsTilesetSplit31** dataPtr = (ImageNoPalsTilesetSplit31**)data + vFrame;
 		Palette32AllStripsSplit3** palsDataPtr = (Palette32AllStripsSplit3**)pals_data + vFrame;
@@ -357,7 +370,7 @@ void playMovie () {
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
 			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE
-			baseTileIndex ^= VIDEO_FRAME_TILESET_TOTAL_SIZE;
+			baseTileIndex ^= (TILE_USER_INDEX_CUSTOM ^ (TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE)); // a ^= (x1 ^ x2)
 
 			unpackFrameTilemap((*dataPtr)->tilemap1, VIDEO_FRAME_TILEMAP_NUM, 0);
 			// In case we need to decompress in chunks
@@ -472,8 +485,8 @@ void playMovie () {
 		}
 		// Loop the video
 		else {
-			// Clears all BG_B Plane's VRAM since tile index 1 leaving the tile 0 (system black tile)
-			VDP_clearTileMap(VDP_BG_B, 1, 1 << (planeWidthSft + planeHeightSft), TRUE); // See VDP_clearPlane() for details
+			// Clears all tilemap VRAM region for BG_B
+			VDP_clearTileMap(VDP_BG_B, 0, 1 << (planeWidthSft + planeHeightSft), TRUE); // See VDP_clearPlane() for details
 			waitMs_(400);
 		}
     }
@@ -481,22 +494,7 @@ void playMovie () {
 	freeTilesetBuffer();
 	freeTilemapBuffer();
 	freePalettesBuffer();
-	// Clear plane after the MEM_free() calls otherwise buffers' pointers would point to empty memory
-	// Clears all BG_B Plane's VRAM since tile index 1 leaving the tile 0 (system black tile)
-	VDP_clearTileMap(VDP_BG_B, 1, 1 << (planeWidthSft + planeHeightSft), TRUE); // See VDP_clearPlane() for details
 
-	MEM_pack();
-
-	// Restore system tiles (16 plain tiles)
-    u16 i = 16;
-    while(i--) VDP_fillTileData(i | (i << 4), TILE_SYSTEM_INDEX + i, 1, TRUE);
-
-	// Restore system default palettes
-    PAL_setPalette(PAL0, palette_grey, CPU);
-    PAL_setPalette(PAL1, palette_red, CPU);
-    PAL_setPalette(PAL2, palette_green, CPU);
-    PAL_setPalette(PAL3, palette_blue, CPU);
-
-	// Load font tiles again
-	VDP_loadFont(&font_default, DMA);
+	VDP_resetScreen();
+	VDP_setPlaneSize(64, 32, TRUE);
 }

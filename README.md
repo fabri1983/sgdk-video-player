@@ -89,13 +89,15 @@ format for the SGDK rescomp tool.
 	- Use the XGM_PCM methods
 - Implement custom rescomp plugin to create a cache of most common tiles.
 	- Read all tiles from all frames and count their occurrences so we can cached them at the start of tileset VRAM section.
-	- At least 34 tiles should be cached = 34*32=1088 bytes
-	- Check for big frames (min 600 tiles?) that at least have cached 34 tiles.
-	- Then in SGDK pre load cached tiles into VRAM for both tile index 1 and 716+1.
+	- At least 36x2=72 tiles should be cached.
+	- Check for big frames (min 600 tiles?) that at least have cached 36 tiles.
+	- Then in SGDK pre load cached tiles into VRAM starting at index VDP_getBGABddress() - total cache size.
+		Last tile index can be address 0xDFE0 (tile 1791). After that comes 0xE000 which is where our BG_B plane tilemap starts.
 - Try 20 FPS NTSC (16 FPS PAL). So 60/3=20 in NTSC. And 50/3=16 in PAL.
 	- update MOVIE_FRAME_RATE at movie_data_consts.h.
 	- update README.md steps 2 and 4.
 	- update videoPlayer in order to do the unpack/load of all the elements along 3 display loops.
+- Try final frame size: 288 x 208 px (36 x 26 tiles).
 - Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
 - Try to change from H40 to H32 on HInt Callback, and hope for any any speed gain?
 	See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks

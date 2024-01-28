@@ -31,9 +31,9 @@
 /// If you are 100% sure ALL the palettes were NOT compressed by rescomp tool (by looking at the console output) then set this to FALSE.
 #define ALL_PALETTES_COMPRESSED TRUE
 
-/// SGDK reserves 16 tiles starting at address 0. That's the purpose of using SGDK's TILE_USER_INDEX.
+/// SGDK reserves 16 tiles starting at address 0. That's the purpose of using SGDK's TILE_USER_INDEX so you don't its tiles.
 /// Tile address 0 holds a black tile and it shouldn't be overriden since is what an empty tilemap in VRAM points to. Also other internal effects use it.
-/// Remaining 15 tiles are OK to override for re use. So we start using tiles at index 1.
+/// Remaining 15 tiles are OK to override for re use. So we can start using tiles at index 1.
 #define TILE_USER_INDEX_CUSTOM 1
 
 #define VIDEO_FRAME_TILESET_CHUNK_SIZE 272 // Got experimentally from rescomp output (biggest summation of numTile). If odd then use next even number.
