@@ -13,7 +13,8 @@ public enum CompressionCustom {
 	SAXMAN2("SAXMAN2", "saxcmp", 12),
 	SNKRLE("SNKRLE", "snkcmp", 13),
 	UFTC("UFTC", "uftc", 14),
-	UFTC_15("UFTC_15", "uftc", 15);
+	UFTC_15("UFTC_15", "uftc", 15),
+	UNAPLIB("UNAPLIB", "", 16);
 
     private final String value;
     private final String exeName;

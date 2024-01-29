@@ -35,15 +35,22 @@ const sortedFileNames = fileNames
 	.sort((a, b) => a.idx - b.idx)
 	.map(o => o.name);
 
+// Keeps only every stripsPerFrame elements
 const sortedFileNamesEveryFirstStrip = sortedFileNames
 	.filter((_, index) => index % stripsPerFrame === 0);
+
+const tilesetStatsId = "tilesetStats_1"
 
 // You first enable the stats and disable the loader, so you end up with the stats file.
 // Extract the tiles you want from the file and create a new one with the tiles you choose.
 // Then you disable the stats and enable the loader.
 const enableTilesCacheStats = false;
-const loadTilesCache = false;
+const loadTilesCache = true;
 const tilesCacheId = "tilesCache_movie1"; // this is also the name of the variable contaning the Tileset with the cached tiles (it keeps the case)
+// 1792 is the max amount of tiles we allow with the custom config of BG_B (and the window) and BG_A starting at address 0xE000.
+// If we have a cache of 144 elemens then 1792-144=1648 is our cache starting index. 
+// You can set whatever other index, although you need to know where your game tiles will be placed to avoid override the cache.
+const cacheStartIndexInVRAM = 1648;
 
 // split tileset in N chunks. Current valid values are [1, 2, 3]
 const tilesetSplit = 3;
@@ -105,7 +112,7 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 /* See header_generator.js instead. */
 /* -------------------------------- */
 
-#define MOVIE_FRAME_RATE (${frameRate}-1) // Minus 1 so it delays enough to be in sync with audio. IT'S A TEMPORARY HACK BUT WORKS FLAWLESSLY!
+#define MOVIE_FRAME_RATE ${frameRate}
 #define MOVIE_FRAME_COUNT ${sortedFileNamesEveryFirstStrip.length}
 #define MOVIE_FRAME_WIDTH_IN_TILES ${widthTiles}
 #define MOVIE_FRAME_HEIGHT_IN_TILES ${heightTiles}
@@ -115,6 +122,8 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 #define MOVIE_FRAME_COLORS_PER_STRIP 32
 // In case you were to split any calculation over the colors of strip by an odd divisor n
 #define MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(n) (MOVIE_FRAME_COLORS_PER_STRIP % n)
+
+#define MOVIE_TILES_CACHE_START_INDEX ${cacheStartIndexInVRAM}
 
 #endif // _MOVIE_DATA_CONSTS_H
 `);
@@ -148,15 +157,14 @@ const ${type_Palette32AllStrips}* pals_data[${sortedFileNamesEveryFirstStrip.len
 `);
 
 // --------- Generate .res file
-const headerAppenderCompressionCustom = `HEADER_APPENDER_COMPRESSION_CUSTOM\t\tcompressionCustomHeader\n\n`;
 
 // You can provide a "comma separated list" of the types you want to include in the header file
 // Eg: "TileMapCustom, ImageNoPalsTilesetSplit31, Palette32AllStripsSplit3"
 const headerAppenderAllCustom = `HEADER_APPENDER_ALL_CUSTOM\t\theaderAllCustomTypes\n\n`;
 
-// Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  movieFrames_cache.txt
+// Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1648  movieFrames_cache.txt
 // Flag enable possible values: FALSE, TRUE
-const loadTilesCacheStr = `TILES_CACHE_LOADER\t\t${tilesCacheId}\t\t${loadTilesCache?"TRUE":"FALSE"}\t\t${tilesCacheId}.txt\n\n`;
+const loadTilesCacheStr = `TILES_CACHE_LOADER\t\t${tilesCacheId}\t\t${loadTilesCache?"TRUE":"FALSE"}\t\t${cacheStartIndexInVRAM}\t\t${tilesCacheId}.txt\n\n`;
 
 // Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  600
 // Flag enable possible values: FALSE, TRUE
@@ -164,8 +172,9 @@ const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER\t\t${tilesCacheId}\t
 
 // Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesCache_movie1  3  1  ODD  64  FAST  NONE  ALL
 const imageResListStr = sortedFileNamesEveryFirstStrip
-	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesCacheId}\t\t${tilesetSplit}\t\t${tilemapSplit}`
-                + `\t\t${toggleMapTileBaseIndexFlag}\t\t${mapExtendedWidth}\t\tFAST\t\tNONE\t\tALL`)
+	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesetStatsId}`
+			+ `\t\t${tilesCacheId}\t\t${tilesetSplit}\t\t${tilemapSplit}`
+            + `\t\t${toggleMapTileBaseIndexFlag}\t\t${mapExtendedWidth}\t\tFAST\t\tNONE\t\tALL`)
 	.join('\n') + '\n\n';
 
 // Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  PAL0PAL1  TRUE  FAST  NONE
@@ -178,10 +187,13 @@ const paletteResListStr = sortedFileNamesEveryFirstStrip
 // Flag printTo possible values: CONSOLE, FILE, NONE
 const printTilesCacheStatsStr = `TILES_CACHE_STATS_PRINTER\t\t${tilesCacheId}\t\tFILE\n\n`;
 
+const printTilesetStatsCollector = `TILESET_STATS_COLLECTOR\t\t${tilesetStatsId}\n\n`;
+
 // Create .res file
 fs.writeFileSync(`${RES_DIR}/movie_frames.res`, 
-        headerAppenderCompressionCustom + headerAppenderAllCustom + 
+        headerAppenderAllCustom + 
         loadTilesCacheStr + 
         enableTilesCacheStatsStr + 
         imageResListStr + paletteResListStr + 
-        printTilesCacheStatsStr);
+        printTilesCacheStatsStr + 
+		printTilesetStatsCollector);

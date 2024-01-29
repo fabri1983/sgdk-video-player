@@ -40,16 +40,17 @@ public class ImageStripsNoPalsProcessor implements Processor
     @Override
     public Resource execute(String[] fields) throws Exception
     {
-		if (fields.length < 4)
+		if (fields.length < 5)
 		{
 			System.out.println("Wrong " + resId + " definition");
-			System.out.println(resId + " name \"baseFile\" strips [tilesCacheId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustom map_opt map_base]");
+			System.out.println(resId + " name \"baseFile\" strips tilesetStatsCollectorId [tilesCacheId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustom map_opt map_base]");
 			System.out.println("  name               Image variable name. Eg: frame_12");
 			System.out.println("  baseFile           Path of the first strip for input RGB image file with palettes (BMP or PNG image). Eg: \"res/rgb/frame_12_0.png\" or \"res/rgb/frame_12_0_RGB.png\"");
 			System.out.println("  strips             How many strips is the final image composed of. Eg: 21. It means there are frame_12_0.png, frame_12_1.png, ... frame_12_20.png");
+			System.out.println("  tilesetStatsCollectorId      Group under same id the stats collected from tilesets. Use " + TilesetStatsCollectorProcessor.resId + " with the same id to print the stats in the console.");
 			System.out.println("  tilesCacheId       Set an id (case insensitive) to identify and re use the same cache of tiles along other resources.");
 			System.out.println("                       Use NONE or NULL to disable the use of the tile cache.");
-			System.out.println("                       Use " + TilesCacheStatsEnablerProcessor.resId + " and " + TilesCacheStatsPrinterProcessor.resId + ") with a cache id to collect data and print them (file or console).");
+			System.out.println("                       Use " + TilesCacheStatsEnablerProcessor.resId + " and " + TilesCacheStatsPrinterProcessor.resId + " with the same id to collect data and print them (file or console).");
 			System.out.println("                       You need to collect the stats in order to create the cache file and use it in a future run to effectivelly let the tilemaps use the cache.");
 			System.out.println("  splitTileset       How many chunks is the tileset splitted into. Default 1 (no split), otherwise 2 or 3.");
 			System.out.println("  splitTilemap       How many chunks is the tilemap splitted into. Always less or equal than splitTileset.");
@@ -92,10 +93,16 @@ public class ImageStripsNoPalsProcessor implements Processor
 		// get number of strips
         int strips = StringUtil.parseInt(fields[3], 0);
 
+        // tilesetStatsCollectorId
+        String tilesetStatsCollectorId = fields[4].toUpperCase();
+        if (tilesetStatsCollectorId == null || tilesetStatsCollectorId.isEmpty() || tilesetStatsCollectorId.isBlank()) {
+        	throw new IllegalArgumentException("tilesetStatsCollectorId is missing.");
+        }
+
         // tileCacheId
         String tilesCacheId = null; // null or empty string is considered as an invalid tile cache id
-        if (fields.length >= 5) {
-        	String valueId = fields[4].toUpperCase();
+        if (fields.length >= 6) {
+        	String valueId = fields[5].toUpperCase();
         	if (valueId != null && !valueId.isEmpty() && !valueId.isBlank() && !"NONE".equals(valueId) && !"NULL".equals(valueId)) {
         		tilesCacheId = valueId;
         		TilesCacheManager.createCacheIfNotExist(tilesCacheId);
@@ -104,52 +111,52 @@ public class ImageStripsNoPalsProcessor implements Processor
         
         // get tileset split number
         int splitTileset = 1;
-        if (fields.length >= 6) {
-        	int value = StringUtil.parseInt(fields[5], 1);
+        if (fields.length >= 7) {
+        	int value = StringUtil.parseInt(fields[6], 1);
 			splitTileset = Math.min(3, Math.max(1, value)); // clamp(1, 3, value)
         }
 
         // get tilemap split number
         int splitTilemap = 1;
-        if (fields.length >= 7) {
-        	int value = StringUtil.parseInt(fields[6], 1);
+        if (fields.length >= 8) {
+        	int value = StringUtil.parseInt(fields[7], 1);
         	splitTilemap = Math.min(3, Math.max(1, value)); // clamp(1, 3, value)
         	splitTilemap = Math.min(splitTileset, splitTilemap); // can't be bigger than splitTileset value
         }
 
         // get the value for toggling map tile base index for video frame swap buffer
         ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag = ToggleMapTileBaseIndex.NONE;
-        if (fields.length >= 8) {
-        	toggleMapTileBaseIndexFlag = ToggleMapTileBaseIndex.from(fields[7]);
+        if (fields.length >= 9) {
+        	toggleMapTileBaseIndexFlag = ToggleMapTileBaseIndex.from(fields[8]);
         }
 
         // extend map width to 64 tiles
         int mapExtendedWidth = 0;
-        if (fields.length >= 9) {
-        	int value = StringUtil.parseInt(fields[8], 0);
+        if (fields.length >= 10) {
+        	int value = StringUtil.parseInt(fields[9], 0);
         	if (value == 0 || value == 64 || value == 128)
         		mapExtendedWidth = value;
         }
 
         // get packed value
         Compression compression = Compression.NONE;
-        if (fields.length >= 10)
-            compression = Util.getCompression(fields[9]);
+        if (fields.length >= 11)
+            compression = Util.getCompression(fields[10]);
 
         // get custom compression value
         CompressionCustom compressionCustom = CompressionCustom.NONE;
-        if (fields.length >= 11)
-        	compressionCustom = CompressionCustom.from(fields[10]);
+        if (fields.length >= 12)
+        	compressionCustom = CompressionCustom.from(fields[11]);
 
         // get map optimization value
         TileOptimization tileOpt = TileOptimization.ALL;
-        if (fields.length >= 12)
-            tileOpt = Util.getTileOpt(fields[11]);
+        if (fields.length >= 13)
+            tileOpt = Util.getTileOpt(fields[12]);
 
         // get map base
         int mapBase = 0;
-        if (fields.length >= 13)
-            mapBase = Integer.parseInt(fields[12]);
+        if (fields.length >= 14)
+            mapBase = Integer.parseInt(fields[13]);
 
         // generate the list of strip files
         List<String> stripsInList = generateFilesInForStrips(baseFileAbsPath, baseFileName, baseFileNameMatcher, strips);
@@ -162,13 +169,13 @@ public class ImageStripsNoPalsProcessor implements Processor
 
         if (splitTileset == 1)
         	return new ImageStripsNoPals(name, stripsInList, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, tileOpt, mapBase, 
-        			compressionCustom, tilesCacheId);
+        			compressionCustom, tilesCacheId, tilesetStatsCollectorId);
         else if (splitTileset == 2)
         	return new ImageStripsNoPalsTilesetSplit2(name, stripsInList, splitTilemap, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, 
-        			tileOpt, mapBase, compressionCustom, tilesCacheId);
+        			tileOpt, mapBase, compressionCustom, tilesCacheId, tilesetStatsCollectorId);
         else
         	return new ImageStripsNoPalsTilesetSplit3(name, stripsInList, splitTilemap, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, 
-        			tileOpt, mapBase, compressionCustom, tilesCacheId);
+        			tileOpt, mapBase, compressionCustom, tilesCacheId, tilesetStatsCollectorId);
     }
 
 	private List<String> generateFilesInForStrips(String absPath, String baseFileName, Matcher baseFileNameMatcher, int strips)
@@ -221,18 +228,18 @@ public class ImageStripsNoPalsProcessor implements Processor
 //	public static void main(String[] args) throws Exception
 //	{
 //		ImageStripsNoPalsProcessor p = new ImageStripsNoPalsProcessor();
-//		String[] fields_testA = {
-//				resId, "mv_frame_47_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_47_0_RGB.png", "22", 
-//				"TilesCache_Movie1", "2", "2", "ODD", "64", "FAST", "NONE", "TILES_CACHE_MOVIE_1", "ALL"
+//		String[] fields_test_A = {
+//				resId, "mv_frame_47_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_47_0_RGB.png", "22", "tilesetStats1", 
+//				"TilesCache_Movie1", "2", "2", "ODD", "64", "FAST", "NONE", "ALL"
 //			};
-//		String[] fields_testB = {
-//				resId, "mv_frame_160_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_160_0_RGB.png", "22", 
-//				"TilesCache_Movie1", "3", "3", "ODD", "64", "FAST", "NONE", "ALL"
+//		String[] fields_test_B = {
+//				resId, "mv_frame_160_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_160_0_RGB.png", "22", "tilesetStats1", 
+//				"TilesCache_Movie1", "3", "1", "ODD", "64", "FAST", "NONE", "ALL"
 //			};
 //		String[] fields_test_Titan = {
-//				resId, "titanRGB", "C:\\MyProjects\\VSCode\\sgdk\\titan256c\\res\\titan256c\\titan_0_0_RGB.png", "28", 
+//				resId, "titanRGB", "C:\\MyProjects\\VSCode\\sgdk\\titan256c\\res\\titan256c\\titan_0_0_RGB.png", "28", "tilesetStats1", 
 //				"NULL", "1", "1", "NONE", "0", "FAST", "NONE", "ALL"
 //			};
-//		p.execute(fields_test_Titan);
+//		p.execute(fields_test_B);
 //	}
 }

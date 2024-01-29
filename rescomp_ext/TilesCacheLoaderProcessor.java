@@ -3,6 +3,7 @@ package sgdk.rescomp.processor;
 import sgdk.rescomp.Processor;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.resource.TilesCacheLoader;
+import sgdk.tool.StringUtil;
 
 public class TilesCacheLoaderProcessor implements Processor
 {
@@ -17,13 +18,14 @@ public class TilesCacheLoaderProcessor implements Processor
     @Override
     public Resource execute(String[] fields) throws Exception
     {
-        if (fields.length < 4)
+        if (fields.length < 5)
         {
             System.out.println("Wrong " + resId + " definition");
-            System.out.println(resId + " tilesCacheId enable filename");
-            System.out.println("  tilesCacheId      The same id you used in other resources to match this cache.");
-            System.out.println("  enable            TRUE or FALSE.");
-            System.out.println("  filename          File containing the definition for cached tiles. Relative to res folder.");
+            System.out.println(resId + " tilesCacheId enable cacheStartIndexInVRAM filename");
+            System.out.println("  tilesCacheId            The same id you used in other resources to match this cache.");
+            System.out.println("  enable                  TRUE or FALSE.");
+            System.out.println("  cacheStartIndexInVRAM   Starting index of the tiles cache in VRAM. SGDK places tiles from VRAM address 0.");
+            System.out.println("  filename                File containing the definition for cached tiles. Relative to res folder.");
             return null;
         }
 
@@ -33,10 +35,12 @@ public class TilesCacheLoaderProcessor implements Processor
         	throw new IllegalArgumentException("tilesCacheId is invalid");
         String tilesCacheId = originalCacheId_keepCase.toUpperCase();
 
-        boolean enable = "TRUE".equals(fields[2].toUpperCase());
+		boolean enable = "TRUE".equals(fields[2].toUpperCase());
 
-        String filename = fields[3];
+		int cacheStartIndexInVRAM = StringUtil.parseInt(fields[3], 1);
 
-        return new TilesCacheLoader(tilesCacheId, originalCacheId_keepCase, filename, enable);
+		String filename = fields[4];
+
+		return new TilesCacheLoader(tilesCacheId, originalCacheId_keepCase, cacheStartIndexInVRAM, filename, enable);
     }
 }

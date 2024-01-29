@@ -20,7 +20,7 @@ public class TilesCacheStatsPrinter extends Resource
         this.printTo = printTo;
 
         // compute hash code
-        hc = id.hashCode() + TilesCacheStatsPrinter.class.getSimpleName().hashCode();
+        hc = id.hashCode() ^ TilesCacheStatsPrinter.class.getSimpleName().hashCode();
     }
 
 	@Override

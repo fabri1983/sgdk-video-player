@@ -15,13 +15,17 @@ public class TilesCacheLoader extends Resource
 	final int hc;
 	final List<Tile> cachedTiles;
 	final String originalCacheId_keepCase;
+
 	// binary data block (tiles)
 	public final Bin bin;
 
-    public TilesCacheLoader(String id, String originalCacheId_keepCase, String filename, boolean enable) throws Exception
+    public TilesCacheLoader(String id, String originalCacheId_keepCase, int cacheStartIndexInVRAM, String filename, boolean enable) throws Exception
     {
         super(id);
+
         this.originalCacheId_keepCase = originalCacheId_keepCase;
+        
+        TilesCacheManager.setStartIndexInVRAM(id, cacheStartIndexInVRAM);
 
         if (enable)
         	cachedTiles = TilesCacheManager.loadCacheFromFile(id, filename);
@@ -94,7 +98,7 @@ public class TilesCacheLoader extends Resource
         // output TileSet structure
         Util.decl(outS, outH, "TileSet", originalCacheId_keepCase, 2, global);
         outH.append("\n");
-        
+
         // set compression info (very important that binary data had already been exported at this point)
         outS.append("    dc.w    " + (bin.doneCompression.ordinal() - 1) + "\n");
         // set number of tile

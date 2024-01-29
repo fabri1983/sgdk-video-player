@@ -48,12 +48,25 @@ public class TilesCacheManager {
 
 	private static Map<String, Integer> minTilesetSizeForStatsByCacheId = new HashMap<>();
 
+	private static Map<String, Integer> cacheStartIndexInVRAMById = new HashMap<>();
+
 	public static void setMinTilesetSizeForStatsFor(String cacheId, int minTilesetSize) {
 		minTilesetSizeForStatsByCacheId.put(cacheId, Integer.valueOf(minTilesetSize));
 	}
 
 	public static int getMinTilesetSizeForStatsFor(String cacheId) {
 		Integer value = minTilesetSizeForStatsByCacheId.get(cacheId);
+		if (value == null)
+			return 0;
+		return value.intValue();
+	}
+
+	public static void setStartIndexInVRAM(String cacheId, int cacheStartIndexInVRAM) {
+		cacheStartIndexInVRAMById.put(cacheId, Integer.valueOf(cacheStartIndexInVRAM));
+	}
+
+	public static int getStartIndexInVRAM(String cacheId) {
+		Integer value = cacheStartIndexInVRAMById.get(cacheId);
 		if (value == null)
 			return 0;
 		return value.intValue();
@@ -90,7 +103,8 @@ public class TilesCacheManager {
                 Tile tile = new Tile(data, 8, 0, false, 0);
                 tiles.add(tile);
             }
-            
+
+            System.out.println(cacheId + ": Loaded tiles: " + tiles.size());
             cachedTilesByCacheId.put(cacheId, tiles);
             return tiles;
 
@@ -112,7 +126,8 @@ public class TilesCacheManager {
 			return null;
 
 		Tile tileFound = null;
-		int indexInCache = 0;
+		int startIndexInVRAM = getStartIndexInVRAM(cacheId);
+		int indexInCache = startIndexInVRAM;
 		// we have to search over all entries since the tile might be flipped.
 		for (Tile t : tiles) {
 			if (tile.getEquality(t) != TileEquality.NONE) {
@@ -306,4 +321,5 @@ public class TilesCacheManager {
 		} catch (IOException e) {
 		}
 	}
+
 }

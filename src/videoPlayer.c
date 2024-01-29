@@ -113,11 +113,17 @@ static FORCE_INLINE void waitVInt () {
 }
 
 static void loadTilesCache () {
+#ifdef DEBUG_TILES_CACHE
 	if (tilesCache_movie1.numTile > 0) {
-		// Load tiles before our BG_A plane starting address 0xE000
-		u16 fromIndex = (0xE000 / 32) - tilesCache_movie1.numTile;
-		VDP_loadTileSet((TileSet* const) &tilesCache_movie1, fromIndex, DMA);
+		KLog_U1("tilesCache_movie1.numTile ", tilesCache_movie1.numTile);
+		// Fill all tiles cached data with value 1, which points to the 2nd color for whatever palette is loaded in CRAM 
+		VDP_fillTileData(1, MOVIE_TILES_CACHE_START_INDEX, tilesCache_movie1.numTile, TRUE);
 	}
+#else
+	if (tilesCache_movie1.numTile > 0) {
+		VDP_loadTileSet((TileSet* const) &tilesCache_movie1, MOVIE_TILES_CACHE_START_INDEX, DMA);
+	}
+#endif
 }
 
 static u32* unpackedTilesetChunk;
@@ -273,7 +279,8 @@ void playMovie () {
     VDP_setWindowAddress(VDP_getBGAAddress());
 
 	// Clear all tileset VRAM until BG_B plane address (we can use the address as a counter because VRAM tileset starts at address 0)
-	VDP_fillTileData(0, 1, VDP_getBGBAddress(), TRUE);
+	u16 numToClear = VDP_getBGBAddress();
+	VDP_fillTileData(0, 1, numToClear, TRUE);
 
 	loadTilesCache();
 	allocateTilesetBuffer();

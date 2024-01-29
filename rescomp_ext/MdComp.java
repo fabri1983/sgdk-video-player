@@ -41,6 +41,11 @@ public class MdComp {
     }
 
 	private static byte[] compress(byte[] data, CompressionCustom compression) {
+		if (compression == CompressionCustom.UNAPLIB) {
+			byte[] result = Util.appack(data);
+			return result;
+		}
+
 		long suffix = System.currentTimeMillis();
 		String infile = rescomp_ext_jar_path + File.separator + compression.getValue() + "_tmp_IN_" + suffix + ".bin";
 		String outfile = rescomp_ext_jar_path + File.separator + compression.getValue() + "_tmp_OUT_" + suffix + ".bin";

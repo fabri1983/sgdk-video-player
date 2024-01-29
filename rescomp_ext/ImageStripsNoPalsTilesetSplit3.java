@@ -8,6 +8,7 @@ import java.util.List;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.ExtProperties;
 import sgdk.rescomp.tool.TilesCacheManager;
+import sgdk.rescomp.tool.TilesetStatsCollector;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileOptimization;
@@ -26,7 +27,7 @@ public class ImageStripsNoPalsTilesetSplit3 extends Resource
 
     public ImageStripsNoPalsTilesetSplit3(String id, List<String> stripsFileList, int splitTilemap, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, 
     		int mapExtendedWidth, Compression compression, TileOptimization tileOpt, int mapBase, CompressionCustom compressionCustom, 
-    		String tilesCacheId) throws Exception
+    		String tilesCacheId, String tilesetStatsCollectorId) throws Exception
     {
         super(id);
 
@@ -61,8 +62,10 @@ public class ImageStripsNoPalsTilesetSplit3 extends Resource
     	tileset3 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk3_tileset", finalImageData, w, h, 0, ht_1 + ht_2, 
     			wt, ht_3, tileOpt, compression, compressionCustom, false, false, tilesCacheId));
     	checkTilesetMaxChunkSize(tileset3.getNumTile());
-    	System.out.print(" " + id + " -> numTiles (chunk1 + chunk2 + chunk3):\t  " + tileset1.getNumTile() + " + " + tileset2.getNumTile() + " + " + tileset3.getNumTile() + " = " + 
+
+    	System.out.print(" " + id + " -> numTiles (chunk1 + chunk2 + chunk3): " + tileset1.getNumTile() + " + " + tileset2.getNumTile() + " + " + tileset3.getNumTile() + " = " + 
     			(tileset1.getNumTile() + tileset2.getNumTile() + tileset3.getNumTile()) + ". ");
+    	TilesetStatsCollector.count3chunks(tilesetStatsCollectorId, tileset1.getNumTile(), tileset2.getNumTile(), tileset3.getNumTile());
 
         int[] offsetForTilesets = {0, tileset1.getNumTile(), tileset1.getNumTile() + tileset2.getNumTile()};
 

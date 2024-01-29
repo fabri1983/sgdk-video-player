@@ -8,6 +8,7 @@ import java.util.List;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.ExtProperties;
 import sgdk.rescomp.tool.TilesCacheManager;
+import sgdk.rescomp.tool.TilesetStatsCollector;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileOptimization;
@@ -26,7 +27,7 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
 
     public ImageStripsNoPalsTilesetSplit2(String id, List<String> stripsFileList, int splitTilemap, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, 
     		int mapExtendedWidth, Compression compression, TileOptimization tileOpt, int mapBase, CompressionCustom compressionCustom, 
-    		String tilesCacheId) throws Exception
+    		String tilesCacheId, String tilesetStatsCollectorId) throws Exception
     {
         super(id);
 
@@ -57,8 +58,10 @@ public class ImageStripsNoPalsTilesetSplit2 extends Resource
     	tileset2 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk2_tileset", finalImageData, w, h, 0, ht_1, wt, ht_2, 
     			tileOpt, compression, compressionCustom, false, false, tilesCacheId));
     	checkTilesetMaxChunkSize(tileset2.getNumTile());
-    	System.out.print(" " + id + " -> numTiles (chunk1 + chunk2):\t  " + tileset1.getNumTile() + " + " + tileset2.getNumTile() + " = " + 
+
+    	System.out.print(" " + id + " -> numTiles (chunk1 + chunk2): " + tileset1.getNumTile() + " + " + tileset2.getNumTile() + " = " + 
     			(tileset1.getNumTile() + tileset2.getNumTile()) + ". ");
+    	TilesetStatsCollector.count2chunks(tilesetStatsCollectorId, tileset1.getNumTile(), tileset2.getNumTile());
 
         int[] offsetForTilesets = {0, tileset1.getNumTile()};
 

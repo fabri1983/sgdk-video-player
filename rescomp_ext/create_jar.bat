@@ -37,6 +37,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/processor/TilesCacheLoaderProcessor.class ^
 	./sgdk/rescomp/processor/TilesCacheStatsEnablerProcessor.class ^
 	./sgdk/rescomp/processor/TilesCacheStatsPrinterProcessor.class ^
+	./sgdk/rescomp/processor/TilesetStatsCollectorProcessor.class ^
 	./sgdk/rescomp/processor/ext.processor.properties ^
 	./sgdk/rescomp/resource/BinCustom.class ^
 	./sgdk/rescomp/resource/HeaderAppender.class ^
@@ -55,11 +56,13 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/TilesCacheStatsEnabler.class ^
 	./sgdk/rescomp/resource/TilesCacheStatsPrinter.class ^
 	./sgdk/rescomp/resource/TilesetOriginalCustom.class ^
+	./sgdk/rescomp/resource/TilesetStatsCollectorPrinter.class ^
 	./sgdk/rescomp/resource/ext.resource.properties ^
 	./sgdk/rescomp/tool/ExtProperties.class ^
 	./sgdk/rescomp/tool/MdComp.class ^
 	./sgdk/rescomp/tool/TilemapCustomTools.class ^
 	./sgdk/rescomp/tool/TilesCacheManager.class ^
+	./sgdk/rescomp/tool/TilesetStatsCollector.class ^
 	./sgdk/rescomp/type/CompressionCustom.class ^
 	./sgdk/rescomp/type/CustomDataTypes.class ^
 	./sgdk/rescomp/type/PackedDataCustom.class ^
