@@ -104,7 +104,7 @@ public class TilesetOriginalCustom extends Resource
     }
 
     // special constructor for TSX (single blank tile tileset)
-    public TilesetOriginalCustom(String id)
+    public TilesetOriginalCustom(String id, boolean blankTile)
     {
         super(id);
 
@@ -113,18 +113,24 @@ public class TilesetOriginalCustom extends Resource
         tileByHashcodeMap = new HashMap<>();
         isDuplicate = false;
 
-        // just add a blank tile
-        add(new Tile(new int[8], 8, 0, false, 0));
-
-        // build the binary bloc
-        final int[] data = new int[tiles.size() * 8];
-
-        int offset = 0;
-        for (Tile t : tiles)
+        final int[] data;
+        
+        if (blankTile)
         {
-            System.arraycopy(t.data, 0, data, offset, 8);
-            offset += 8;
+            // just add a blank tile
+            add(new Tile(new int[8], 8, 0, false, 0));
+    
+            // build the binary bloc
+            data = new int[tiles.size() * 8];
+    
+            int offset = 0;
+            for (Tile t : tiles)
+            {
+                System.arraycopy(t.data, 0, data, offset, 8);
+                offset += 8;
+            }
         }
+        else data = new int[0];
 
         // build BIN (tiles data) resource (temporary tileset so don't add as internal resource)
         bin = new BinCustom(id + "_data", data, Compression.NONE, CompressionCustom.NONE);

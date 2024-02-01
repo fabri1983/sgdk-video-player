@@ -1,8 +1,8 @@
 /**
  * Usage:
- *   node header_generator.js <frame Width in px> <frame Height in px> <strip Height in px> <frame rate>
+ *   node res_n_header_generator.js <frame Width in px> <frame Height in px> <strip Height in px> <frame rate>
  * Eg:
- *   node header_generator.js 264 168 8 15
+ *   node res_n_header_generator.js 264 168 8 15
 */
 
 const fs = require('fs');

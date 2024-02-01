@@ -19,7 +19,7 @@
 // IMPL 0: Use normal division formula when calculating current frame
 // IMPL 1: Use reciprocal magic numbers approximation for 1/50 and 1/60
 // IMPL 2: Use the delta between vtimer (system's internal frame counter) and current video frame
-#define VIDEO_FRAME_ADVANCE_STRATEGY 0
+#define VIDEO_FRAME_ADVANCE_STRATEGY 1
 
 // Enables HInt callbakc implementatio using DMA (TRUE) or pure CPU (FALSE)
 #define HINT_USE_DMA TRUE

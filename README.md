@@ -1,5 +1,5 @@
 ## sgdk-video-player
-A video converter and video player ready to use with the [SGDK v1.9](https://github.com/Stephane-D/SGDK) for the Megadrive/Genesis system consoles.  
+A video converter and video player ready to use with the [SGDK v2.0](https://github.com/Stephane-D/SGDK) for the Megadrive/Genesis system consoles.  
 Originally inspired by [sgdk-video-player](https://github.com/haroldo-ok/sgdk-video-player) made by _haroldo-ok_.  
 
 
@@ -37,7 +37,7 @@ Once rgb images with palettes were generated and before saving them ensure the n
 	- enter 22 (strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
 - Download the images and move them at res\rgb folder.
 
-4) `node header_generator.js 272 176 8 15`
+4) `node res_n_header_generator.js 272 176 8 15`
 frame width: 272
 frame height: 176
 rows per strip: 8
@@ -83,19 +83,14 @@ format for the SGDK rescomp tool.
 	- search for TODO PALS_1 and act accordingly.
 	- If the first 2 strips' pals are DMA_QUEUE in waitVInt_AND_flushDMA() then use flushQueue from Stef's dma_a.s and flushQueue(DMA_getQueueSize())
 - Clear mem used by sound when exiting the video loop?
-- Try using XGM PCM driver:
-	- extract audio with sample rate 14k (or 13.3k for XGMv2 yet to be released)
+- Try using XGM2 driver:
+	- extract audio with sample rate 13.3k
 		(I used VirtualDub2 to extract as 8bit signed 14KHz 1 channel (mono), but the extract.bat script is the correct approach and needs to be updated)
-	- in movie_sound.res: WAV sound_wav "sound/sound.wav" XGM
-	- Use the XGM_PCM methods
-- Implement custom rescomp plugin to create a cache of most common tiles.
-	- Read all tiles from all frames and count their occurrences so we can cached them at the start of tileset VRAM section.
-	- At least 36x2=72 tiles should be cached.
-	- Check for big frames (min 600 tiles?) that at least have cached 36 tiles.
-	- Then in SGDK pre load cached tiles into VRAM starting at index VDP_getBGABddress() - total cache size.
-		Last tile index can be address 0xDFE0 (tile 1791). After that comes 0xE000 which is where our BG_B plane tilemap starts.
+		ffmpeg -i video.mp4 -r 15 -ar 13300 -ac 1 -acodec pcm_u8 res/sound/sound.wav
+	- in movie_sound.res: WAV  sound_wav  "sound/sound.wav"  XGM2  13300  FALSE
+	- Use the XGM2_playPCM methods.
 - Try 20 FPS NTSC (16 FPS PAL). So 60/3=20 in NTSC. And 50/3=16 in PAL.
-	- update MOVIE_FRAME_RATE at movie_data_consts.h.
+	- update MOVIE_FRAME_RATE at res_n_header_generator.js.
 	- update README.md steps 2 and 4.
 	- update videoPlayer in order to do the unpack/load of all the elements along 3 display loops.
 - Try final frame size: 288 x 208 px (36 x 26 tiles).

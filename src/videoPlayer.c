@@ -22,6 +22,9 @@ static void waitMs_ (u32 ms) {
 
 /// Wait for a certain amount of subtick. ONLY values < 150.
 static void waitSubTick_ (u32 subtick) {
+	if (subtick == 0)
+		return;
+
 	u32 i = subtick;
 	while (i--) {
 		u32 tmp;
@@ -59,9 +62,9 @@ static void fastDMA_flushQueue () {
 		KLog("WARNING: DMA transfer size limit raised. Modify the capacity in your DMA_initEx() call.");
 	#endif
     // u8 autoInc = VDP_getAutoInc(); // save autoInc
-	Z80_requestBus(FALSE);
+	// Z80_requestBus(FALSE);
 	flushDMA_1elem();
-	Z80_releaseBus();
+	// Z80_releaseBus();
     DMA_clearQueue();
     // VDP_setAutoInc(autoInc); // restore autoInc
 }
@@ -294,14 +297,19 @@ void playMovie () {
 	// dmaQueues = MEM_alloc(1 * sizeof(DMAOpInfo));
 	// MEM_pack();
 
-//KLog_U1("Free Mem: ", MEM_getFree()); // 32602 bytes.
-
 	// Position in screen (in tiles)
 	u16 xp = (screenWidth - MOVIE_FRAME_WIDTH_IN_TILES*8 + 7)/8/2; // centered in X axis
 	u16 yp = (screenHeight - MOVIE_FRAME_HEIGHT_IN_TILES*8 + 7)/8/2; // centered in Y axis
 	yp = max(yp, MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER); // offsets the Y axis plane position to avoid the flickering due to DMA transfer leaking into active display area
 
 	u16 tilemapAddrInPlane = VDP_getPlaneAddress(BG_B, xp, yp);
+
+	// load the appropriate driver
+	Z80_loadDriver(Z80_DRIVER_PCM, TRUE);
+    // Z80_loadDriver(Z80_DRIVER_XGM2, TRUE);
+	// Z80_loadDriver(Z80_DRIVER_XGM, TRUE);
+
+// KLog_U1("Free Mem: ", MEM_getFree()); // 32554 bytes.
 
     // Loop the entire video
 	for (;;) // Better than while (TRUE) for infinite loops
@@ -329,14 +337,15 @@ void playMovie () {
 			#endif
 		SYS_enableInts();
 
+		// Wait for VInt so the logic can start at the beginning of the active display period
+		waitVInt();
+
 		// Start sound
-		SND_startPlay_PCM(sound_wav, sizeof(sound_wav), SOUND_RATE_22050, SOUND_PAN_CENTER, FALSE);
+		SND_PCM_startPlay(sound_wav, sizeof(sound_wav), SOUND_PCM_RATE_22050, SOUND_PAN_CENTER, FALSE);
+		// XGM2_playPCMEx(sound_wav, sizeof(sound_wav), SOUND_PCM_CH1, 1, FALSE, FALSE);
 		// XGM_setPCM(1, sound_wav, sizeof(sound_wav));
 		// XGM_startPlayPCM(1, 1, SOUND_PCM_CH1);
 		// XGM_setLoopNumber(0);
-
-		// Wait for VInt so the logic can start at the beginning of the active display period
-		waitVInt();
 
 		#ifdef DEBUG_FIXED_FRAME
 		vtimer = DEBUG_FIXED_FRAME;
@@ -439,27 +448,27 @@ void playMovie () {
 			#endif
 
 			#ifdef DEBUG_FIXED_FRAME
-			// Once we already draw the target frame and let the next one load its data but not drawn => we go back to fixed frame
-			if (prevFrame != DEBUG_FIXED_FRAME) {
-				vFrame = DEBUG_FIXED_FRAME;
-				--dataPtr;
-				--palsDataPtr;
-			} else {
-				++dataPtr;
-				++palsDataPtr;
-			}
+				// Once we already draw the target frame and let the next one load its data but not drawn => we go back to fixed frame
+				if (prevFrame != DEBUG_FIXED_FRAME) {
+					vFrame = DEBUG_FIXED_FRAME;
+					--dataPtr;
+					--palsDataPtr;
+				} else {
+					++dataPtr;
+					++palsDataPtr;
+				}
 			#else
-			#if FORCE_NO_MISSING_FRAMES
-			// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) active display periods (for MOVIE_FRAME_RATE = 15)
-			vFrame = prevFrame + 1;
-			#else
-			// IMPORTANT: next frame must be of the opposite parity of previous frame. If same parity (both even or both odd) then we will mistakenly 
-			// override the VRAM region currently is being used for display the recently loaded frame.
-			if (!((prevFrame ^ vFrame) & 1))
-				++vFrame; // move into next frame so parity is not shared with previous frame
-			#endif
-			dataPtr += vFrame - prevFrame;
-			palsDataPtr += vFrame - prevFrame;
+				#if FORCE_NO_MISSING_FRAMES
+				// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) active display periods (for MOVIE_FRAME_RATE = 15)
+				vFrame = prevFrame + 1;
+				#else
+				// IMPORTANT: next frame must be of the opposite parity of previous frame. If same parity (both even or both odd) then we will mistakenly 
+				// override the tileset VRAM region currently is being used for display the recently loaded frame.
+				if (!((prevFrame ^ vFrame) & 1))
+					++vFrame; // move into next frame so parity is not shared with previous frame
+				#endif
+				dataPtr += vFrame - prevFrame;
+				palsDataPtr += vFrame - prevFrame;
 			#endif
 
 			#if EXIT_PLAYER_WITH_START
@@ -472,7 +481,8 @@ void playMovie () {
 		}
 
 		// Stop sound
-		SND_stopPlay_PCM();
+		SND_PCM_stopPlay();
+		// XGM2_stopPCM(SOUND_PCM_CH1);
 		// XGM_stopPlayPCM(SOUND_PCM_CH1);
 
 		// Fade out to black last frame's palettes. Only if we deliberatly wanted to exit from the video
@@ -504,4 +514,6 @@ void playMovie () {
 
 	VDP_resetScreen();
 	VDP_setPlaneSize(64, 32, TRUE);
+
+	Z80_unloadDriver();
 }
