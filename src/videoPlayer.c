@@ -156,7 +156,7 @@ static void allocateTilemapBuffer () {
 	memsetU16(unpackedTilemap, TILE_SYSTEM_INDEX, VIDEO_FRAME_TILEMAP_NUM); // set TILE_SYSTEM_INDEX (black tile) all over the buffer
 }
 
-static FORCE_INLINE void unpackFrameTilemap (TileMapCustom* src, u16 len, u16 offset) {
+static FORCE_INLINE void unpackFrameTilemap (TileMapCustomCompField* src, u16 len, u16 offset) {
 	const u16 size = len * 2;
 	#if ALL_TILEMAPS_COMPRESSED
 	lz4w_unpack((u8*) FAR_SAFE(src->tilemap, size), (u8*) (unpackedTilemap + offset));
@@ -362,7 +362,7 @@ void playMovie () {
 
 		bool exitPlayer = FALSE;
 
-		ImageNoPalsTilesetSplit31** dataPtr = (ImageNoPalsTilesetSplit31**)data + vFrame;
+		ImageNoPalsTilesetSplit31CompField** dataPtr = (ImageNoPalsTilesetSplit31CompField**)data + vFrame;
 		Palette32AllStripsSplit3** palsDataPtr = (Palette32AllStripsSplit3**)pals_data + vFrame;
 
 		while (vFrame < MOVIE_FRAME_COUNT)
@@ -462,7 +462,7 @@ void playMovie () {
 				// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) active display periods (for MOVIE_FRAME_RATE = 15)
 				vFrame = prevFrame + 1;
 				#else
-				// IMPORTANT: next frame must be of the opposite parity of previous frame. If same parity (both even or both odd) then we will mistakenly 
+				// IMPORTANT: next frame must be counter parity from previous frame. If same parity (both even or both odd) then we will mistakenly 
 				// override the tileset VRAM region currently is being used for display the recently loaded frame.
 				if (!((prevFrame ^ vFrame) & 1))
 					++vFrame; // move into next frame so parity is not shared with previous frame

@@ -59,31 +59,6 @@
 
 #define FADE_TO_BLACK_STEP_FREQ 4 // Every N frames we apply one fade to black step
 
-#define STRINGIFY(x) #x
-/// Healthy consumption time measured in scanlines is up to 260, otherwise code will be interrupted by hardware VInt and HInt too. 
-/// HOWEVER VInt is executed at scanline 224 according to Shannon Birt. So better keep the limit to 223.
-#define STOPWATCH_START(n) \
-	u16 lineStart_##n = GET_VCOUNTER;
-#define STOPWATCH_STOP(n) \
-	u16 lineEnd_##n = GET_VCOUNTER;\
-	u16 frameTime_##n;\
-	char str_##n[] = "ft__"STRINGIFY(n)"     ";\
-	if (lineEnd_##n < lineStart_##n) {\
-		frameTime_##n = 261 - lineStart_##n;\
-		frameTime_##n += lineEnd_##n;\
-		/* Add a w to know this measure has wrapped around a display loop */ \
-		*(str_##n + 2) = 'w';\
-	} else {\
-		frameTime_##n = lineEnd_##n - lineStart_##n;\
-	}\
-	{\
-		*(str_##n + 8) = '0' + (frameTime_##n / 100);\
-		*(str_##n + 9) = '0' + ((frameTime_##n / 10) % 10);\
-		*(str_##n + 10) = '0' + (frameTime_##n % 10);\
-		*(str_##n + 11) = '\0';\
-		KLog(str_##n);\
-	}\
-
 void playMovie ();
 
-#endif
+#endif // _MOVIE_PLAYER_H

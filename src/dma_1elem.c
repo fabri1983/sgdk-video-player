@@ -10,12 +10,12 @@ FORCE_INLINE void enqueueDMA_1elem (void* from, u16 to, u16 len, u16 step) {
     u32 fromAddr = (u32) from;
 
     // $13:len L  $14:len H (DMA length in word)
-    elem.regLenL = 0x9300 + (len & 0xFF);
-    elem.regLenH = 0x9400 + ((len >> 8) & 0xFF);
+    elem.regLenL = 0x9300 | (len & 0xFF);
+    elem.regLenH = 0x9400 | ((len >> 8) & 0xFF);
     // $16:M  $f:step (DMA address M and Step register)
-    elem.regAddrMStep = 0x96008F00 + ((fromAddr << 7) & 0xFF0000) + step;
+    elem.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | step;
     // $17:H  $15:L (DMA address H & L)
-    elem.regAddrHAddrL = 0x97009500 + ((fromAddr >> 1) & 0x7F00FF);
+    elem.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
 
     elem.regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
 
@@ -28,22 +28,20 @@ FORCE_INLINE void enqueueDMA_1elem (void* from, u16 to, u16 len, u16 step) {
 
 FORCE_INLINE void flushDMA_1elem () {
     // -------------------------------------------------------
-    // Flush DMA Queue with only 1 elem: 216 cycles.
-    // Slightly faster than Stef's dma_a.s: 244 cycles.
+    // Flush DMA Queue with only 1 elem: 96 cycles.
+    // Stef's dma_a.s: 244 cycles.
     //-------------------------------------------------------
     DMAOpInfo* elemPtr = &elem;
+    u32* placeHolder_ax = 0;
 	ASM_STATEMENT __volatile__ (
-        "\n\t"
-		"move.l %0, %%a0\n\t"
-		"move.l #0xC00004, %%a1\n\t"  // VDP_CTRL_PORT
-		"\n\t"
-		"move.l (%%a0)+, (%%a1)\n\t"
-		"move.l (%%a0)+, (%%a1)\n\t"
-		"move.l (%%a0)+, (%%a1)\n\t"
-		"move.w (%%a0)+, (%%a1)\n\t"
-		"move.w (%%a0)+, (%%a1)\n"  // Stef: important to use word write for command triggering DMA (see SEGA notes)
+		"move.l   #0xC00004.l, %1\n"  // VDP_CTRL_PORT
+		"move.l   (%0)+, (%1)\n"
+		"move.l   (%0)+, (%1)\n"
+		"move.l   (%0)+, (%1)\n"
+		"move.w   (%0)+, (%1)\n"
+		"move.w   (%0)+, (%1)\n"    // Stef: important to use word write for command triggering DMA (see SEGA notes)
 		: 
-		: "m" (elemPtr)
-		: "a0", "a1", "memory"      // Clobbers
+		: "a" (elemPtr), "a" (placeHolder_ax)
+		: "memory"
 	);
 }

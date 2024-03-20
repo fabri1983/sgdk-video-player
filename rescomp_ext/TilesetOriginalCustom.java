@@ -15,6 +15,7 @@ import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileEquality;
 import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.rescomp.type.CompressionCustom;
+import sgdk.rescomp.type.CustomDataTypes;
 import sgdk.rescomp.type.Tile;
 import sgdk.rescomp.type.TileCacheMatch;
 import sgdk.tool.ImageUtil;
@@ -23,7 +24,7 @@ import sgdk.tool.ImageUtil.BasicImageInfo;
 public class TilesetOriginalCustom extends Resource
 {
     public static TilesetOriginalCustom getTileset(String id, String imgFile, Compression compression, CompressionCustom compressionCustom, 
-    		TileOptimization tileOpt, boolean addBlank, boolean temp, String tilesCacheId)
+    		TileOptimization tileOpt, boolean addBlank, boolean temp, String tilesCacheId, boolean addCompressionField)
             throws Exception
     {
         // get 8bpp pixels and also check image dimension is aligned to tile
@@ -40,7 +41,8 @@ public class TilesetOriginalCustom extends Resource
         // we determine 'h' from data length and 'w' as we can crop image vertically to remove palette data
         final int h = image.length / w;
 
-        return new TilesetOriginalCustom(id, image, w, h, 0, 0, w / 8, h / 8, tileOpt, compression, compressionCustom,  addBlank, temp, tilesCacheId);
+        return new TilesetOriginalCustom(id, image, w, h, 0, 0, w / 8, h / 8, tileOpt, compression, compressionCustom,  addBlank, temp, tilesCacheId,
+        		addCompressionField);
     }
 
     // tiles
@@ -49,6 +51,8 @@ public class TilesetOriginalCustom extends Resource
 
     // binary data block (tiles)
     public final BinCustom bin;
+
+    public final boolean addCompressionField;
 
     // internals
     final boolean isDuplicate;
@@ -64,6 +68,7 @@ public class TilesetOriginalCustom extends Resource
         tileIndexesMap = new HashMap<>();
         tileByHashcodeMap = new HashMap<>();
         isDuplicate = false;
+        addCompressionField = true;
 
         // !! don't optimize tilesets (important to preserve tile indexes here) !!
         for (TilesetOriginalCustom tileset : tilesets)
@@ -96,6 +101,7 @@ public class TilesetOriginalCustom extends Resource
         tileIndexesMap = new HashMap<>();
         tileByHashcodeMap = new HashMap<>();
         isDuplicate = false;
+        addCompressionField = true;
 
         // dummy bin
         bin = new BinCustom("empty_bin", new byte[0], Compression.NONE, CompressionCustom.NONE);
@@ -112,6 +118,7 @@ public class TilesetOriginalCustom extends Resource
         tileIndexesMap = new HashMap<>();
         tileByHashcodeMap = new HashMap<>();
         isDuplicate = false;
+        addCompressionField = true;
 
         final int[] data;
         
@@ -140,7 +147,8 @@ public class TilesetOriginalCustom extends Resource
     }
 
     public TilesetOriginalCustom(String id, byte[] image8bpp, int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile,
-            TileOptimization opt, Compression compression, CompressionCustom compressionCustom, boolean addBlank, boolean temp, String tilesCacheId)
+            TileOptimization opt, Compression compression, CompressionCustom compressionCustom, boolean addBlank, boolean temp, String tilesCacheId,
+            boolean addCompressionField)
     {
         super(id);
 
@@ -149,6 +157,7 @@ public class TilesetOriginalCustom extends Resource
         tiles = new ArrayList<>();
         tileIndexesMap = new HashMap<>();
         tileByHashcodeMap = new HashMap<>();
+        this.addCompressionField = addCompressionField;
 
         // important to always use the same loop order when building Tileset and Tilemap/Map object
         for (int j = 0; j < heightTile; j++)
@@ -212,13 +221,14 @@ public class TilesetOriginalCustom extends Resource
     }
 
     public TilesetOriginalCustom(String id, byte[] image8bpp, int imageWidth, int imageHeight, List<? extends Rectangle> sprites, Compression compression, 
-    		CompressionCustom compressionCustom, boolean temp)
+    		CompressionCustom compressionCustom, boolean temp, boolean addCompressionField)
     {
         super(id);
 
         tiles = new ArrayList<>();
         tileIndexesMap = new HashMap<>();
         tileByHashcodeMap = new HashMap<>();
+        this.addCompressionField = addCompressionField;
 
         for (Rectangle rect : sprites)
         {
@@ -381,7 +391,10 @@ public class TilesetOriginalCustom extends Resource
     @Override
     public int shallowSize()
     {
-        return 2 + 2 + 4;
+    	if (addCompressionField)
+    		return 2 + 2 + 4;
+    	else
+    		return 2 + 4;
     }
 
     @Override
@@ -397,14 +410,19 @@ public class TilesetOriginalCustom extends Resource
         outB.reset();
 
         // output TileSet structure
-        Util.decl(outS, outH, "TileSet", id, 2, global);
+        if (addCompressionField)
+        	Util.decl(outS, outH, "TileSet", id, 2, global);
+		else
+			Util.decl(outS, outH, CustomDataTypes.TileSetOriginalCustom.getValue(), id, 2, global);
         // set compression info (very important that binary data had already been exported at this point)
-        int compOrdinal = 0;
-        if (bin.doneCompression != Compression.NONE)
-        	compOrdinal = bin.doneCompression.ordinal() - 1;
-        else if (bin.doneCompressionCustom != CompressionCustom.NONE)
-        	compOrdinal = bin.doneCompressionCustom.getDefineValue();
-		outS.append("    dc.w    " + compOrdinal + "\n");
+        if (addCompressionField) {
+	        int compOrdinal = 0;
+	        if (bin.doneCompression != Compression.NONE)
+	        	compOrdinal = bin.doneCompression.ordinal() - 1;
+	        else if (bin.doneCompressionCustom != CompressionCustom.NONE)
+	        	compOrdinal = bin.doneCompressionCustom.getDefineValue();
+			outS.append("    dc.w    " + compOrdinal + "\n");
+        }
         // set number of tile
         outS.append("    dc.w    " + getNumTile() + "\n");
         // set data pointer

@@ -8,6 +8,7 @@ import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.TilesCacheManager;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
+import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.Tile;
 
 public class TilesCacheLoader extends Resource
@@ -17,9 +18,10 @@ public class TilesCacheLoader extends Resource
 	final String originalCacheId_keepCase;
 
 	// binary data block (tiles)
-	public final Bin bin;
+	public final BinCustom bin;
 
-    public TilesCacheLoader(String id, String originalCacheId_keepCase, int cacheStartIndexInVRAM, String filename, boolean enable) throws Exception
+    public TilesCacheLoader(String id, String originalCacheId_keepCase, int cacheStartIndexInVRAM, String filename, boolean enable,
+    		Compression compression, CompressionCustom compressionCustom) throws Exception
     {
         super(id);
 
@@ -42,12 +44,12 @@ public class TilesCacheLoader extends Resource
 		}
 
 		// build BIN (tiles data) with wanted compression
-		final Bin binResource = new Bin(id + "_data", data, Compression.AUTO);
+		final BinCustom binResource = new BinCustom(id + "_data", data, compression, compressionCustom);
 		// internal
 		binResource.global = false;
 
 		// add as resource (avoid duplicate)
-		bin = (Bin) addInternalResource(binResource);
+		bin = (BinCustom) addInternalResource(binResource);
 
 		// compute hash code
 		hc = bin.hashCode();
@@ -100,7 +102,12 @@ public class TilesCacheLoader extends Resource
         outH.append("\n");
 
         // set compression info (very important that binary data had already been exported at this point)
-        outS.append("    dc.w    " + (bin.doneCompression.ordinal() - 1) + "\n");
+        int compOrdinal = 0;
+        if (bin.doneCompression != Compression.NONE)
+        	compOrdinal = bin.doneCompression.ordinal() - 1;
+        else if (bin.doneCompressionCustom != CompressionCustom.NONE)
+        	compOrdinal = bin.doneCompressionCustom.getDefineValue();
+		outS.append("    dc.w    " + compOrdinal + "\n");
         // set number of tile
         outS.append("    dc.w    " + cachedTiles.size() + "\n");
         // set data pointer

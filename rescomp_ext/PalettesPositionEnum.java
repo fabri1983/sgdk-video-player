@@ -2,6 +2,10 @@ package sgdk.rescomp.type;
 
 public enum PalettesPositionEnum {
 
+	PAL0("PAL0"),
+	PAL1("PAL1"),
+	PAL2("PAL2"),
+	PAL3("PAL3"),
     PAL0PAL1("PAL0PAL1"),
     PAL2PAL3("PAL2PAL3");
 
@@ -25,7 +29,15 @@ public enum PalettesPositionEnum {
     }
 
     public PalettesPositionEnum next () {
-    	if (this == PAL0PAL1)
+    	if (this == PAL0)
+    		return PAL1;
+    	else if (this == PAL1)
+    		return PAL0;
+    	else if (this == PAL2)
+    		return PAL3;
+    	else if (this == PAL3)
+    		return PAL2;
+    	else if (this == PAL0PAL1)
     		return PAL2PAL3;
     	else if (this == PAL2PAL3)
     		return PAL0PAL1;

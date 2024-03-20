@@ -7,6 +7,7 @@ import java.util.List;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
+import sgdk.rescomp.type.CustomDataTypes;
 import sgdk.rescomp.type.TSX;
 import sgdk.tool.FileUtil;
 import sgdk.tool.ImageUtil;
@@ -141,7 +142,7 @@ public class Palette32 extends Resource
         outB.reset();
 
         // declare
-        Util.decl(outS, outH, "Palette32", id, 2, global);
+        Util.decl(outS, outH, CustomDataTypes.Palette32.getValue(), id, 2, global);
         // first palette size
         //outS.append("    dc.w    " + (bin.data.length / 2) + "\n");
         // set palette data pointer

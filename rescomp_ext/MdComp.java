@@ -8,18 +8,24 @@ import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
+import sgdk.rescomp.resource.BinCustom;
 import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.PackedDataCustom;
+import sgdk.tool.SystemUtil;
 
 public class MdComp {
 
 	private static boolean isWindows = System.getProperty("os.name").toLowerCase().indexOf("win") >= 0;
-	private static String rescomp_ext_jar_path = new File(MdComp.class.getProtectionDomain().getCodeSource().getLocation().getPath())
+	private static final String rescomp_ext_jar_path = new File(MdComp.class.getProtectionDomain().getCodeSource().getLocation().getPath())
 			.getParentFile().getAbsolutePath();
-	
+	private static final String tmdDir = SystemUtil.getProperty("java.io.tmpdir");
+
 	public static PackedDataCustom pack(byte[] data, CompressionCustom compression) {
 		// nothing to do
 		if (compression == CompressionCustom.NONE)
@@ -53,37 +59,64 @@ public class MdComp {
 		//countUnique(data);
 
 		long suffix = System.currentTimeMillis();
-		String infile = rescomp_ext_jar_path + File.separator + compression.getValue() + "_tmp_tiles_IN_" + suffix + ".bin";
-		String outfile = rescomp_ext_jar_path + File.separator + compression.getValue() + "_tmp_tiles_OUT_" + suffix + ".bin";
+		String infile = tmdDir + File.separator + compression.getValue() + "_tmp_tiles_IN_" + suffix + ".bin";
+		String outfile = tmdDir + File.separator + compression.getValue() + "_tmp_tiles_OUT_" + suffix + ".bin";
 
 		try {
 			writeBytesToFile(data, infile);
-			if (compression == CompressionCustom.RNC_1 || compression == CompressionCustom.RNC_2) {
-				String m_flag = compression == CompressionCustom.RNC_1 ? "-m=1" : "-m=2";
-				if (isWindows)
-					callProgram("cmd.exe", "/c", compression.getExeName(), "p", infile, outfile, m_flag);
-				else
-					callProgram("bash", "-c", compression.getExeName(), "p", infile, outfile, m_flag);
+			List<String> flags;
+
+			if (compression == CompressionCustom.CLOWNNEMESIS) {
+				flags = Arrays.asList(compression.getExeName(), "-c", infile, outfile);
 			}
-			else if (compression == CompressionCustom.UFTC || compression == CompressionCustom.UFTC_15) {
-				String utfc_flag = compression == CompressionCustom.UFTC_15 ? "-15 -c" : "-c";
-				if (isWindows)
-					callProgram("cmd.exe", "/c", compression.getExeName(), utfc_flag, infile, outfile);
-				else
-					callProgram("bash", "-c", compression.getExeName(), utfc_flag, infile, outfile);
+			else if (compression == CompressionCustom.COMPERXM) {
+				flags = Arrays.asList(compression.getExeName(), "-m", infile, outfile);
+			}
+			else if (compression == CompressionCustom.ELEKTRO) {
+				// byte aligned: 2; slightly fast compression: 3
+				flags = Arrays.asList(compression.getExeName(), infile, outfile, "2", "3");
 			}
 			else if (compression == CompressionCustom.LZ4) {
-				if (isWindows)
-					callProgram("cmd.exe", "/c", compression.getExeName(), "-9", "--favor-decSpeed", "--no-frame-crc", infile, outfile);
+				// -f: force overwrite; -9: best compression (slow) 
+				flags = Arrays.asList(compression.getExeName(), "-f", "-9", "--favor-decSpeed", "--no-frame-crc", infile, outfile);
+			}
+			else if (compression == CompressionCustom.MEGAPACK) {
+				flags = Arrays.asList(compression.getExeName(), infile, outfile, "c");
+			}
+			else if (compression == CompressionCustom.NIBBLER) {
+				flags = Arrays.asList("vamos", compression.getExeName(), infile, outfile);
+			}
+			else if (compression == CompressionCustom.PACKFIRE) {
+				// -b: binary output; -l: generates large model
+				flags = Arrays.asList(compression.getExeName(), "-b", "-l", infile, outfile);
+			}
+			else if (compression == CompressionCustom.RNC1 || compression == CompressionCustom.RNC2) {
+				if (compression == CompressionCustom.RNC1)
+					flags = Arrays.asList(compression.getExeName(), "p", infile, outfile, "-m=1");
 				else
-					callProgram("bash", "-c", compression.getExeName(), "-9", "--favor-decSpeed", "--no-frame-crc", infile, outfile);
+					flags = Arrays.asList(compression.getExeName(), "p", infile, outfile, "-m=2");
+			}
+			else if (compression == CompressionCustom.UFTC || compression == CompressionCustom.UFTC15) {
+				if (compression == CompressionCustom.UFTC15)
+					flags = Arrays.asList(compression.getExeName(), "-15", "-c", infile, outfile);
+				else
+					flags = Arrays.asList(compression.getExeName(), "-c", infile, outfile);
 			}
 			else {
-				if (isWindows)
-					callProgram("cmd.exe", "/c", compression.getExeName(), infile, outfile);
-				else
-					callProgram("bash", "-c", compression.getExeName(), infile, outfile);
+				flags = Arrays.asList(compression.getExeName(), infile, outfile);
 			}
+
+			List<String> all = new ArrayList<>(10);
+			if (isWindows) {
+				all.add("cmd.exe");
+				all.add("/c");
+			} else {
+				all.add("bash");
+				all.add("-c");
+			}
+			all.addAll(flags);
+
+			callProgram(all);
 
 			byte[] result = readFileAsByteArray(outfile);
 			//printByteArray(result);
@@ -150,12 +183,14 @@ public class MdComp {
 		}
 	}
 
-	private static void callProgram(String... commands) throws InterruptedException, IOException {
+	private static void callProgram(List<String> commands) throws InterruptedException, IOException {
 		ProcessBuilder pb = new ProcessBuilder(commands);
 		pb.redirectErrorStream(true);
 		pb.directory(new File(rescomp_ext_jar_path + File.separator + "compressors"));
 		Process process = pb.start();
-		process.waitFor();
+		int terminationCode = process.waitFor();
+		if (terminationCode != 0)
+			throw new RuntimeException("ERROR! Compressor program returned value != 0");
 	}
 
 	private static byte[] readFileAsByteArray(String fileName) throws IOException {
@@ -170,5 +205,29 @@ public class MdComp {
 		} catch (IOException e) {
 			System.out.println(" WARNING! Couldn't delete file " + fileName);
 		}
+	}
+
+	public static boolean checkAllSameCompression(BinCustom bin1, BinCustom bin2) {
+		if (bin1.doneCompression != bin2.doneCompression)
+			return false;
+		if (bin1.doneCompressionCustom != bin2.doneCompressionCustom)
+			return false;
+		return true;
+	}
+
+	public static boolean checkAllSameCompression(BinCustom bin1, BinCustom bin2, BinCustom bin3) {
+		if (bin1.doneCompression != bin2.doneCompression)
+			return false;
+		if (bin1.doneCompression != bin3.doneCompression)
+			return false;
+		if (bin2.doneCompression != bin3.doneCompression)
+			return false;
+		if (bin1.doneCompressionCustom != bin2.doneCompressionCustom)
+			return false;
+		if (bin1.doneCompressionCustom != bin3.doneCompressionCustom)
+			return false;
+		if (bin2.doneCompressionCustom != bin3.doneCompressionCustom)
+			return false;
+		return true;	
 	}
 }

@@ -56,6 +56,8 @@ const cacheStartIndexInVRAM = 1648;
 const tilesetSplit = 3;
 // split tilemap in N chunks. Current values are [1, 2, 3]. Always <= tilesetSplit
 const tilemapSplit = 1;
+// add compression field if you know some tilesets are not compressed (by rescomp rules) or if you plan to test different compression algorithms
+const tilesetAddCompressionField = true;
 
 var type_ImageNoPals = "ImageNoPals";
 if (tilesetSplit == 2) {
@@ -73,13 +75,22 @@ else if (tilesetSplit == 3) {
 	    type_ImageNoPals = "ImageNoPalsTilesetSplit33";
 }
 
+if (tilesetAddCompressionField)
+	type_ImageNoPals += "CompField";
+
 // split palettes in N chunks. Current valid values are [1, 2, 3]
 const palette32Split = 3;
+// add compression field if you know some palettes are not compressed (by rescomp rules) or if you plan to test different compression algorithms
+const paletteAddCompressionField = false;
+
 var type_Palette32AllStrips = "Palette32AllStrips";
 if (palette32Split == 2)
 	type_Palette32AllStrips = "Palette32AllStripsSplit2";
 else if (palette32Split == 3)
 	type_Palette32AllStrips = "Palette32AllStripsSplit3";
+
+if (paletteAddCompressionField)
+	type_Palette32AllStrips += "CompField";
 
 // This activates the use of a map base tile index which sets the initial tile index for the tilemap of the resource.
 // As the video player uses a buffer to allocate next frame's tilemaps (among tilesets and palettes) whilst current frame 
@@ -160,34 +171,40 @@ const ${type_Palette32AllStrips}* pals_data[${sortedFileNamesEveryFirstStrip.len
 
 // You can provide a "comma separated list" of the types you want to include in the header file
 // Eg: "TileMapCustom, ImageNoPalsTilesetSplit31, Palette32AllStripsSplit3"
-const headerAppenderAllCustom = `HEADER_APPENDER_ALL_CUSTOM\t\theaderAllCustomTypes\n\n`;
+const headerAppenderAllCustom = `HEADER_APPENDER_ALL_CUSTOM  headerAllCustomTypes` + '\n\n';
 
 // Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1648  movieFrames_cache.txt
 // Flag enable possible values: FALSE, TRUE
-const loadTilesCacheStr = `TILES_CACHE_LOADER\t\t${tilesCacheId}\t\t${loadTilesCache?"TRUE":"FALSE"}\t\t${cacheStartIndexInVRAM}\t\t${tilesCacheId}.txt\n\n`;
+const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache?"TRUE":"FALSE"}  `
+		+ `${cacheStartIndexInVRAM}  ${tilesCacheId}.txt  FAST  NONE` + '\n\n';
 
 // Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  600
 // Flag enable possible values: FALSE, TRUE
-const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER\t\t${tilesCacheId}\t\t${enableTilesCacheStats?"TRUE":"FALSE"}\t\t600\n\n`;
+const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${enableTilesCacheStats?"TRUE":"FALSE"}  600` + '\n\n';
 
-// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesCache_movie1  3  1  ODD  64  FAST  NONE  ALL
+// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesCache_movie1  3  1  ODD  64  FAST  NONE  TRUE  ALL
 const imageResListStr = sortedFileNamesEveryFirstStrip
-	.map(s => `IMAGE_STRIPS_NO_PALS\t\tmv_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${tilesetStatsId}`
-			+ `\t\t${tilesCacheId}\t\t${tilesetSplit}\t\t${tilemapSplit}`
-            + `\t\t${toggleMapTileBaseIndexFlag}\t\t${mapExtendedWidth}\t\tFAST\t\tNONE\t\tALL`)
+	.map(s => `IMAGE_STRIPS_NO_PALS  mv_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${tilesetStatsId}`
+			+ `  ${tilesCacheId}  ${tilesetSplit}  ${tilemapSplit}`
+            + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth}  FAST  NONE`
+			+ `  ` + (tilesetAddCompressionField ? 'TRUE' : 'FALSE')
+			+ `  ALL`)
 	.join('\n') + '\n\n';
 
-// Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  PAL0PAL1  TRUE  FAST  NONE
+// Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  PAL0PAL1  TRUE  FAST  NONE  FALSE
 const paletteResListStr = sortedFileNamesEveryFirstStrip
-	.map(s => `PALETTE_32_COLORS_ALL_STRIPS\t\tpal_${removeExtension(s)}\t\t"${FRAMES_DIR}${s}"\t\t${stripsPerFrame}\t\t${palette32Split}`
-                + `\t\tPAL0PAL1\t\tTRUE\t\tFAST\t\tNONE`)
+	.map(s => `PALETTE_32_COLORS_ALL_STRIPS  pal_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${palette32Split}`
+			+ `  PAL0PAL1  TRUE  FAST  NONE`
+			+ `  ` + (paletteAddCompressionField ? 'TRUE' : 'FALSE'))
 	.join('\n') + '\n\n';
 
 // Eg: TILES_CACHE_STATS_PRINTER  movieFrames_cache  CONSOLE
 // Flag printTo possible values: CONSOLE, FILE, NONE
-const printTilesCacheStatsStr = `TILES_CACHE_STATS_PRINTER\t\t${tilesCacheId}\t\tFILE\n\n`;
+const printTilesCacheStatsStr = `TILES_CACHE_STATS_PRINTER  ${tilesCacheId}  FILE` + '\n\n';
 
-const printTilesetStatsCollector = `TILESET_STATS_COLLECTOR\t\t${tilesetStatsId}\n\n`;
+const printTilesetStatsCollector = `TILESET_STATS_COLLECTOR  ${tilesetStatsId}` + '\n\n';
+
+const customCompressorTracker = `HEADER_APPENDER_COMPRESSION_CUSTOM_TRACKER  compressionCustomTrackerHeader_movie1` + '\n\n';
 
 // Create .res file
 fs.writeFileSync(`${RES_DIR}/movie_frames.res`, 
@@ -196,4 +213,5 @@ fs.writeFileSync(`${RES_DIR}/movie_frames.res`,
         enableTilesCacheStatsStr + 
         imageResListStr + paletteResListStr + 
         printTilesCacheStatsStr + 
-		printTilesetStatsCollector);
+		printTilesetStatsCollector +
+		customCompressorTracker);

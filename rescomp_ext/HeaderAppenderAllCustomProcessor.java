@@ -23,7 +23,7 @@ public class HeaderAppenderAllCustomProcessor implements Processor
             System.out.println("Wrong " + resId + " definition.");
             System.out.println("This processor adds to the generated C header file all or selected data types used by custom classes.");
             System.out.println(resId + " name [\"list\"]");
-            System.out.println("  name        Just an internal name for this chunk of the header. Eg: allCustomHeader1");
+            System.out.println("  name        Just an internal name for this chunk of the header. Eg: header_customDataTypeStructs");
             System.out.println("  list        Optional. Comma separated list of custom data types. Possible values are:");
             for (CustomDataTypes cdt : CustomDataTypes.values())
             	System.out.println("                " + cdt.getValue());
@@ -33,7 +33,7 @@ public class HeaderAppenderAllCustomProcessor implements Processor
         // get resource id
         String id = fields[1];
 
-        CustomDataTypes[] selection = CustomDataTypes.values();
+        CustomDataTypes[] selection = CustomDataTypes.values(); // by default: all custom values
         if (fields.length >= 3) {
         	selection = CustomDataTypes.parse(fields[2]);	
         }

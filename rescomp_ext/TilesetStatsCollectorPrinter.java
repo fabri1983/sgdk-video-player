@@ -61,7 +61,7 @@ public class TilesetStatsCollectorPrinter extends Resource
     {
     	String tilesetStatsCollectorId = this.id;
 
-		System.out.println(TilesetStatsCollectorProcessor.resId + ": stats for " + tilesetStatsCollectorId);    		
+		System.out.println(TilesetStatsCollectorProcessor.resId + ": stats for id " + tilesetStatsCollectorId);    		
 		System.out.println("Min chunk size: " + TilesetStatsCollector.getMinTileNum(tilesetStatsCollectorId));
 		System.out.println("Max chunk size: " + TilesetStatsCollector.getMaxTileNum(tilesetStatsCollectorId));
 		System.out.println("Min Total size: " + TilesetStatsCollector.getMinTotalTileNum(tilesetStatsCollectorId));

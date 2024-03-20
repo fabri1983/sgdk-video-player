@@ -2,22 +2,33 @@ package sgdk.rescomp.type;
 
 public enum CompressionCustom {
 
-	NONE(			"NONE",				"",					0), // same than Compression.NONE.ordinal() - 1 (because first element is AUTO)
-	COMPER(			"COMPER",			"compcmp",			5),
-	COMPERX(		"COMPERX",			"comperx",			6),
-	KOSINSKI(		"KOSINSKI",			"koscmp",			7),
-	KOSINSKI_PLUS(	"KOSINSKI_PLUS",	"kosplus",			8),
-	LZ4(			"LZ4", 				"lz4",				9),
-	LZKN1(			"LZKN1", 			"lzkn1cmp",			10),
-	RNC_1(			"RNC_1",			"rnc_propack_x64",	11),
-	RNC_2(			"RNC_2",			"rnc_propack_x64",	12),
-	ROCKET(			"ROCKET",			"rockcmp",			13),
-	SAXMAN(			"SAXMAN",			"saxcmp",			14),
-	SAXMAN2(		"SAXMAN2",			"saxcmp",			15),
-	SNKRLE(			"SNKRLE",			"snkcmp",			16),
-	UFTC(			"UFTC",				"uftc",				17),
-	UFTC_15(		"UFTC_15",			"uftc",				18),
-	UNAPLIB(		"UNAPLIB",			"",					19);
+	NONE(					"NONE",					"",						0), // same than Compression.NONE.ordinal() - 1 (because first element is AUTO)
+	BYTEKILLER(				"BYTEKILLER",			"bytekiller",			10),	
+	COMPER(					"COMPER",				"compcmp",				11),
+	COMPERX(				"COMPERX",				"comperx",				12),
+	COMPERXM(				"COMPERXM",				"comperx",				13),
+	ELEKTRO(				"ELEKTRO",				"elektro",				14),
+	ENIGMA(					"ENIGMA",				"enicmp",				15),
+	FC8(					"FC8",					"fc8",					16),
+	KOSINSKI(				"KOSINSKI",				"koscmp",				17),
+	KOSINSKI_PLUS(			"KOSINSKI_PLUS",		"kosplus",				18),
+	LZ4(					"LZ4", 					"lz4",					19),
+	LZKN1_MDCOMP(			"LZKN1_MDCOMP", 		"lzkn1cmp",				20),
+	LZKN1_R57SHELL(			"LZKN1_R57SHELL", 		"lzkn1_r57shell",		21),
+	LZKN1_VLADIKCOMPER(		"LZKN1_VLADIKCOMPER", 	"lzkn1_vladikcomper",	22),
+	MEGAPACK(				"MEGAPACK", 			"megapack",				23),
+	NEMESIS(				"NEMESIS",				"nemcmp",				24),
+	NIBBLER(				"NIBBLER",				"Nibble",				25),
+	PACKFIRE(				"PACKFIRE",				"packfire",				26),
+	RNC1(					"RNC1",					"rnc_propack_x64",		27),
+	RNC2(					"RNC2",					"rnc_propack_x64",		28),
+	ROCKET(					"ROCKET",				"rockcmp",				29),
+	SAXMAN(					"SAXMAN",				"saxcmp",				30),
+	SBZ(					"SBZ",					"sbz",					31),
+	SNKRLE(					"SNKRLE",				"snkcmp",				32),
+	UFTC(					"UFTC",					"uftc",					33),
+	UFTC15(					"UFTC15",				"uftc",					34),
+	UNAPLIB(				"UNAPLIB",				"",						35);
 
     private final String value;
     private final String exeName;

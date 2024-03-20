@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import sgdk.rescomp.Resource;
+import sgdk.rescomp.tool.MdComp;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.CompressionCustom;
@@ -21,13 +22,16 @@ import sgdk.tool.ImageUtil.BasicImageInfo;
 public class Palette32AllStripsSplit2 extends Resource
 {
     final int hc;
+    final boolean addCompressionField;
 
     private BinCustom bin1, bin2;
 
     public Palette32AllStripsSplit2(String id, List<String> stripsFileList, final PalettesPositionEnum palsPosition, final boolean togglePalsLocation, 
-    		Compression compression, CompressionCustom compressionCustom) throws Exception
+    		Compression compression, CompressionCustom compressionCustom, boolean addCompressionField) throws Exception
     {
         super(id);
+
+        this.addCompressionField = addCompressionField;
 
         short[] palettesAll = new short[32 * stripsFileList.size()];
         PalettesPositionEnum currentPalsPosition = palsPosition;
@@ -143,7 +147,10 @@ public class Palette32AllStripsSplit2 extends Resource
     @Override
     public int shallowSize()
     {
-        return 4 + 4;
+    	if (addCompressionField)
+    		return 2 + 4 + 4;
+    	else
+    		return 4 + 4;
     }
 
     @Override
@@ -158,10 +165,23 @@ public class Palette32AllStripsSplit2 extends Resource
 		// can't store pointer so we just reset binary stream here (used for compression only)
 		outB.reset();
 
+		if (!MdComp.checkAllSameCompression(bin1, bin2))
+			throw new RuntimeException("Resource id " + id + " has different compression methods for bin1, and bin2");
+
 		// declare
-		Util.decl(outS, outH, CustomDataTypes.Palette32AllStripsSplit2.getValue(), id, 2, global);
+		if (addCompressionField)
+			Util.decl(outS, outH, CustomDataTypes.Palette32AllStripsSplit2CompField.getValue(), id, 2, global);
+		else
+			Util.decl(outS, outH, CustomDataTypes.Palette32AllStripsSplit2.getValue(), id, 2, global);
 		// set compression info (very important that binary data had already been exported at this point)
-		//outS.append("    dc.w    " + (bin1.doneCompression.ordinal() - 1) + "\n");
+		if (addCompressionField) {
+	        int compOrdinal = 0;
+	        if (bin1.doneCompression != Compression.NONE)
+	        	compOrdinal = bin1.doneCompression.ordinal() - 1;
+	        else if (bin1.doneCompressionCustom != CompressionCustom.NONE)
+	        	compOrdinal = bin1.doneCompressionCustom.getDefineValue();
+			outS.append("    dc.w    " + compOrdinal + "\n");
+		}
 		// set palette data pointer
 		outS.append("    dc.l    " + bin1.id + "\n");
 		outS.append("    dc.l    " + bin2.id + "\n");

@@ -24,8 +24,8 @@ public class ImageStripsNoPals extends Resource
 	public final TilemapOriginalCustom tilemap;
 
     public ImageStripsNoPals(String id, List<String> stripsFileList, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapExtendedWidth, 
-    		Compression compression, TileOptimization tileOpt, int mapBase, CompressionCustom compressionCustom, String tilesCacheId, 
-    		String tilesetStatsCollectorId) throws Exception
+    		Compression compression, TileOptimization tileOpt, int mapBase, CompressionCustom compressionCustom, boolean addCompressionField, 
+    		String tilesCacheId, String tilesetStatsCollectorId) throws Exception
     {
         super(id);
 
@@ -44,14 +44,14 @@ public class ImageStripsNoPals extends Resource
 
         // build TILESET with wanted compression
         tileset = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_tileset", finalImageData, w, h, 0, 0, wt, ht, tileOpt, 
-        		compression, compressionCustom, false, false, tilesCacheId));
+        		compression, compressionCustom, false, false, tilesCacheId, addCompressionField));
 
         System.out.print(" " + id + " -> numTiles: " + tileset.getNumTile() + ". ");
         TilesetStatsCollector.count1chunk(tilesetStatsCollectorId, tileset.getNumTile());
 
         // build TILEMAP with wanted compression
         tilemap = (TilemapOriginalCustom) addInternalResource(TilemapOriginalCustom.getTilemap(id + "_tilemap", tileset, toggleMapTileBaseIndexFlag, 
-        		mapBase, finalImageData, wt, ht, tileOpt, compression, mapExtendedWidth, tilesCacheId));
+        		mapBase, finalImageData, wt, ht, tileOpt, compression, mapExtendedWidth, tilesCacheId, addCompressionField));
 
         if (TilesCacheManager.isStatsEnabledFor(tilesCacheId) 
         		&& tileset.getNumTile() >= TilesCacheManager.getMinTilesetSizeForStatsFor(tilesCacheId)) {
@@ -163,7 +163,10 @@ public class ImageStripsNoPals extends Resource
 		outB.reset();
 
 		// output Image structure
-		Util.decl(outS, outH, CustomDataTypes.ImageNoPals.getValue(), id, 2, global);
+		if (tileset.addCompressionField == true || tilemap.addCompressionField == true)
+			Util.decl(outS, outH, CustomDataTypes.ImageNoPalsCompField.getValue(), id, 2, global);
+		else
+			Util.decl(outS, outH, CustomDataTypes.ImageNoPals.getValue(), id, 2, global);
 		// Tileset pointer
 		outS.append("    dc.l    " + tileset.id + "\n");
 		// Tilemap pointer

@@ -3,6 +3,7 @@ package sgdk.rescomp.resource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import sgdk.rescomp.tool.CompressionCustomUsageTracker;
 import sgdk.rescomp.tool.MdComp;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
@@ -69,7 +70,7 @@ public class BinCustom extends Bin
         // do 'outB' align *before* doing compression (as LZ4W compression can use previous data block)
         Util.align(outB, align);
 
-        // CompressionCustom option has priority over Compression option
+        // IMPORTANT: CompressionCustom option has priority over Compression option
         if (wantedCompressionCustom != CompressionCustom.NONE) {
         	PackedDataCustom packedDataCustom = MdComp.pack(data, wantedCompressionCustom);
         	packedData = (PackedData) packedDataCustom;
@@ -101,8 +102,10 @@ public class BinCustom extends Bin
                     break;
             }
 
-            if (doneCompressionCustom != CompressionCustom.NONE)
+            if (doneCompressionCustom != CompressionCustom.NONE) {
+            	CompressionCustomUsageTracker.markUsed(doneCompressionCustom);
                 System.out.println("size = " + packedSize + " (" + Math.round((packedSize * 100f) / baseSize) + "% - origin size = " + baseSize + ")");
+            }
         }
         // data was compressed ?
         else if (wantedCompression != Compression.NONE)
