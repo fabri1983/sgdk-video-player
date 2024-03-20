@@ -12,7 +12,9 @@
     "*.asm": "m68k",
     "*.i": "m68k",
     "*.h": "c",
-    "*.c": "c"
+    "*.c": "c",
+    "vector": "c",
+    "xstring": "c"
 },
 "C_Cpp.errorSquiggles": "enabled",
 "[m68k]": {

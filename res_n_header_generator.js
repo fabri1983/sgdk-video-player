@@ -79,7 +79,7 @@ if (tilesetAddCompressionField)
 	type_ImageNoPals += "CompField";
 
 // split palettes in N chunks. Current valid values are [1, 2, 3]
-const palette32Split = 3;
+const palette32Split = 1;
 // add compression field if you know some palettes are not compressed (by rescomp rules) or if you plan to test different compression algorithms
 const paletteAddCompressionField = false;
 
@@ -194,7 +194,7 @@ const imageResListStr = sortedFileNamesEveryFirstStrip
 // Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  PAL0PAL1  TRUE  FAST  NONE  FALSE
 const paletteResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `PALETTE_32_COLORS_ALL_STRIPS  pal_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${palette32Split}`
-			+ `  PAL0PAL1  TRUE  FAST  NONE`
+			+ `  PAL0PAL1  TRUE  FAST  RNC2`
 			+ `  ` + (paletteAddCompressionField ? 'TRUE' : 'FALSE'))
 	.join('\n') + '\n\n';
 
@@ -206,7 +206,7 @@ const printTilesetStatsCollector = `TILESET_STATS_COLLECTOR  ${tilesetStatsId}` 
 
 const customCompressorTracker = `HEADER_APPENDER_COMPRESSION_CUSTOM_TRACKER  compressionCustomTrackerHeader_movie1` + '\n\n';
 
-// Create .res file
+// Create movie_frames.res file
 fs.writeFileSync(`${RES_DIR}/movie_frames.res`, 
         headerAppenderAllCustom + 
         loadTilesCacheStr + 

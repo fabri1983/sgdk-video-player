@@ -3,6 +3,7 @@
 #include "movieHVInterrupts.h"
 #include "videoPlayer.h"
 #include "dma_1elem.h"
+#include "decomp/rnc.h"
 
 /// @brief Waits for a certain amount of millisecond (~3.33 ms based timer when wait is >= 100ms). 
 /// Lightweight implementation without calling SYS_doVBlankProcess().
@@ -31,12 +32,12 @@ static void waitSubTick_ (u32 subtick) {
 		// next code seems to loops 7 times to simulate a tick
 		// TODO: use cycle accurate wait loop in asm (about 100 cycles for 1 subtick)
 		ASM_STATEMENT __volatile__ (
-			"moveq #7, %0\n"
+			"   moveq #7, %0\n"
 			"1:\n"
-			"\t  dbra %0, 1b"   // decrement register dx by 1 and branch back (b) to label 1 if not zero
+			"   dbra %0, 1b\n"   // decrement register dx by 1 and branch back (b) to label 1 if not zero
 			: "=d" (tmp)
 			:
-			: "cc"              // Clobbers: condition codes
+			:
 		);
 	}
 }
@@ -174,18 +175,19 @@ static u16* unpackedPalsRender;
 static u16* unpackedPalsBuffer;
 
 static void allocatePalettesBuffer () {
-	unpackedPalsRender = (u16*) MEM_alloc(VIDEO_FRAME_PALS_TOTAL_SIZE * 2);
-	unpackedPalsBuffer = (u16*) MEM_alloc(VIDEO_FRAME_PALS_TOTAL_SIZE * 2);
-	memsetU16(unpackedPalsRender, 0x0, VIDEO_FRAME_PALS_TOTAL_SIZE); // black all the buffer
-	memsetU16(unpackedPalsBuffer, 0x0, VIDEO_FRAME_PALS_TOTAL_SIZE); // black all the buffer
+	unpackedPalsRender = (u16*) MEM_alloc(VIDEO_FRAME_PALS_NUM * 2);
+	unpackedPalsBuffer = (u16*) MEM_alloc(VIDEO_FRAME_PALS_NUM * 2);
+	memsetU16(unpackedPalsRender, 0x0, VIDEO_FRAME_PALS_NUM); // black all the buffer
+	memsetU16(unpackedPalsBuffer, 0x0, VIDEO_FRAME_PALS_NUM); // black all the buffer
 }
 
 static FORCE_INLINE void unpackFramePalettes (u16* data, u16 len, u16 offset) {
 	#if ALL_PALETTES_COMPRESSED
-	// No need to use FAR_SAFE() macro here because palette data is always stored near
-	lz4w_unpack((u8*)data, (u8*) (unpackedPalsBuffer + offset));
+	// No need to use FAR_SAFE() macro here because palette data is always stored at NEAR region
+	//lz4w_unpack((u8*)data, (u8*) (unpackedPalsBuffer + offset));
+	rnc2_Unpack((u8*)data, (u8*) (unpackedPalsBuffer + offset));
 	#else
-	// Copy the palette data. No FAR_SAFE() needed here because palette data is always stored at near region.
+	// Copy the palette data. No FAR_SAFE() needed here because palette data is always stored at NEAR region.
 	const u16 size = len * 2;
 	memcpy((u8*) (unpackedPalsBuffer + offset), data, size);
 	#endif
@@ -363,30 +365,33 @@ void playMovie () {
 		bool exitPlayer = FALSE;
 
 		ImageNoPalsTilesetSplit31CompField** dataPtr = (ImageNoPalsTilesetSplit31CompField**)data + vFrame;
-		Palette32AllStripsSplit3** palsDataPtr = (Palette32AllStripsSplit3**)pals_data + vFrame;
+		Palette32AllStrips** palsDataPtr = (Palette32AllStrips**)pals_data + vFrame;
 
 		while (vFrame < MOVIE_FRAME_COUNT)
 		{
 			u16 numTile1 = (*dataPtr)->tileset1->numTile;
 			unpackFrameTileset((*dataPtr)->tileset1);
 			enqueueTilesetData(baseTileIndex, numTile1);
-			unpackFramePalettes((*palsDataPtr)->data1, VIDEO_FRAME_PALS_CHUNK_SIZE, 0);
+			//unpackFramePalettes((*palsDataPtr)->data1, VIDEO_FRAME_PALS_CHUNK_SIZE, 0);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
 			u16 numTile2 = (*dataPtr)->tileset2->numTile;
 			unpackFrameTileset((*dataPtr)->tileset2);
 			enqueueTilesetData(baseTileIndex + numTile1, numTile2);
-			unpackFramePalettes((*palsDataPtr)->data2, VIDEO_FRAME_PALS_CHUNK_SIZE, VIDEO_FRAME_PALS_CHUNK_SIZE);
+			//unpackFramePalettes((*palsDataPtr)->data2, VIDEO_FRAME_PALS_CHUNK_SIZE, VIDEO_FRAME_PALS_CHUNK_SIZE);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
 
 			u16 numTile3 = (*dataPtr)->tileset3->numTile;
 			unpackFrameTileset((*dataPtr)->tileset3);
 			enqueueTilesetData(baseTileIndex + numTile1 + numTile2, numTile3);
-			unpackFramePalettes((*palsDataPtr)->data3, VIDEO_FRAME_PALS_CHUNK_SIZE_LAST, 2*VIDEO_FRAME_PALS_CHUNK_SIZE);
+			//unpackFramePalettes((*palsDataPtr)->data3, VIDEO_FRAME_PALS_CHUNK_SIZE_LAST, 2*VIDEO_FRAME_PALS_CHUNK_SIZE);
 			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
+
 
 			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE
 			baseTileIndex ^= (TILE_USER_INDEX_CUSTOM ^ (TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE)); // a ^= (x1 ^ x2)
+
+			unpackFramePalettes((*palsDataPtr)->data, VIDEO_FRAME_PALS_NUM, 0);
 
 			unpackFrameTilemap((*dataPtr)->tilemap1, VIDEO_FRAME_TILEMAP_NUM, 0);
 			// In case we need to decompress in chunks
