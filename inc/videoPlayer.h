@@ -16,12 +16,13 @@
 /// If TRUE then it will display every video frame. Might cause audio desync if video frames takes more than 60/MOVIE_FRAME_RATE for NTSC or 50/MOVIE_FRAME_RATE for PAL.
 #define FORCE_NO_MISSING_FRAMES FALSE
 
-// IMPL 0: Use normal division formula when calculating current frame
-// IMPL 1: Use reciprocal magic numbers approximation for 1/50 and 1/60
-// IMPL 2: Use the delta between vtimer (system's internal frame counter) and current video frame
-#define VIDEO_FRAME_ADVANCE_STRATEGY 1
+// 1: Use normal division formula when calculating current frame.
+// 2: Use reciprocal magic numbers approximation for 1/50 and 1/60.
+// 3: Use the delta between vtimer (system's internal frame counter) and current video frame.
+// 4: Use a LUT instead of using division. Based on IMPL 1.
+#define VIDEO_FRAME_ADVANCE_STRATEGY 4
 
-// Enables HInt callbakc implementatio using DMA (TRUE) or pure CPU (FALSE)
+// Enables HInt callback implementation using DMA (TRUE) or pure CPU (FALSE)
 #define HINT_USE_DMA TRUE
 
 /// If you are 100% sure ALL the tilemaps were compressed by rescomp tool (by looking at the console output) then set this to TRUE.
@@ -37,8 +38,8 @@
 /// Remaining 15 tiles are OK to override for re use. So we can start using tiles at index 1.
 #define TILE_USER_INDEX_CUSTOM 1
 
-#define VIDEO_FRAME_TILESET_CHUNK_SIZE 272 // Got experimentally from rescomp output (biggest summation of numTile). If odd then use next even number.
-#define VIDEO_FRAME_TILESET_TOTAL_SIZE 716 // Got experimentally from rescomp output (biggest operand from numTile1 + numTile2 + ...). If odd then use next even number.
+#define VIDEO_FRAME_TILESET_CHUNK_SIZE 272 // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
+#define VIDEO_FRAME_TILESET_TOTAL_SIZE 716 // Got experimentally from rescomp output (using TILESET_STATS_COLLECTOR). If odd then use next even number.
 #define VIDEO_FRAME_TILEMAP_NUM (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES)
 #define VIDEO_FRAME_TILEMAP_NUM_CHUNK (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES / 1))
 #define VIDEO_FRAME_TILEMAP_NUM_CHUNK_LAST (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES / 1) + (MOVIE_FRAME_HEIGHT_IN_TILES % 1)))

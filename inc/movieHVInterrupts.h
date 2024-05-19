@@ -6,7 +6,7 @@
 #include "generated/movie_data_consts.h"
 #include "compatibilities.h"
 
-#define HINT_PALS_CMD_ADDRR_RESET_VALUE 0 // 0 if HInt starts swap for [PAL0,PAL1]. MOVIE_DATA_COLORS_PER_STRIP if HInt starts swap for [PAL2,PAL3].
+#define HINT_PALS_CMD_ADDR_RESET_VALUE 0 // 0 if HInt starts swap for [PAL0,PAL1]. MOVIE_DATA_COLORS_PER_STRIP if HInt starts swap for [PAL2,PAL3].
 
 #define HINT_COUNTER_FOR_COLORS_UPDATE 8 // add -1 when set on VDP_setHIntCounter()
 
@@ -42,9 +42,9 @@
 #define MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL \
     (30 - ((30 - MOVIE_FRAME_STRIPS) / 2) + TILES_HEIGHT_OFFSET_DUE_TO_MIN_TILE_Y_POS_PAL) * 8 - 2*8 - 1
 
-void setPalsPointer (u16* rootPalsPtr);
+void setMoviePalsPointer (u16* rootPalsPtr);
 
-void VIntCallback ();
+void VIntMovieCallback ();
 
 HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC ();
 

@@ -1,1 +1,1 @@
-WAV  sound_wav  "sound/sound.wav"  PCM  22050  FALSE
+WAV  sound_wav  "sound/sound.wav"  XGM2  13300  FALSE

@@ -12,16 +12,16 @@ public enum CustomDataTypes {
 	TileMapCustomCompField("TileMapCustomCompField"),
 	ImageNoPals("ImageNoPals"),
 	ImageNoPalsCompField("ImageNoPalsCompField"),
-	ImageNoPalsTilesetSplit21("ImageNoPalsTilesetSplit21"),
-	ImageNoPalsTilesetSplit22("ImageNoPalsTilesetSplit22"),
-	ImageNoPalsTilesetSplit31("ImageNoPalsTilesetSplit31"),
-	ImageNoPalsTilesetSplit32("ImageNoPalsTilesetSplit32"),
-	ImageNoPalsTilesetSplit33("ImageNoPalsTilesetSplit33"),
-	ImageNoPalsTilesetSplit21CompField("ImageNoPalsTilesetSplit21CompField"),
-	ImageNoPalsTilesetSplit22CompField("ImageNoPalsTilesetSplit22CompField"),
-	ImageNoPalsTilesetSplit31CompField("ImageNoPalsTilesetSplit31CompField"),
-	ImageNoPalsTilesetSplit32CompField("ImageNoPalsTilesetSplit32CompField"),
-	ImageNoPalsTilesetSplit33CompField("ImageNoPalsTilesetSplit33CompField"),
+	ImageNoPalsSplit21("ImageNoPalsSplit21"),
+	ImageNoPalsSplit22("ImageNoPalsSplit22"),
+	ImageNoPalsSplit31("ImageNoPalsSplit31"),
+	ImageNoPalsSplit32("ImageNoPalsSplit32"),
+	ImageNoPalsSplit33("ImageNoPalsSplit33"),
+	ImageNoPals21CompField("ImageNoPalsSplit21CompField"),
+	ImageNoPalsSplit22CompField("ImageNoPalsSplit22CompField"),
+	ImageNoPalsSplit31CompField("ImageNoPalsSplit31CompField"),
+	ImageNoPalsSplit32CompField("ImageNoPalsSplit32CompField"),
+	ImageNoPalsSplit33CompField("ImageNoPalsSplit33CompField"),
 	Palette16("Palette16"),
 	Palette32("Palette32"),
 	Palette16AllStrips("Palette16AllStrips"),
@@ -77,61 +77,61 @@ public enum CustomDataTypes {
 			return "typedef struct {\n"
 					+ "    u16 numTile;\n"
 					+ "    u32* tiles;\n"
-					+ "} TileSetOriginalCustom;\n";
+					+ "} " + TileSetOriginalCustom.getValue() + ";\n";
 		case TileMapOriginalCustom:
 			return "typedef struct {\n"
 					+ "    u16 w;\n"
 					+ "    u16 h;\n"
 					+ "    u16* tilemap;\n"
-					+ "} TileMapOriginalCustom;\n";
+					+ "} " + TileMapOriginalCustom.getValue() + ";\n";
 		case TileMapCustom:
 			return "typedef struct {\n"
 					+ "    u16* tilemap;\n"
-					+ "} TileMapCustom;\n";
+					+ "} " + TileMapCustom.getValue() + ";\n";
 		case TileMapCustomCompField:
 			return "typedef struct {\n"
 					+ "    u16 compression;\n"
 					+ "    u16* tilemap;\n"
-					+ "} TileMapCustomCompField;\n";
+					+ "} " + TileMapCustomCompField.getValue() + ";\n";
 		case ImageNoPals:
 			return "typedef struct {\n"
 					+ "    TileSetOriginalCustom* tileset;\n"
 					+ "    TileMapOriginalCustom* tilemap;\n"
-					+ "} ImageNoPals;\n";
+					+ "} " + ImageNoPals.getValue() + ";\n";
 		case ImageNoPalsCompField:
 			return "typedef struct {\n"
 					+ "    TileSet* tileset;\n"
 					+ "    TileMap* tilemap;\n"
-					+ "} ImageNoPalsCompField;\n";
-		case ImageNoPalsTilesetSplit21:
+					+ "} " + ImageNoPalsCompField.getValue() + ";\n";
+		case ImageNoPalsSplit21:
 			return "typedef struct {\n"
 					+ "    TileSetOriginalCustom* tileset1;\n"
 					+ "    TileSetOriginalCustom* tileset2;\n"
 					+ "    TileMapCustom* tilemap1;\n"
-					+ "} ImageNoPalsTilesetSplit21;\n";
-		case ImageNoPalsTilesetSplit22:
+					+ "} " + ImageNoPalsSplit21.getValue() + ";\n";
+		case ImageNoPalsSplit22:
 			return "typedef struct {\n"
 					+ "    TileSet* tileset1;\n"
 					+ "    TileSet* tileset2;\n"
 					+ "    TileMapCustom* tilemap1;\n"
 					+ "    TileMapCustom* tilemap2;\n"
-					+ "} ImageNoPalsTilesetSplit22;\n";
-		case ImageNoPalsTilesetSplit31:
+					+ "} " + ImageNoPalsSplit22.getValue() + ";\n";
+		case ImageNoPalsSplit31:
 			return "typedef struct {\n"
 					+ "    TileSetOriginalCustom* tileset1;\n"
 					+ "    TileSetOriginalCustom* tileset2;\n"
 					+ "    TileSetOriginalCustom* tileset3;\n"
 					+ "    TileMapCustom* tilemap1;\n"
-					+ "} ImageNoPalsTilesetSplit31;\n";
-		case ImageNoPalsTilesetSplit32:
+					+ "} " + ImageNoPalsSplit31.getValue() + ";\n";
+		case ImageNoPalsSplit32:
 			return "typedef struct {\n"
 					+ "    TileSetOriginalCustom* tileset1;\n"
 					+ "    TileSetOriginalCustom* tileset2;\n"
 					+ "    TileSetOriginalCustom* tileset3;\n"
 					+ "    TileMapCustom* tilemap1;\n"
 					+ "    TileMapCustom* tilemap2;\n"
-					+ "} ImageNoPalsTilesetSplit32;\n";
-		case ImageNoPalsTilesetSplit33:
+					+ "} " + ImageNoPalsSplit32.getValue() + ";\n";
+		case ImageNoPalsSplit33:
 			return "typedef struct {\n"
 					+ "    TileSet* tileset1;\n"
 					+ "    TileSet* tileset2;\n"
@@ -139,36 +139,36 @@ public enum CustomDataTypes {
 					+ "    TileMapCustom* tilemap1;\n"
 					+ "    TileMapCustom* tilemap2;\n"
 					+ "    TileMapCustom* tilemap3;\n"
-					+ "} ImageNoPalsTilesetSplit33;\n";
-		case ImageNoPalsTilesetSplit21CompField:
+					+ "} " + ImageNoPalsSplit33.getValue() + ";\n";
+		case ImageNoPals21CompField:
 			return "typedef struct {\n"
 					+ "    TileSet* tileset1;\n"
 					+ "    TileSet* tileset2;\n"
 					+ "    TileMapCustom* tilemap1;\n"
-					+ "} ImageNoPalsTilesetSplit21CompField;\n";
-		case ImageNoPalsTilesetSplit22CompField:
+					+ "} " + ImageNoPals21CompField.getValue() + ";\n";
+		case ImageNoPalsSplit22CompField:
 			return "typedef struct {\n"
 					+ "    TileSet* tileset1;\n"
 					+ "    TileSet* tileset2;\n"
 					+ "    TileMapCustomCompField* tilemap1;\n"
 					+ "    TileMapCustomCompField* tilemap2;\n"
-					+ "} ImageNoPalsTilesetSplit22CompField;\n";
-		case ImageNoPalsTilesetSplit31CompField:
+					+ "} " + ImageNoPalsSplit22CompField.getValue() + ";\n";
+		case ImageNoPalsSplit31CompField:
 			return "typedef struct {\n"
 					+ "    TileSet* tileset1;\n"
 					+ "    TileSet* tileset2;\n"
 					+ "    TileSet* tileset3;\n"
 					+ "    TileMapCustomCompField* tilemap1;\n"
-					+ "} ImageNoPalsTilesetSplit31CompField;\n";
-		case ImageNoPalsTilesetSplit32CompField:
+					+ "} " + ImageNoPalsSplit31CompField.getValue() + ";\n";
+		case ImageNoPalsSplit32CompField:
 			return "typedef struct {\n"
 					+ "    TileSet* tileset1;\n"
 					+ "    TileSet* tileset2;\n"
 					+ "    TileSet* tileset3;\n"
 					+ "    TileMapCustomCompField* tilemap1;\n"
 					+ "    TileMapCustomCompField* tilemap2;\n"
-					+ "} ImageNoPalsTilesetSplit32CompField;\n";
-		case ImageNoPalsTilesetSplit33CompField:
+					+ "} " + ImageNoPalsSplit32CompField.getValue() + ";\n";
+		case ImageNoPalsSplit33CompField:
 			return "typedef struct {\n"
 					+ "    TileSet* tileset1;\n"
 					+ "    TileSet* tileset2;\n"
@@ -176,81 +176,81 @@ public enum CustomDataTypes {
 					+ "    TileMapCustomCompField* tilemap1;\n"
 					+ "    TileMapCustomCompField* tilemap2;\n"
 					+ "    TileMapCustomCompField* tilemap3;\n"
-					+ "} ImageNoPalsTilesetSplit33CompField;\n";
+					+ "} " + ImageNoPalsSplit33CompField.getValue() + ";\n";
 		case Palette16:
 			return "typedef struct {\n"
 					+ "    u16* data;\n"
-					+ "} Palette16;\n";
+					+ "} " + Palette16.getValue() + ";\n";
 		case Palette32:
 			return "typedef struct {\n"
 					+ "    u16* data;\n"
-					+ "} Palette32;\n";
+					+ "} " + Palette32.getValue() + ";\n";
 		case Palette16AllStrips:
 			return "typedef struct {\n"
 					+ "    u16* data;\n"
-					+ "} Palette16AllStrips;\n";
+					+ "} " + Palette16AllStrips.getValue() + ";\n";
 		case Palette16AllStripsSplit2:
 			return "typedef struct {\n"
 					+ "    u16* data1;\n"
 					+ "    u16* data2;\n"
-					+ "} Palette16AllStripsSplit2;\n";
+					+ "} " + Palette16AllStripsSplit2.getValue() + ";\n";
 		case Palette16AllStripsSplit3:
 			return "typedef struct {\n"
 					+ "    u16* data1;\n"
 					+ "    u16* data2;\n"
 					+ "    u16* data3;\n"
-					+ "} Palette16AllStripsSplit3;\n";
+					+ "} " + Palette16AllStripsSplit3.getValue() + ";\n";
 		case Palette16AllStripsCompField:
 			return "typedef struct {\n"
 					+ "    u16 compression;\n"
 					+ "    u16* data;\n"
-					+ "} Palette16AllStripsCompField;\n";
+					+ "} " + Palette16AllStripsCompField.getValue() + ";\n";
 		case Palette16AllStripsSplit2CompField:
 			return "typedef struct {\n"
 					+ "    u16 compression;\n"
 					+ "    u16* data1;\n"
 					+ "    u16* data2;\n"
-					+ "} Palette16AllStripsSplit2CompField;\n";
+					+ "} " + Palette16AllStripsSplit2CompField.getValue() + ";\n";
 		case Palette16AllStripsSplit3CompField:
 			return "typedef struct {\n"
 					+ "    u16 compression;\n"
 					+ "    u16* data1;\n"
 					+ "    u16* data2;\n"
 					+ "    u16* data3;\n"
-					+ "} Palette16AllStripsSplit3CompField;\n";
+					+ "} " + Palette16AllStripsSplit3CompField.getValue() + ";\n";
 		case Palette32AllStrips:
 			return "typedef struct {\n"
 					+ "    u16* data;\n"
-					+ "} Palette32AllStrips;\n";
+					+ "} " + Palette32AllStrips.getValue() + ";\n";
 		case Palette32AllStripsSplit2:
 			return "typedef struct {\n"
 					+ "    u16* data1;\n"
 					+ "    u16* data2;\n"
-					+ "} Palette32AllStripsSplit2;\n";
+					+ "} " + Palette32AllStripsSplit2.getValue() + ";\n";
 		case Palette32AllStripsSplit3:
 			return "typedef struct {\n"
 					+ "    u16* data1;\n"
 					+ "    u16* data2;\n"
 					+ "    u16* data3;\n"
-					+ "} Palette32AllStripsSplit3;\n";
+					+ "} " + Palette32AllStripsSplit3.getValue() + ";\n";
 		case Palette32AllStripsCompField:
 			return "typedef struct {\n"
 					+ "    u16 compression;\n"
 					+ "    u16* data;\n"
-					+ "} Palette32AllStripsCompField;\n";
+					+ "} " + Palette32AllStripsCompField.getValue() + ";\n";
 		case Palette32AllStripsSplit2CompField:
 			return "typedef struct {\n"
 					+ "    u16 compression;\n"
 					+ "    u16* data1;\n"
 					+ "    u16* data2;\n"
-					+ "} Palette32AllStripsSplit2CompField;\n";
+					+ "} " + Palette32AllStripsSplit2CompField.getValue() + ";\n";
 		case Palette32AllStripsSplit3CompField:
 			return "typedef struct {\n"
 					+ "    u16 compression;\n"
 					+ "    u16* data1;\n"
 					+ "    u16* data2;\n"
 					+ "    u16* data3;\n"
-					+ "} Palette32AllStripsSplit3CompField;\n";
+					+ "} " + Palette32AllStripsSplit3CompField.getValue() + ";\n";
 		default:
 			return "NO_DEFINITION";
 		}

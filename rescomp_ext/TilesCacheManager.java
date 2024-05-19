@@ -73,7 +73,10 @@ public class TilesCacheManager {
 	}
 
 	public static List<Tile> loadCacheFromFile (String cacheId, String filename) {
-		File file = new File(rescomp_ext_jar_path + File.separator + filename);
+		boolean isAbsolutePath = false; // use this variable for debugging purpose
+		String location = isAbsolutePath ? "" : rescomp_ext_jar_path;
+		File file = new File(location + File.separator + filename);
+
 		try (Scanner scanner = new Scanner(file)) {
             if (!file.exists()) {
     			System.out.println("ERROR! Couldn't load file " + filename);
@@ -90,8 +93,8 @@ public class TilesCacheManager {
     			return Collections.emptyList();
             }
 
-            List<Tile> tiles = new ArrayList<>(80);
-            // Read the remaining line as comma-separated integers each
+            List<Tile> tiles = new ArrayList<>(256);
+            // Read the remaining lines as comma-separated integers each
             while (scanner.hasNextLine()) {
                 String[] values = scanner.nextLine().split(",");
                 if (values == null || values.length != 8)

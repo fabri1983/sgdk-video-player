@@ -45,7 +45,7 @@ const tilesetStatsId = "tilesetStats_1"
 // Extract the tiles you want from the file and create a new one with the tiles you choose.
 // Then you disable the stats and enable the loader.
 const enableTilesCacheStats = false;
-const loadTilesCache = true;
+const loadTilesCache = false;
 const tilesCacheId = "tilesCache_movie1"; // this is also the name of the variable contaning the Tileset with the cached tiles (it keeps the case)
 // 1792 is the max amount of tiles we allow with the custom config of BG_B (and the window) and BG_A starting at address 0xE000.
 // If we have a cache of 144 elemens then 1792-144=1648 is our cache starting index. 
@@ -56,26 +56,26 @@ const cacheStartIndexInVRAM = 1648;
 const tilesetSplit = 3;
 // split tilemap in N chunks. Current values are [1, 2, 3]. Always <= tilesetSplit
 const tilemapSplit = 1;
-// add compression field if you know some tilesets are not compressed (by rescomp rules) or if you plan to test different compression algorithms
-const tilesetAddCompressionField = true;
+// add compression field if you know some tilesets and tilemaps are not compressed (by rescomp rules) or if you plan to test different compression algorithms
+const imageAddCompressionField = true;
 
 var type_ImageNoPals = "ImageNoPals";
 if (tilesetSplit == 2) {
     if (tilemapSplit == 1)
-	    type_ImageNoPals = "ImageNoPalsTilesetSplit21";
+	    type_ImageNoPals = "ImageNoPalsSplit21";
     else
-        type_ImageNoPals = "ImageNoPalsTilesetSplit22";
+        type_ImageNoPals = "ImageNoPalsSplit22";
 }
 else if (tilesetSplit == 3) {
     if (tilemapSplit == 1)
-        type_ImageNoPals = "ImageNoPalsTilesetSplit31";
+        type_ImageNoPals = "ImageNoPalsSplit31";
     else if (tilemapSplit == 2)
-        type_ImageNoPals = "ImageNoPalsTilesetSplit32";
+        type_ImageNoPals = "ImageNoPalsSplit32";
     else
-	    type_ImageNoPals = "ImageNoPalsTilesetSplit33";
+	    type_ImageNoPals = "ImageNoPalsSplit33";
 }
 
-if (tilesetAddCompressionField)
+if (imageAddCompressionField)
 	type_ImageNoPals += "CompField";
 
 // split palettes in N chunks. Current valid values are [1, 2, 3]
@@ -120,7 +120,7 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 /* -------------------------------- */
 /*         AUTO GENERATED           */
 /*     DO NOT MODIFY THIS FILE      */
-/* See header_generator.js instead. */
+/*  See res_n_header_generator.js   */
 /* -------------------------------- */
 
 #define MOVIE_FRAME_RATE ${frameRate}
@@ -147,7 +147,7 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data.h`,
 /* -------------------------------- */
 /*         AUTO GENERATED           */
 /*     DO NOT MODIFY THIS FILE      */
-/* See header_generator.js instead. */
+/*  See res_n_header_generator.js   */
 /* -------------------------------- */
 
 #include <types.h>
@@ -170,31 +170,31 @@ const ${type_Palette32AllStrips}* pals_data[${sortedFileNamesEveryFirstStrip.len
 // --------- Generate .res file
 
 // You can provide a "comma separated list" of the types you want to include in the header file
-// Eg: "TileMapCustom, ImageNoPalsTilesetSplit31, Palette32AllStripsSplit3"
+// Eg: "TileMapCustom, ImageNoPalsSplit31, Palette32AllStripsSplit3"
 const headerAppenderAllCustom = `HEADER_APPENDER_ALL_CUSTOM  headerAllCustomTypes` + '\n\n';
 
-// Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1648  movieFrames_cache.txt
-// Flag enable possible values: FALSE, TRUE
+// Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1648  movieFrames_cache.txt APLIB NONE
+// Flag 'enable' possible values: FALSE, TRUE
 const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache?"TRUE":"FALSE"}  `
-		+ `${cacheStartIndexInVRAM}  ${tilesCacheId}.txt  FAST  NONE` + '\n\n';
+		+ `${cacheStartIndexInVRAM}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
 
 // Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  600
-// Flag enable possible values: FALSE, TRUE
+// Flag 'enable' possible values: FALSE, TRUE
 const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${enableTilesCacheStats?"TRUE":"FALSE"}  600` + '\n\n';
 
-// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesCache_movie1  3  1  ODD  64  FAST  NONE  TRUE  ALL
+// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesCache_movie1  3  1  ODD  64  FAST  NONE  NONE  TRUE  ALL
 const imageResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `IMAGE_STRIPS_NO_PALS  mv_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${tilesetStatsId}`
 			+ `  ${tilesCacheId}  ${tilesetSplit}  ${tilemapSplit}`
-            + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth}  FAST  NONE`
-			+ `  ` + (tilesetAddCompressionField ? 'TRUE' : 'FALSE')
+            + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth}  FAST  NONE  NONE`
+			+ `  ` + (imageAddCompressionField ? 'TRUE' : 'FALSE')
 			+ `  ALL`)
 	.join('\n') + '\n\n';
 
 // Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  PAL0PAL1  TRUE  FAST  NONE  FALSE
 const paletteResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `PALETTE_32_COLORS_ALL_STRIPS  pal_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${palette32Split}`
-			+ `  PAL0PAL1  TRUE  FAST  RNC2`
+			+ `  PAL0PAL1  TRUE  FAST  NONE`
 			+ `  ` + (paletteAddCompressionField ? 'TRUE' : 'FALSE'))
 	.join('\n') + '\n\n';
 

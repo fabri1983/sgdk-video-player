@@ -14,8 +14,8 @@ import sgdk.rescomp.Compiler;
 import sgdk.rescomp.Processor;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.resource.ImageStripsNoPals;
-import sgdk.rescomp.resource.ImageStripsNoPalsTilesetSplit2;
-import sgdk.rescomp.resource.ImageStripsNoPalsTilesetSplit3;
+import sgdk.rescomp.resource.ImageStripsNoPalsSplit2;
+import sgdk.rescomp.resource.ImageStripsNoPalsSplit3;
 import sgdk.rescomp.tool.TilesCacheManager;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
@@ -43,7 +43,7 @@ public class ImageStripsNoPalsProcessor implements Processor
 		if (fields.length < 5)
 		{
 			System.out.println("Wrong " + resId + " definition");
-			System.out.println(resId + " name \"baseFile\" strips tilesetStatsCollectorId [tilesCacheId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustom addCompressionField map_opt map_base]");
+			System.out.println(resId + " name \"baseFile\" strips tilesetStatsCollectorId [tilesCacheId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]");
 			System.out.println("  name               Image variable name. Eg: frame_12");
 			System.out.println("  baseFile           Path of the first strip for input RGB image file with palettes (BMP or PNG image). Eg: \"res/rgb/frame_12_0.png\" or \"res/rgb/frame_12_0_RGB.png\"");
 			System.out.println("  strips             How many strips is the final image composed of. Eg: 21. It means there are frame_12_0.png, frame_12_1.png, ... frame_12_20.png");
@@ -65,14 +65,17 @@ public class ImageStripsNoPalsProcessor implements Processor
 			System.out.println("                        0 / NONE        = no compression (default)");
 			System.out.println("                        1 / APLIB       = aplib library (good compression ratio but slow)");
 			System.out.println("                        2 / FAST / LZ4W = custom lz4 compression (average compression ratio but fast)");
-			System.out.println("  compressionCustom  Overrides the compression parameter. Accepted values:");
+			System.out.println("  compressionCustomTileSet  Overrides the compression parameter. Only for TileSet. Accepted values:");
+			for (CompressionCustom cc : CompressionCustom.values())
+				System.out.println("                       " + cc.getValue());
+			System.out.println("  compressionCustomTileMap  Overrides the compression parameter. Only for TileMap. Accepted values:");
 			for (CompressionCustom cc : CompressionCustom.values())
 				System.out.println("                       " + cc.getValue());
 			System.out.println("  addCompressionField  Include or exclude the compression field. TRUE or FALSE (default)");
 			System.out.println("  map_opt            Define the map optimisation level, accepted values:");
-			System.out.println("                       0 / NONE        = no optimisation (each tile is unique)");
-			System.out.println("                       1 / ALL         = find duplicate and flipped tile (default)");
-			System.out.println("                       2 / DUPLICATE   = find duplicate tile only");
+			System.out.println("                        0 / NONE        = no optimisation (each tile is unique)");
+			System.out.println("                        1 / ALL         = find duplicate and flipped tile (default)");
+			System.out.println("                        2 / DUPLICATE   = find duplicate tile only");
 			System.out.println("  map_base           Define the base tilemap value, useful to set a default priority, palette and base tile index offset.");
 			return null;
 		}
@@ -144,24 +147,29 @@ public class ImageStripsNoPalsProcessor implements Processor
         if (fields.length >= 11)
             compression = Util.getCompression(fields[10]);
 
-        // get custom compression value
-        CompressionCustom compressionCustom = CompressionCustom.NONE;
+        // get custom compression value for tileset
+        CompressionCustom compressionCustomTileset = CompressionCustom.NONE;
         if (fields.length >= 12)
-        	compressionCustom = CompressionCustom.from(fields[11]);
+        	compressionCustomTileset = CompressionCustom.from(fields[11]);
+
+        // get custom compression value for tilemap
+        CompressionCustom compressionCustomTilemap = CompressionCustom.NONE;
+        if (fields.length >= 13)
+        	compressionCustomTilemap = CompressionCustom.from(fields[12]);
 
         boolean addCompressionField = false;
-        if (fields.length >= 13)
-        	addCompressionField = Boolean.parseBoolean(fields[12]);
+        if (fields.length >= 14)
+        	addCompressionField = Boolean.parseBoolean(fields[13]);
 
         // get map optimization value
         TileOptimization tileOpt = TileOptimization.ALL;
-        if (fields.length >= 14)
-            tileOpt = Util.getTileOpt(fields[13]);
+        if (fields.length >= 15)
+            tileOpt = Util.getTileOpt(fields[14]);
 
         // get map base
         int mapBase = 0;
-        if (fields.length >= 15)
-            mapBase = Integer.parseInt(fields[14]);
+        if (fields.length >= 16)
+            mapBase = Integer.parseInt(fields[15]);
 
         // generate the list of strip files
         List<String> stripsInList = generateFilesInForStrips(baseFileAbsPath, baseFileName, baseFileNameMatcher, strips);
@@ -174,13 +182,13 @@ public class ImageStripsNoPalsProcessor implements Processor
 
         if (splitTileset == 1)
         	return new ImageStripsNoPals(name, stripsInList, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, tileOpt, mapBase, 
-        			compressionCustom, addCompressionField, tilesCacheId, tilesetStatsCollectorId);
+        			compressionCustomTileset, compressionCustomTilemap, addCompressionField, tilesCacheId, tilesetStatsCollectorId);
         else if (splitTileset == 2)
-        	return new ImageStripsNoPalsTilesetSplit2(name, stripsInList, splitTilemap, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, 
-        			tileOpt, mapBase, compressionCustom, addCompressionField, tilesCacheId, tilesetStatsCollectorId);
+        	return new ImageStripsNoPalsSplit2(name, stripsInList, splitTilemap, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, 
+        			tileOpt, mapBase, compressionCustomTileset, compressionCustomTilemap, addCompressionField, tilesCacheId, tilesetStatsCollectorId);
         else
-        	return new ImageStripsNoPalsTilesetSplit3(name, stripsInList, splitTilemap, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, 
-        			tileOpt, mapBase, compressionCustom, addCompressionField, tilesCacheId, tilesetStatsCollectorId);
+        	return new ImageStripsNoPalsSplit3(name, stripsInList, splitTilemap, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, 
+        			tileOpt, mapBase, compressionCustomTileset, compressionCustomTilemap, addCompressionField, tilesCacheId, tilesetStatsCollectorId);
     }
 
 	private List<String> generateFilesInForStrips(String absPath, String baseFileName, Matcher baseFileNameMatcher, int strips)

@@ -1,6 +1,5 @@
 package sgdk.rescomp.resource;
 
-import java.awt.Rectangle;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -59,93 +58,6 @@ public class TilesetOriginalCustom extends Resource
     final private java.util.Map<Tile, Integer> tileIndexesMap;
     final private java.util.Map<Integer, List<Tile>> tileByHashcodeMap;
 
-    // special constructor for TSX (can have several tilesets for a single map)
-    public TilesetOriginalCustom(List<TilesetOriginalCustom> tilesets)
-    {
-        super("tilesets");
-
-        tiles = new ArrayList<>();
-        tileIndexesMap = new HashMap<>();
-        tileByHashcodeMap = new HashMap<>();
-        isDuplicate = false;
-        addCompressionField = true;
-
-        // !! don't optimize tilesets (important to preserve tile indexes here) !!
-        for (TilesetOriginalCustom tileset : tilesets)
-            for (Tile tile : tileset.tiles)
-                add(tile);
-
-        // build the binary bloc
-        final int[] data = new int[tiles.size() * 8];
-
-        int offset = 0;
-        for (Tile t : tiles)
-        {
-            System.arraycopy(t.data, 0, data, offset, 8);
-            offset += 8;
-        }
-
-        // build BIN (tiles data) - no stored as this is a temporary tileset
-        bin = new BinCustom(id + "_data", data, Compression.NONE, CompressionCustom.NONE);
-
-        // compute hash code
-        hc = bin.hashCode();
-    }
-
-    // special constructor for empty tileset
-    public TilesetOriginalCustom()
-    {
-        super("empty_tileset");
-
-        tiles = new ArrayList<>();
-        tileIndexesMap = new HashMap<>();
-        tileByHashcodeMap = new HashMap<>();
-        isDuplicate = false;
-        addCompressionField = true;
-
-        // dummy bin
-        bin = new BinCustom("empty_bin", new byte[0], Compression.NONE, CompressionCustom.NONE);
-        // hash code
-        hc = bin.hashCode();
-    }
-
-    // special constructor for TSX (single blank tile tileset)
-    public TilesetOriginalCustom(String id, boolean blankTile)
-    {
-        super(id);
-
-        tiles = new ArrayList<>();
-        tileIndexesMap = new HashMap<>();
-        tileByHashcodeMap = new HashMap<>();
-        isDuplicate = false;
-        addCompressionField = true;
-
-        final int[] data;
-        
-        if (blankTile)
-        {
-            // just add a blank tile
-            add(new Tile(new int[8], 8, 0, false, 0));
-    
-            // build the binary bloc
-            data = new int[tiles.size() * 8];
-    
-            int offset = 0;
-            for (Tile t : tiles)
-            {
-                System.arraycopy(t.data, 0, data, offset, 8);
-                offset += 8;
-            }
-        }
-        else data = new int[0];
-
-        // build BIN (tiles data) resource (temporary tileset so don't add as internal resource)
-        bin = new BinCustom(id + "_data", data, Compression.NONE, CompressionCustom.NONE);
-
-        // compute hash code
-        hc = bin.hashCode();
-    }
-
     public TilesetOriginalCustom(String id, byte[] image8bpp, int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile,
             TileOptimization opt, Compression compression, CompressionCustom compressionCustom, boolean addBlank, boolean temp, String tilesCacheId,
             boolean addCompressionField)
@@ -174,73 +86,19 @@ public class TilesetOriginalCustom extends Resource
 
                 TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
 
-            	// we didn't find the cached tile
-            	if (match == null) {
-            		// not found in the current list of tiles --> add it
-	                if (index == -1)
-	                    add(tile);
-            	}
+            	// found the cached tile? then continue with next one
+            	if (match != null)
+            		continue;
+
+        		// not found in the current list of tiles --> add it
+                if (index == -1)
+                    add(tile);
             }
         }
 
         // add a blank tile if not already present
         if (!hasBlank && addBlank)
             add(new Tile(new int[8], 8, 0, false, 0));
-
-        // build the binary bloc
-        final int[] data = new int[tiles.size() * 8];
-
-        int offset = 0;
-        for (Tile t : tiles)
-        {
-            System.arraycopy(t.data, 0, data, offset, 8);
-            offset += 8;
-        }
-
-        // build BIN (tiles data) with wanted compression
-        final BinCustom binResource = new BinCustom(id + "_data", data, compression, compressionCustom);
-        // internal
-        binResource.global = false;
-
-        // temporary tileset --> don't store the bin data
-        if (temp)
-        {
-            isDuplicate = false;
-            bin = binResource;
-        }
-        else
-        {
-            // keep track of duplicate bin resource here
-            isDuplicate = findResource(binResource) != null;
-            // add as resource (avoid duplicate)
-            bin = (BinCustom) addInternalResource(binResource);
-        }
-
-        // compute hash code
-        hc = bin.hashCode();
-    }
-
-    public TilesetOriginalCustom(String id, byte[] image8bpp, int imageWidth, int imageHeight, List<? extends Rectangle> sprites, Compression compression, 
-    		CompressionCustom compressionCustom, boolean temp, boolean addCompressionField)
-    {
-        super(id);
-
-        tiles = new ArrayList<>();
-        tileIndexesMap = new HashMap<>();
-        tileByHashcodeMap = new HashMap<>();
-        this.addCompressionField = addCompressionField;
-
-        for (Rectangle rect : sprites)
-        {
-            // get width and height
-            final int widthTile = rect.width / 8;
-            final int heightTile = rect.height / 8;
-
-            // important to respect sprite tile ordering (vertical)
-            for (int i = 0; i < widthTile; i++)
-                for (int j = 0; j < heightTile; j++)
-                    add(Tile.getTile(image8bpp, imageWidth, imageHeight, rect.x + (i * 8), rect.y + (j * 8), 8));
-        }
 
         // build the binary bloc
         final int[] data = new int[tiles.size() * 8];

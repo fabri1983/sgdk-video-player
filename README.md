@@ -21,13 +21,13 @@ Originally inspired by [sgdk-video-player](https://github.com/haroldo-ok/sgdk-vi
 1) `env.bat`
 Set NodeJs env var.
 
-2) `extract.bat video.mp4 tmpmv 272 176 8 15 256`
+2) `extract.bat video.mp4 tmpmv 272 176 8 15 n`
 tmpmv: output folder
 272: frame width
 176: frame height
 8: rows per strip
 15: frame rate
-256: color reduction per frame (optional param)
+n: color reduction parameter is optional. Eg: 256
 
 3) Use nodejs custom app tiledpalettequant (this isn't public yet) to generate all RGB images with palettes data.
 Once rgb images with palettes were generated and before saving them ensure the next config:
@@ -44,13 +44,13 @@ rows per strip: 8
 frame rate: 15
 
 5) `compile_n_run.bat`
-Run it once to catch rescomp output to know tileset stats. Then:
+Run it once to catch rescomp output to know tileset stats (resource TILESET_STATS_COLLECTOR). Then:
 - manually set VIDEO_FRAME_TILESET_CHUNK_SIZE constant at `videoPlayer.h`.
 - manually set VIDEO_FRAME_TILESET_TOTAL_SIZE constant at `videoPlayer.h`.
 - edit `res/ext.resource.properties` and update same constants having suffix SPLIT2 or SPLIT3 accordingly to your case.
 - compile again.
-rom.bin generated at out folder.  
-Blastem's binary location is set inside the bat script.  
+`rom.bin` generated at out folder.  
+`Blastem's binary` location is set inside the bat script (edit accordingly).
 
 
 ### NOTES
@@ -61,16 +61,14 @@ format for the SGDK rescomp tool.
 
 
 ### TODO
-- If the use of new compression/decompression methods speed up the decompression over Stef's LZ4W then:
-	- use new video (better definition and correct width and height) from VirtualDub2 project.
+- Tileset decompression worst case takes 249315 cycles (519 scanlines). Maybe develop custom compressor/decompressor?
+- If the use of any of the alternative compression/decompression methods is better than Stef's LZ4W then:
+	- use new video from VirtualDub2 project. Better definition and right width and height.
 	- new dims are 272 width x 200 height (34 * 25 tiles).
-	- update this README.txt steps.
-- Try MOVIE_FRAME_RATE 15 once I finished all optimization changes.
-- Idea: call waitVInt_AND_flushDMA() with immediate flag so it starts flushing DMA. 
-	- Move the enable/disable VDP into HInt (use conditions when not need to start the pals swap steps).
-- Idea to avoid sending the first 2 strips'pals and send only first strip's pals:
-	- DMA_QUEUE the first 32 colors (2 pals) at VInt.
-	- Use flushQueue from Stef's dma_a.s and flushQueue(DMA_getQueueSize())
+	- update README.md steps 2 and 4.
+- Idea to avoid sending the first 2 strips'pals (64 colors) and send only first strip's pals (32 colors):
+	- DMA_QUEUE the first 2 pals (32 colors) at VInt.
+	- Use flushQueue from Stef's: flushQueue(DMA_getQueueSize())
 	- Add +32 and -32 accordingly in VInt and videoPlayer.c.
 	- Set HINT_PALS_CMD_ADDRR_RESET_VALUE to 32 in movieHVInterrupts.h.
 	- Hint now starts 1 row of tiles more than the already calculated in movieHVInterrupts.h.
@@ -79,25 +77,19 @@ format for the SGDK rescomp tool.
 	- discard palInFrameRootPtr and just use the setPalsPointer() call made in waitVInt_AND_flushDMA() without the bool parameter resetPalsPtrsForHInt.
 	- remove #define #if FORCE_NO_MISSING_FRAMES
 	- remove the condition if (!((prevFrame ^ vFrame) & 1))
-	- use ++dataPtr; instead of dataPtr += vFrame - prevFrame; (same for palsDataPtr)
 	- search for TODO PALS_1 and act accordingly.
-	- If the first 2 strips' pals are DMA_QUEUE in waitVInt_AND_flushDMA() then use flushQueue from Stef's dma_a.s and flushQueue(DMA_getQueueSize())
+	- If the first 2 strips' pals are DMA_QUEUE in waitVInt_AND_flushDMA() then use flushQueue from Stef's: flushQueue(DMA_getQueueSize())
 - Clear mem used by sound when exiting the video loop?
-- Try using XGM2 driver:
-	- extract audio with sample rate 13.3k
-		(I used VirtualDub2 to extract as 8bit signed 14KHz 1 channel (mono), but the extract.bat script is the correct approach and needs to be updated)
-		ffmpeg -i video.mp4 -r 15 -ar 13300 -ac 1 -acodec pcm_u8 res/sound/sound.wav
-	- in movie_sound.res: WAV  sound_wav  "sound/sound.wav"  XGM2  13300  FALSE
-	- Use the XGM2_playPCM methods.
 - Try 20 FPS NTSC (16 FPS PAL). So 60/3=20 in NTSC. And 50/3=16 in PAL.
 	- update MOVIE_FRAME_RATE at res_n_header_generator.js.
 	- update README.md steps 2 and 4.
 	- update videoPlayer in order to do the unpack/load of all the elements along 3 display loops.
 - Try final frame size: 288 x 208 px (36 x 26 tiles).
 - Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
-- Try to change from H40 to H32 on HInt Callback, and hope for any any speed gain?
+- Try to change from H40 to H32 (or was it viceversa?) on HInt Callback, and hope for any any speed gain?
 	See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
 	See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
+	This technique: https://gendev.spritesmind.net/forum/viewtopic.php?f=22&t=2964&sid=395ed554dbdeb24d2a5b64c29a0abd03&start=15#p35118
 
 
 ----

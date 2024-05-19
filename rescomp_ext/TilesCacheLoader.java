@@ -1,6 +1,7 @@
 package sgdk.rescomp.resource;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -76,19 +77,19 @@ public class TilesCacheLoader extends Resource
     @Override
     public List<Bin> getInternalBinResources()
     {
-        return Collections.emptyList();
+    	return Arrays.asList(bin);
     }
 
     @Override
     public int shallowSize()
     {
-        return 0;
+        return 2 + 2 + 4;
     }
 
     @Override
     public int totalSize()
     {
-        return 0;
+        return bin.totalSize() + shallowSize();
     }
 
     @Override

@@ -24,7 +24,7 @@ public class TilesCacheStatsEnablerProcessor implements Processor
             System.out.println(resId + " tilesCacheId enable minTilesetSize");
             System.out.println("  tilesCacheId      The same id you used in other resources to match this cache.");
             System.out.println("  enable            TRUE or FALSE.");
-            System.out.println("  minTilesetSize    Min tileset size (wihtout duplicates) to allow a tileset for stats. 0 allows all tilesets.");
+            System.out.println("  minTilesetSize    Min tileset size (without duplicates) to allow a tileset for stats. 0 allows all tilesets.");
             return null;
         }
 

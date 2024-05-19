@@ -59,8 +59,8 @@ public class MdComp {
 		//countUnique(data);
 
 		long suffix = System.currentTimeMillis();
-		String infile = tmdDir + File.separator + compression.getValue() + "_tmp_tiles_IN_" + suffix + ".bin";
-		String outfile = tmdDir + File.separator + compression.getValue() + "_tmp_tiles_OUT_" + suffix + ".bin";
+		String infile = tmdDir + File.separator + compression.getValue() + "_tmp_res_IN_" + suffix + ".bin";
+		String outfile = tmdDir + File.separator + compression.getValue() + "_tmp_res_OUT_" + suffix + ".bin";
 
 		try {
 			writeBytesToFile(data, infile);

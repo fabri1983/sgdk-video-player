@@ -14,7 +14,16 @@
     "*.h": "c",
     "*.c": "c",
     "vector": "c",
-    "xstring": "c"
+    "xstring": "c",
+    "deque": "c",
+    "initializer_list": "c",
+    "list": "c",
+    "queue": "c",
+    "stack": "c",
+    "type_traits": "c",
+    "xhash": "c",
+    "xtree": "c",
+    "xutility": "c"
 },
 "C_Cpp.errorSquiggles": "enabled",
 "[m68k]": {

@@ -1,6 +1,6 @@
 :: Example:
-::   extract.bat video.mp4 tmpmv 272 176 8 15 256
-::   (color reduction parameter is optional)
+::   extract.bat video.mp4 tmpmv 272 176 8 15 n
+::   (n: color reduction parameter is optional. Eg: 256)
 @ECHO OFF
 
 SET "TARGET_FOLDER=%2"
@@ -15,9 +15,10 @@ SET /A rowsPerStrip=%5
 SET /A fps=%6
 SET "COLORS=%7"
 
-ffmpeg -i %1 -r %fps% -qmin 1 -qmax 2 -qscale:v 1 -s %frameW%x%frameH% %TARGET_FOLDER%/frame_%%d.png -ar 22050 -ac 1 -acodec pcm_u8 res/sound/sound.wav
+ffmpeg -i %1 -r %fps% -qmin 1 -qmax 2 -qscale:v 1 -s %frameW%x%frameH% %TARGET_FOLDER%/frame_%%d.png -ar 13300 -ac 1 -acodec pcm_u8 res/sound/sound.wav
 :: The -vsync 0 parameter avoids needing to specify -r, and means all frames in the input file are processed
 
+:: test if COLORS var is empty
 IF "%COLORS%" == "" (
 	ECHO No color reduction.
 	GOTO _STRIPS
@@ -25,7 +26,7 @@ IF "%COLORS%" == "" (
 
 :_COLOR_REDUCTION
 ECHO Running mogrify for color reduction: %COLORS% ...
-mogrify -path %TARGET_FOLDER% -colors %COLORS% -quality 100 -format PNG8 %TARGET_FOLDER%\frame_*.png
+mogrify -path %TARGET_FOLDER% -colors %COLORS% -quantize YIQ -quality 100 -format PNG8 %TARGET_FOLDER%\frame_*.png
 
 :: rename PNG8 files into png, removing first the old ones
 RMDIR /S /Q %TARGET_FOLDER%\PNG8s 2>NUL

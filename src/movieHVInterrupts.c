@@ -32,17 +32,17 @@ FORCE_INLINE void turnOnVDP (u8 reg01) {
 /**
  * Wait until HCounter 0xC00009 reaches nth position (actually the (n*2)th pixel since the VDP counts by 2).
 */
-FORCE_INLINE void waitHCounter (u16 n) {
+FORCE_INLINE void waitHCounter (u8 n) {
     u32* regA=0; // placeholder used to indicate the use of an An register
     ASM_STATEMENT __volatile__ (
-        "    move.l    #0xC00009, %0\n"    // Load HCounter (VDP_HVCOUNTER_PORT + 1 = 0xC00009) into any An register
+        "    move.l    #0xC00009,%0\n"    // Load HCounter (VDP_HVCOUNTER_PORT + 1 = 0xC00009) into any An register
         ".loopHC%=:\n" 
-        "    cmp.b     (%0), %1\n"         // cmp: n - (0xC00009). Compares byte because hcLimit won't be > 160 for our practical cases
-        "    bhi       .loopHC%=\n"        // loop back if n is higher than (0xC00009)
+        "    cmp.b     (%0),%1\n"         // cmp: n - (0xC00009). Compares byte because hcLimit won't be > 160 for our practical cases
+        "    bhi       .loopHC%=\n"       // loop back if n is higher than (0xC00009)
             // bhi is for unsigned comparisons
         : "+a" (regA)
         : "d" (n)
-        :
+        : "cc"
     );
 }
 
@@ -70,17 +70,17 @@ void NO_INLINE setupDMAForPals (u16 len, u32 fromAddr) {
 
 static u16* palInFrameRootPtr; // points to the first pals the HInt starts to load
 static u16* palInFramePtr; // pals pointer increased in every HInt call cycle
-static u16 palCmdAddrrToggle = HINT_PALS_CMD_ADDRR_RESET_VALUE; // used to toggle between the two different CRAM cmd addresses used to send the pals
+static u16 palCmdAddrrToggle = HINT_PALS_CMD_ADDR_RESET_VALUE; // used to toggle between the two different CRAM cmd addresses used to send the pals
 static u16 vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1;
 
-void setPalsPointer (u16* rootPalsPtr) {
+void setMoviePalsPointer (u16* rootPalsPtr) {
     palInFrameRootPtr = rootPalsPtr;
     palInFramePtr = rootPalsPtr;
 }
 
-void VIntCallback () {
+void VIntMovieCallback () {
 	palInFramePtr = palInFrameRootPtr; // Resets to 1st strip's palettes due to ptr modification made by HInt
-	palCmdAddrrToggle = HINT_PALS_CMD_ADDRR_RESET_VALUE; // Resets pal index due to modification made by HInt.
+	palCmdAddrrToggle = HINT_PALS_CMD_ADDR_RESET_VALUE; // Resets pal index due to modification made by HInt.
 	vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1; // Resets due to modification made by HInt
 }
 

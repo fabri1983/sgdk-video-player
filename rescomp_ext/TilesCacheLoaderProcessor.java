@@ -30,7 +30,7 @@ public class TilesCacheLoaderProcessor implements Processor
             System.out.println("  cacheStartIndexInVRAM   Starting index of the tiles cache in VRAM. SGDK places tiles from VRAM address 0.");
             System.out.println("  filename                File containing the definition for cached tiles. Relative to res folder.");
 			System.out.println("  compression             Compression type. Accepted values:");
-			System.out.println("                            -1 / BEST / AUTO = use best compression");
+			System.out.println("                           -1 / BEST / AUTO = use best compression");
 			System.out.println("                            0 / NONE        = no compression (default)");
 			System.out.println("                            1 / APLIB       = aplib library (good compression ratio but slow)");
 			System.out.println("                            2 / FAST / LZ4W = custom lz4 compression (average compression ratio but fast)");
@@ -65,4 +65,14 @@ public class TilesCacheLoaderProcessor implements Processor
 		return new TilesCacheLoader(tilesCacheId, originalCacheId_keepCase, cacheStartIndexInVRAM, filename, enable, 
 				compression, compressionCustom);
     }
+
+//    public static void main(String[] args) throws Exception {
+//    	TilesCacheLoaderProcessor p = new TilesCacheLoaderProcessor();
+//		String[] fields_test_movie = {
+//				resId, "tilesCache_movie1", "TRUE", "1648", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\tilesCache_movie1.txt", 
+//				"FAST", "NONE" 
+//			};
+//		
+//		p.execute(fields_test_movie);
+//    }
 }

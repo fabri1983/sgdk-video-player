@@ -39,7 +39,7 @@ FORCE_INLINE void flushDMA_1elem () {
 		"move.l   (%0)+, (%1)\n"
 		"move.l   (%0)+, (%1)\n"
 		"move.w   (%0)+, (%1)\n"
-		"move.w   (%0)+, (%1)\n"    // Stef: important to use word write for command triggering DMA (see SEGA notes)
+		"move.w   (%0)+, (%1)\n"      // Stef: important to use word write for command triggering DMA (see SEGA notes)
 		: 
 		: "a" (elemPtr), "a" (placeHolder_ax)
 		: "memory"

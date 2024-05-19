@@ -37,6 +37,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/processor/Palette16Processor.class ^
 	./sgdk/rescomp/processor/Palette32AllStripsProcessor.class ^
 	./sgdk/rescomp/processor/Palette32Processor.class ^
+	./sgdk/rescomp/processor/SpriteMultiPalProcessor.class ^
 	./sgdk/rescomp/processor/TilesCacheLoaderProcessor.class ^
 	./sgdk/rescomp/processor/TilesCacheStatsEnablerProcessor.class ^
 	./sgdk/rescomp/processor/TilesCacheStatsPrinterProcessor.class ^
@@ -48,8 +49,8 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/HeaderAppenderCompressionCustom.class ^
 	./sgdk/rescomp/resource/HeaderAppenderCompressionCustomTracker.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPals.class ^
-	./sgdk/rescomp/resource/ImageStripsNoPalsTilesetSplit2.class ^
-	./sgdk/rescomp/resource/ImageStripsNoPalsTilesetSplit3.class ^
+	./sgdk/rescomp/resource/ImageStripsNoPalsSplit2.class ^
+	./sgdk/rescomp/resource/ImageStripsNoPalsSplit3.class ^
 	./sgdk/rescomp/resource/Palette16.class ^
 	./sgdk/rescomp/resource/Palette16AllStrips.class ^
 	./sgdk/rescomp/resource/Palette16AllStripsSplit2.class ^
@@ -58,6 +59,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/Palette32AllStrips.class ^
 	./sgdk/rescomp/resource/Palette32AllStripsSplit2.class ^
 	./sgdk/rescomp/resource/Palette32AllStripsSplit3.class ^
+	./sgdk/rescomp/resource/SpriteMultiPal.class ^
 	./sgdk/rescomp/resource/TilemapCustom.class ^
 	./sgdk/rescomp/resource/TilemapOriginalCustom.class ^
 	./sgdk/rescomp/resource/TilesCacheLoader.class ^
