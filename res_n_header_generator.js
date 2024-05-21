@@ -44,13 +44,15 @@ const tilesetStatsId = "tilesetStats_1"
 // You first enable the stats and disable the loader, so you end up with the stats file.
 // Extract the tiles you want from the file and create a new one with the tiles you choose.
 // Then you disable the stats and enable the loader.
+// Finally check the new TILESET_STATS_COLLECTOR's output stats to accomodate new tiles max chunk and total values.
 const enableTilesCacheStats = false;
 const loadTilesCache = false;
 const tilesCacheId = "tilesCache_movie1"; // this is also the name of the variable contaning the Tileset with the cached tiles (it keeps the case)
-// 1792 is the max amount of tiles we allow with the custom config of BG_B (and the window) and BG_A starting at address 0xE000.
+// 1792 is the max amount of tiles we allow with the plane size of 64x32 and custom config of BG_B (and the window) and BG_A starting at address 0xE000.
 // If we have a cache of 144 elemens then 1792-144=1648 is our cache starting index. 
-// You can set whatever other index, although you need to know where your game tiles will be placed to avoid override the cache.
-const cacheStartIndexInVRAM = 1648;
+// You can set whatever other index, although you need to know where your game tiles will be placed to avoid overwriting the cache.
+const tilesCacheFile_countLines = countTilesCacheLines("res/" + tilesCacheId + ".txt");
+const cacheStartIndexInVRAM = 1792 - tilesCacheFile_countLines;
 
 // split tileset in N chunks. Current valid values are [1, 2, 3]
 const tilesetSplit = 3;
@@ -200,8 +202,10 @@ const paletteResListStr = sortedFileNamesEveryFirstStrip
 
 // Eg: TILES_CACHE_STATS_PRINTER  movieFrames_cache  CONSOLE
 // Flag printTo possible values: CONSOLE, FILE, NONE
+// This resource runs only if the tile cache stats were set enabled, at TILES_CACHE_STATS_ENABLER
 const printTilesCacheStatsStr = `TILES_CACHE_STATS_PRINTER  ${tilesCacheId}  FILE` + '\n\n';
 
+// This resource runs only if the tile cache stats were set enabled, at TILES_CACHE_STATS_ENABLER
 const printTilesetStatsCollector = `TILESET_STATS_COLLECTOR  ${tilesetStatsId}` + '\n\n';
 
 const customCompressorTracker = `HEADER_APPENDER_COMPRESSION_CUSTOM_TRACKER  compressionCustomTrackerHeader_movie1` + '\n\n';
@@ -215,3 +219,17 @@ fs.writeFileSync(`${RES_DIR}/movie_frames.res`,
         printTilesCacheStatsStr + 
 		printTilesetStatsCollector +
 		customCompressorTracker);
+
+function countTilesCacheLines (filePath) {
+	try {
+		const fileContent = fs.readFileSync(filePath, 'utf8');
+		const lines = fileContent.split('\n');
+		const count = lines.filter(line => line.trim() !== '').length;
+		if (count > 0)
+			return count - 1; // first line is the cache id
+		return 0;
+	} catch (error) {
+		return 0;
+		//throw error;
+	}
+}

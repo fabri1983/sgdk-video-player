@@ -172,6 +172,10 @@ public class TilemapOriginalCustom extends Resource
         this.addCompressionField = addCompressionField;
 
         // build BIN (tilemap data) with wanted compression
+        if (CompressionCustom.isOneOfSgdkCompression(compressionCustom)) {
+        	compression = CompressionCustom.getSgdkCompression(compressionCustom);
+        	compressionCustom = CompressionCustom.NONE;
+        }
         final BinCustom binResource = new BinCustom(id + "_data", data, compression, compressionCustom);
 
         // add as resource (avoid duplicate)

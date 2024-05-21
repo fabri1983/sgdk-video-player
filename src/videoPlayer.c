@@ -75,7 +75,7 @@ static FORCE_INLINE void fast_DMA_flushQueue () {
     // VDP_setAutoInc(autoInc); // restore autoInc
 }
 
-static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender, bool resetPalsPtrsForHInt) {
+static void NO_INLINE waitVInt_AND_flushDMA () {
 	// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
 	// We have to enqueue the first 2 strips' pals on every active display period so when on Blank period the data is DMAed into CRAM
 	//PAL_setColors(0, (const u16*) palsForRender, 64, DMA_QUEUE); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
@@ -91,7 +91,7 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender, bool resetPalsP
 	// casting to u8* allows us to use cmp.b instead of cmp.l, by using vtimerPtr+3 which is the first byte of vtimer
 	u8* vtimerPtr = (u8*)&vtimer + 3;
 	ASM_STATEMENT __volatile__ (
-        "1:\n" 
+        "1:\n"
         "    cmp.b   (%1), %0\n"    // cmp: %0 - (%1) => dN - (aN)
         "    beq.s   1b\n"          // loop back if equal
         :
@@ -102,10 +102,6 @@ static void NO_INLINE waitVInt_AND_flushDMA (u16* palsForRender, bool resetPalsP
 	// AT THIS POINT THE VInt callback WAS ALREADY CALLED. Check sega.s to see when vtimer is updated and what other callbacks are called.
 
 	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);//VDP_setEnable(FALSE);
-
-	// Reset the pals pointers used by HInt so they now point to the new unpacked pals
-	if (resetPalsPtrsForHInt)
-		setMoviePalsPointer(palsForRender);
 
 	setBusProtection_Z80(TRUE);
 	waitSubTick_(10); // Z80 delay --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
@@ -128,7 +124,7 @@ static FORCE_INLINE void waitVInt () {
 	// casting to u8* allows us to use cmp.b instead of cmp.l, by using vtimerPtr+3 which is the first byte of vtimer
 	u8* vtimerPtr = (u8*)&vtimer + 3;
 	ASM_STATEMENT __volatile__ (
-        "1:\n" 
+        "1:\n"
         "    cmp.b   (%1), %0\n"    // cmp: %0 - (%1) => dN - (aN)
         "    beq.s   1b\n"          // loop back if equal
         :
@@ -141,18 +137,28 @@ static FORCE_INLINE void waitVInt () {
 
 static void loadTilesCache () {
 #ifdef DEBUG_TILES_CACHE
+	//KLog_U1("tilesCache_movie1.numTile ", tilesCache_movie1.numTile);
 	if (tilesCache_movie1.numTile > 0) {
-		for (u16 i=0; i < 8*tilesCache_movie1.numTile; i=i+8) {
-			u32* dptr = tilesCache_movie1.tiles[i];
-			kprintf("%d,%d,%d,%d,%d,%d,%d,%d", *(dptr+0),*(dptr+1),*(dptr+2),*(dptr+3),*(dptr+4),*(dptr+5),*(dptr+6),*(dptr+7));
-		}
-		KLog_U1("tilesCache_movie1.numTile ", tilesCache_movie1.numTile);
-		// Fill all tiles cached data with value 1, which points to the 2nd color for whatever palette is loaded in CRAM 
-		VDP_fillTileData(1, MOVIE_TILES_CACHE_START_INDEX, tilesCache_movie1.numTile, TRUE);
+		// In order to print the cache tiles values you need to set compression to NONE in the res file
+		// u32* dptr = tilesCache_movie1.tiles;
+		// for (u16 i=0; i < tilesCache_movie1.numTile; ++i) {
+		// 	kprintf("%d,%d,%d,%d,%d,%d,%d,%d", *(dptr+0),*(dptr+1),*(dptr+2),*(dptr+3),*(dptr+4),*(dptr+5),*(dptr+6),*(dptr+7));
+		// 	dptr += 8;
+		// }
+
+		// Set 2nd color of every palette as magenta
+		PAL_setColor(0x1, 0xE0E);
+		PAL_setColor(0x1 + 16, 0xE0E);
+		PAL_setColor(0x1 + 32, 0xE0E);
+		PAL_setColor(0x1 + 48, 0xE0E);
+		// Fill all VRAM targeted for cached tiles with 0x11, which points to the 2nd color for whatever palette is loaded in CRAM
+		VDP_fillTileData(0x11, MOVIE_TILES_CACHE_START_INDEX, tilesCache_movie1.numTile, TRUE);
 	}
 #else
-	if (tilesCache_movie1.numTile > 0)
+	if (tilesCache_movie1.numTile > 0) {
 		VDP_loadTileSet((TileSet* const) &tilesCache_movie1, MOVIE_TILES_CACHE_START_INDEX, DMA);
+		VDP_waitDMACompletion();
+	}
 #endif
 }
 
@@ -180,11 +186,14 @@ static void allocateTilemapBuffer () {
 
 static FORCE_INLINE void unpackFrameTilemap (TileMapCustomCompField* src, u16 len, u16 offset) {
 	const u16 size = len * 2;
-	#if ALL_TILEMAPS_COMPRESSED
+#if ALL_TILEMAPS_COMPRESSED
 	lz4w_unpack((u8*) FAR_SAFE(src->tilemap, size), (u8*) (unpackedTilemap + offset));
-	#else
-    memcpy((u8*) (unpackedTilemap + offset), FAR_SAFE(src->tilemap, size), size);
-	#endif
+#else
+	if (src->compression != COMPRESSION_NONE)
+		lz4w_unpack((u8*) FAR_SAFE(src->tilemap, size), (u8*) (unpackedTilemap + offset));
+	else
+    	memcpy((u8*) (unpackedTilemap + offset), FAR_SAFE(src->tilemap, size), size);
+#endif
 }
 
 static void freeTilemapBuffer () {
@@ -223,7 +232,6 @@ static void freePalettesBuffer () {
 static FORCE_INLINE void enqueueTilesetData (u16 startTileIndex, u16 length) {
 	// This was the previous way
 	// VDP_loadTileData(unpackedTilesetChunk, startTileIndex, length, DMA_QUEUE);
-
 	// Now we use custom DMA_queueDmaFast() because the data is in RAM, so no 128KB bank boundary check is needed
 	enqueueDMA_1elem((void*) unpackedTilesetChunk, startTileIndex * 32, length * 16, 2);
 }
@@ -231,7 +239,6 @@ static FORCE_INLINE void enqueueTilesetData (u16 startTileIndex, u16 length) {
 static FORCE_INLINE void enqueueTilemapData (u16 tilemapAddrInPlane) {
 	// This was the previous way which benefits from tilemap width being 64 tiles
 	// VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_TILEMAP_NUM, 2, DMA_QUEUE);
-
 	// Now we use custom DMA_queueDmaFast() because the data is in RAM, so no 128KB bank boundary check is needed
 	enqueueDMA_1elem((void*) unpackedTilemap, tilemapAddrInPlane + (0 * 2), VIDEO_FRAME_TILEMAP_NUM, 2);
 }
@@ -259,35 +266,22 @@ static void fadeToBlack () {
 		if ((loopFrames-- % FADE_TO_BLACK_STEP_FREQ) == 0) {
 			u16* palsPtr = unpackedPalsRender;
 			for (u16 i=MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP; i--;) {
-                // IMPL A:
                 u16 d = *palsPtr - 0x222; // decrement 1 unit in every component
                 switch (d & 0b1000100010000) {
-                       case 0b0000000010000: d &= ~0b0000000011110; break; // red overflows? then zero it
-                       case 0b0000100010000: d &= ~0b0000111111110; break; // red and green overflow? then zero them
-                       case 0b0000100000000: d &= ~0b0000111100000; break; // green overflows? then zero it
-                       case 0b1000000010000: d &= ~0b1111000011110; break; // red and blue overflow? then zero them
-                       case 0b1000000000000: d &= ~0b1111000000000; break; // blue overflows? then zero it
-                       case 0b1000100000000: d &= ~0b1111111100000; break; // green and blue overflow? then zero them
-                       case 0b1000100010000: d = 0; break; // all colors overflow, then zero them
-                       default: break;
+					case 0b0000000010000: d &= ~0b0000000011110; break; // red overflows? then zero it
+					case 0b0000100010000: d &= ~0b0000111111110; break; // red and green overflow? then zero them
+					case 0b0000100000000: d &= ~0b0000111100000; break; // green overflows? then zero it
+					case 0b1000000010000: d &= ~0b1111000011110; break; // red and blue overflow? then zero them
+					case 0b1000000000000: d &= ~0b1111000000000; break; // blue overflows? then zero it
+					case 0b1000100000000: d &= ~0b1111111100000; break; // green and blue overflow? then zero them
+					case 0b1000100010000: d = 0; break; // all colors overflow, then zero them
+					default: break;
                 }
                 *palsPtr++ = d;
-
-                // IMPL B:
-                // u16 d = *palsPtr - 0x222; // decrement 1 unit in every component
-                // if (d & 0b0000000010000) d &= ~0b0000000011110; // red overflows? then zero it
-                // if (d & 0b0000100000000) d &= ~0b0000111100000; // green overflows? then zero it
-                // if (d & 0b1000000000000) d &= ~0b1111000000000; // blue overflows? then zero it
-                // *palsPtr++ = d;
-
-				// IMPL C: decay faster
-				// u16 d = *palsPtr - 0x222; // decrement 1 unit in every component
-                // if (d & 0b1000100010000) d = 0; // if only one color overflows then zero them all
-                // *palsPtr++ = d;
             }
 		}
 		// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
-		//waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
+		//waitVInt_AND_flushDMA();
 		waitVInt();
 	}
 }
@@ -298,26 +292,28 @@ void playMovie () {
 
 	// Blacks out everything in screen while first frame is being loaded
 	PAL_setColors(0, palette_black, 64, DMA);
+	VDP_waitDMACompletion();
 
 	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 
-	// Only Plane size 64x32 due to internal VRAM setup made by SGDK and the use of fixed tilemap width
+	// Only Plane size 64x32 due to internal VRAM setup made by SGDK and the use of fixed tilemap width of 64 tiles by the custom rescomp_ext plugin.
     VDP_setPlaneSize(64, 32, TRUE);
-	// If we want to use up to 1791 tiles (remember we keep the reserved tile at address 0) then:
-	// - 0xE000 is where we set BG_A plane address to start at.
-	// - So last tile index address can be DFE0 (1791 * 32), 1 tile behind E000.
-	// - Move BG_B and Window planes to BG_A plane so we can use that space to achieve up to 1791 tiles.
-    VDP_setBGBAddress(VDP_getBGAAddress());
+
+	// If we want to use up to 1791 tiles (remember we keep the reserved tile at address 0) then we need to move BG_B 
+	// and Window planes into BG_A so we can use the space otherwise used by BG_B by default. So:
+	// - 0xE000 is where BG_A plane (its tilemap) address starts.
+	// - Move BG_B and Window planes addresses into BG_A plane address, achieving up to 1791 tiles.
+	VDP_setBGBAddress(VDP_getBGAAddress());
     VDP_setWindowAddress(VDP_getBGAAddress());
 
 	// Clear all tileset VRAM until BG_B plane address (we can use the address as a counter because VRAM tileset starts at address 0)
 	u16 numToClear = VDP_getBGBAddress();
 	VDP_fillTileData(0, 1, numToClear, TRUE);
 
-	loadTilesCache();
 	allocateTilesetBuffer();
 	allocateTilemapBuffer();
 	allocatePalettesBuffer();
+	loadTilesCache();
 	MEM_pack();
 
 	#if VIDEO_FRAME_ADVANCE_STRATEGY == 4
@@ -335,7 +331,7 @@ void playMovie () {
 	u16 yp = (screenHeight - MOVIE_FRAME_HEIGHT_IN_TILES*8 + 7)/8/2; // centered in Y axis
 	yp = max(yp, MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER); // offsets the Y axis plane position to avoid the flickering due to DMA transfer leaking into active display area
 
-	u16 tilemapAddrInPlane = VDP_getPlaneAddress(BG_B, xp, yp);
+	u16 tilemapAddrInPlane = VDP_getPlaneAddress(BG_A, xp, yp);
 
 	// Load the appropriate driver
 	// Z80_loadDriver(Z80_DRIVER_PCM, TRUE);
@@ -359,7 +355,7 @@ void playMovie () {
 		setMoviePalsPointer(unpackedPalsRender); // Palettes are all black at this point
 
 		SYS_disableInts();
-			// SYS_setVIntCallback(VIntCallback);
+			// SYS_setVIntCallback(VIntPlayerCallback);
 			SYS_setVIntCallback(VIntMovieCallback);
 			VDP_setHIntCounter(HINT_COUNTER_FOR_COLORS_UPDATE - 1);
 			VDP_setHInterrupt(TRUE);
@@ -404,17 +400,18 @@ void playMovie () {
 			u16 numTile1 = data[vFrame]->tileset1->numTile;
 			unpackFrameTileset(data[vFrame]->tileset1);
 			enqueueTilesetData(baseTileIndex, numTile1);
-			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
+
+			waitVInt_AND_flushDMA();
 
 			u16 numTile2 = data[vFrame]->tileset2->numTile;
 			unpackFrameTileset(data[vFrame]->tileset2);
 			enqueueTilesetData(baseTileIndex + numTile1, numTile2);
-			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
+			waitVInt_AND_flushDMA();
 
 			u16 numTile3 = data[vFrame]->tileset3->numTile;
 			unpackFrameTileset(data[vFrame]->tileset3);
 			enqueueTilesetData(baseTileIndex + numTile1 + numTile2, numTile3);
-			waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
+			waitVInt_AND_flushDMA();
 
 			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE
 			baseTileIndex ^= (TILE_USER_INDEX_CUSTOM ^ (TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE)); // a ^= (x1 ^ x2)
@@ -472,11 +469,14 @@ void playMovie () {
 			#ifdef DEBUG_FIXED_FRAME
 			// If previous frame wasn't the fixed frame, we don't need to modify the pointers the HInt is using so it continues showing the fixed frame
 			if (prevFrame != DEBUG_FIXED_FRAME)
-				waitVInt_AND_flushDMA(unpackedPalsRender, FALSE);
-			else
-				waitVInt_AND_flushDMA(unpackedPalsRender, TRUE);
+				waitVInt_AND_flushDMA();
+			else {
+				setMoviePalsPointer(unpackedPalsRender);
+				waitVInt_AND_flushDMA();
+			}
 			#else
-			waitVInt_AND_flushDMA(unpackedPalsRender, TRUE);
+			setMoviePalsPointer(unpackedPalsRender);
+			waitVInt_AND_flushDMA();
 			#endif
 
 			#ifdef LOG_DIFF_BETWEEN_VIDEO_FRAMES
@@ -531,9 +531,9 @@ void playMovie () {
 			break;
 		// Loop the video
 		else {
-			// Clears all tilemap VRAM region for BG_B
-			VDP_clearTileMap(VDP_BG_B, 0, 1 << (planeWidthSft + planeHeightSft), TRUE); // See VDP_clearPlane() for details
-			waitMs_(400);
+			// Clears all tilemap VRAM region for BG_A
+			VDP_clearTileMap(VDP_BG_A, 0, 1 << (planeWidthSft + planeHeightSft), TRUE); // See VDP_clearPlane() for details
+			waitMs_(500);
 		}
     }
 

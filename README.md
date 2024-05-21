@@ -23,23 +23,23 @@ Set NodeJs env var.
 
 2) `extract.bat video.mp4 tmpmv 272 176 8 15 n`
 tmpmv: output folder
-272: frame width
-176: frame height
+272: frame width (multiple of 8)
+176: frame height(multiple of 8)
 8: rows per strip
 15: frame rate
-n: color reduction parameter is optional. Eg: 256
+n: color reduction (optional parameter). Max value 256 (for PNGs).
 
 3) Use nodejs custom app tiledpalettequant (this isn't public yet) to generate all RGB images with palettes data.
 Once rgb images with palettes were generated and before saving them ensure the next config:
 - in _SGDK settings_ section:
 	- check _Switch 2 Palettes positions_
 	- check _Start at [PAL0,PAL1] first_
-	- enter 22 (strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
+	- enter 23 (strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
 - Download the images and move them at res\rgb folder.
 
 4) `node res_n_header_generator.js 272 176 8 15`
-frame width: 272
-frame height: 176
+frame width: 272 (multiple of 8)
+frame height: 176 (multiple of 8)
 rows per strip: 8
 frame rate: 15
 

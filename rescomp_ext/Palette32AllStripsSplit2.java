@@ -102,6 +102,10 @@ public class Palette32AllStripsSplit2 extends Resource
         System.arraycopy(palettesAll, size1, chunk2, 0, size2);
 
         // build BIN
+        if (CompressionCustom.isOneOfSgdkCompression(compressionCustom)) {
+        	compression = CompressionCustom.getSgdkCompression(compressionCustom);
+        	compressionCustom = CompressionCustom.NONE;
+        }
         bin1 = (BinCustom) addInternalResource(new BinCustom(id + "_chunk1_data", chunk1, compression, compressionCustom, false));
         bin2 = (BinCustom) addInternalResource(new BinCustom(id + "_chunk2_data", chunk2, compression, compressionCustom, false));
 

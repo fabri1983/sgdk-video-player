@@ -35,7 +35,7 @@ FORCE_INLINE void turnOnVDP (u8 reg01) {
 FORCE_INLINE void waitHCounter (u8 n) {
     u32* regA=0; // placeholder used to indicate the use of an An register
     ASM_STATEMENT __volatile__ (
-        "    move.l    #0xC00009,%0\n"    // Load HCounter (VDP_HVCOUNTER_PORT + 1 = 0xC00009) into any An register
+        "    move.l    #0xC00009,%0\n"    // Load HCounter (VDP_HVCOUNTER_PORT + 1 = 0xC00009) into an An register
         ".loopHC%=:\n" 
         "    cmp.b     (%0),%1\n"         // cmp: n - (0xC00009). Compares byte because hcLimit won't be > 160 for our practical cases
         "    bhi       .loopHC%=\n"       // loop back if n is higher than (0xC00009)
@@ -75,7 +75,6 @@ static u16 vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1;
 
 void setMoviePalsPointer (u16* rootPalsPtr) {
     palInFrameRootPtr = rootPalsPtr;
-    palInFramePtr = rootPalsPtr;
 }
 
 void VIntMovieCallback () {

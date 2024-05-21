@@ -1,8 +1,15 @@
 package sgdk.rescomp.type;
 
+import sgdk.rescomp.type.Basics.Compression;
+
 public enum CompressionCustom {
 
-	NONE(					"NONE",					"",						0), // same than Compression.NONE.ordinal() - 1 (because first element is AUTO)
+	AUTO(					"AUTO",					"",						0),
+	NONE(					"NONE",					"",						0),
+	FAST(					"FAST",					"",						0),
+	LZ4W(					"LZ4W",					"",						0),
+	APLIB(					"APLIB",				"",						0),
+	BEST(					"BEST",					"",						0),
 	BYTEKILLER(				"BYTEKILLER",			"bytekiller",			10),
 	CLOWNNEMESIS(			"CLOWNNEMESIS",			"clownnemesis",			11),
 	COMPER(					"COMPER",				"compcmp",				12),
@@ -62,4 +69,35 @@ public enum CompressionCustom {
         }
         throw new IllegalArgumentException("No enum constant with text: " + s);
     }
+
+    /**
+     * If one of the SGDK compression enum values? Except NONE.
+     * @param cc
+     * @return
+     */
+    public static boolean isOneOfSgdkCompression (CompressionCustom cc) {
+    	switch (cc) {
+    	case AUTO:
+    	case FAST:
+    	case LZ4W:
+    	case APLIB:
+    	case BEST:
+    		return true;
+    	default: break;
+    	}
+    	return false;
+    }
+
+    public static Compression getSgdkCompression (CompressionCustom cc) {
+    	switch (cc) {
+    	case AUTO: return Compression.AUTO;
+    	case FAST: return Compression.LZ4W;
+    	case LZ4W: return Compression.LZ4W;
+    	case APLIB: return Compression.APLIB;
+    	case BEST: return Compression.AUTO;
+    	default: break;
+    	}
+    	return Compression.NONE;
+    }
+
 }

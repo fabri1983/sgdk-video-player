@@ -94,6 +94,10 @@ public class Palette32AllStrips extends Resource
         }
 
         // build BIN (we never compress palette)
+        if (CompressionCustom.isOneOfSgdkCompression(compressionCustom)) {
+        	compression = CompressionCustom.getSgdkCompression(compressionCustom);
+        	compressionCustom = CompressionCustom.NONE;
+        }
         bin = (BinCustom) addInternalResource(new BinCustom(id + "_data", palettesAll, compression, compressionCustom, false));
 
         // compute hash code

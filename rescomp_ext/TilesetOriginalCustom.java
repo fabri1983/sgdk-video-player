@@ -111,6 +111,10 @@ public class TilesetOriginalCustom extends Resource
         }
 
         // build BIN (tiles data) with wanted compression
+        if (CompressionCustom.isOneOfSgdkCompression(compressionCustom)) {
+        	compression = CompressionCustom.getSgdkCompression(compressionCustom);
+        	compressionCustom = CompressionCustom.NONE;
+        }
         final BinCustom binResource = new BinCustom(id + "_data", data, compression, compressionCustom);
         // internal
         binResource.global = false;
