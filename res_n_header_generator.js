@@ -49,7 +49,7 @@ const enableTilesCacheStats = false;
 const loadTilesCache = false;
 const tilesCacheId = "tilesCache_movie1"; // this is also the name of the variable contaning the Tileset with the cached tiles (it keeps the case)
 // 1792 is the max amount of tiles we allow with the plane size of 64x32 and custom config of BG_B (and the window) and BG_A starting at address 0xE000.
-// If we have a cache of 144 elemens then 1792-144=1648 is our cache starting index. 
+// If we have a cache of 216 elemens then 1792-216=1576 is our cache starting index. 
 // You can set whatever other index, although you need to know where your game tiles will be placed to avoid overwriting the cache.
 const tilesCacheFile_countLines = countTilesCacheLines("res/" + tilesCacheId + ".txt");
 const cacheStartIndexInVRAM = 1792 - tilesCacheFile_countLines;

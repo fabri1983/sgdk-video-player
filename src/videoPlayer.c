@@ -146,13 +146,17 @@ static void loadTilesCache () {
 		// 	dptr += 8;
 		// }
 
-		// Set 2nd color of every palette as magenta
-		PAL_setColor(0x1, 0xE0E);
-		PAL_setColor(0x1 + 16, 0xE0E);
-		PAL_setColor(0x1 + 32, 0xE0E);
-		PAL_setColor(0x1 + 48, 0xE0E);
-		// Fill all VRAM targeted for cached tiles with 0x11, which points to the 2nd color for whatever palette is loaded in CRAM
-		VDP_fillTileData(0x11, MOVIE_TILES_CACHE_START_INDEX, tilesCache_movie1.numTile, TRUE);
+		PAL_setPalette(PAL0, palette_grey, CPU);
+
+		// Fill all VRAM targeted for cached tiles with 0x66, which points to the 7th color for whatever palette is loaded in CRAM.
+		// This way we can see in the VRAM Debugger the are occupied by the cached tiles.
+		//VDP_fillTileData(0x66, MOVIE_TILES_CACHE_START_INDEX, tilesCache_movie1.numTile, TRUE);
+
+		// By loading the cached tiles we can see in the VRAM Debugger the tiles with more details.
+		VDP_loadTileSet((TileSet* const) &tilesCache_movie1, MOVIE_TILES_CACHE_START_INDEX, DMA);
+		VDP_waitDMACompletion();
+
+		while (1) waitVInt();
 	}
 #else
 	if (tilesCache_movie1.numTile > 0) {
