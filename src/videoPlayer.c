@@ -355,8 +355,8 @@ void playMovie () {
 		bool isPal = IS_PAL_SYSTEM;
 		#endif
 
-		// Let the HInt usie the right pals right before setting the VInt and HInt callbacks
-		setMoviePalsPointer(unpackedPalsRender); // Palettes are all black at this point
+		// Let the HInt use the right pals before setting the VInt and HInt callbacks, otherwise it glitches out by one frame
+		setMoviePalsPointerBeforeInterrupts(unpackedPalsRender); // Palettes are all black at this point
 
 		SYS_disableInts();
 			// SYS_setVIntCallback(VIntPlayerCallback);

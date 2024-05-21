@@ -73,6 +73,11 @@ static u16* palInFramePtr; // pals pointer increased in every HInt call cycle
 static u16 palCmdAddrrToggle = HINT_PALS_CMD_ADDR_RESET_VALUE; // used to toggle between the two different CRAM cmd addresses used to send the pals
 static u16 vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1;
 
+void setMoviePalsPointerBeforeInterrupts (u16* rootPalsPtr) {
+    palInFrameRootPtr = rootPalsPtr;
+    palInFramePtr = rootPalsPtr;
+}
+
 void setMoviePalsPointer (u16* rootPalsPtr) {
     palInFrameRootPtr = rootPalsPtr;
 }

@@ -42,6 +42,8 @@
 #define MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL \
     (30 - ((30 - MOVIE_FRAME_STRIPS) / 2) + TILES_HEIGHT_OFFSET_DUE_TO_MIN_TILE_Y_POS_PAL) * 8 - 2*8 - 1
 
+void setMoviePalsPointerBeforeInterrupts (u16* rootPalsPtr);
+
 void setMoviePalsPointer (u16* rootPalsPtr);
 
 void VIntMovieCallback ();

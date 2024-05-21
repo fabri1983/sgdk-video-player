@@ -245,6 +245,7 @@ public class TilesCacheManager {
 		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
 		sb.append("##  [TOP ").append(topNusedTiles).append("] Tiles in Resources under cache id: ").append(cacheId).append(System.lineSeparator());
 		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
+		sb.append(String.format("%-12s %4s  %s", "hash", "#", "data")).append(System.lineSeparator());
 		List<Entry<Integer, AtomicInteger>> sortedTopNresourcesPerTile = resourcesPerTile.entrySet()
                 .stream()
                 .sorted((entry1, entry2) -> entry2.getValue().get() - entry1.getValue().get())
@@ -259,6 +260,7 @@ public class TilesCacheManager {
 		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
 		sb.append("##  [TOP ").append(topNusedTiles).append("] Tiles total in all Resources under cache id: ").append(cacheId).append(System.lineSeparator());
 		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
+		sb.append(String.format("%-12s %4s  %s", "hash", "#", "data")).append(System.lineSeparator());
 		List<Entry<Integer, AtomicInteger>> sortedTopNoccursPerTile = occurrencesPerTile.entrySet()
                 .stream()
                 .sorted((entry1, entry2) -> entry2.getValue().get() - entry1.getValue().get())
@@ -273,6 +275,7 @@ public class TilesCacheManager {
 //		sb.append("##-----------------------------------------------------------------##").append(System.lineSeparator());
 //		sb.append("##  Tiles in Resources under cache id: ").append(cacheId).append(System.lineSeparator());
 //		sb.append("##-----------------------------------------------------------------##").append(System.lineSeparator());
+//		sb.append(String.format("%-12s %4s", "hash", "#")).append(System.lineSeparator());
 //		for (Entry<Integer, AtomicInteger> entry : resourcesPerTile.entrySet()) {
 //			String dataStr = String.format("%-12d %4d", entry.getKey().intValue(), entry.getValue().get());
 //			sb.append(dataStr).append(System.lineSeparator());
@@ -281,6 +284,7 @@ public class TilesCacheManager {
 //		sb.append("##-----------------------------------------------------------------##").append(System.lineSeparator());
 //		sb.append("##  Tiles total in all Resources under cache id: ").append(cacheId).append(System.lineSeparator());
 //		sb.append("##-----------------------------------------------------------------##").append(System.lineSeparator());
+//		sb.append(String.format("%-12s %4s", "hash", "#")).append(System.lineSeparator());
 //		for (Entry<Integer, AtomicInteger> entry : occurrencesPerTile.entrySet()) {
 //			String dataStr = String.format("%-12d %4d", entry.getKey().intValue(), entry.getValue().get());
 //			sb.append(dataStr).append(System.lineSeparator());
