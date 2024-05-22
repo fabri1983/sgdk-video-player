@@ -179,8 +179,9 @@ static void allocateTilesetBuffer () {
 
 static FORCE_INLINE void unpackFrameTileset (TileSet* src) {
 	const u16 size = src->numTile * 32;
-	if (src->compression != COMPRESSION_NONE)
+	if (src->compression != COMPRESSION_NONE) {
 		lz4w_unpack((u8*) FAR_SAFE(src->tiles, size), (u8*) unpackedTilesetChunk);
+	}
 	else
         memcpy((u8*) unpackedTilesetChunk, FAR_SAFE(src->tiles, size), size);
 }

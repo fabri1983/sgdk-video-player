@@ -45,10 +45,11 @@ frame rate: 15
 
 5) `compile_n_run.bat`
 Run it once to catch rescomp output to know tileset stats (resource TILESET_STATS_COLLECTOR). Then:
-- manually set VIDEO_FRAME_TILESET_CHUNK_SIZE constant at `videoPlayer.h`.
-- manually set VIDEO_FRAME_TILESET_TOTAL_SIZE constant at `videoPlayer.h`.
-- edit `res/ext.resource.properties` and update same constants having suffix SPLIT2 or SPLIT3 accordingly to your case.
-- compile again.
+- edit `res/ext.resource.properties` and update next constants
+	- VIDEO_FRAME_TILESET_CHUNK_SIZE (with suffix SPLIT2 or SPLIT3 accordingly to your case)
+	- VIDEO_FRAME_TILESET_TOTAL_SIZE (with suffix SPLIT2 or SPLIT3 accordingly to your case)
+	- MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX
+- go to step 4.
 `rom.bin` generated at out folder.  
 `Blastem's binary` location is set inside the bat script (edit accordingly).
 
@@ -61,7 +62,7 @@ format for the SGDK rescomp tool.
 
 
 ### TODO
-- Tileset decompression worst case takes 249315 cycles (519 scanlines). Maybe develop custom compressor/decompressor?
+- Tileset decompression worst case takes 249052 cycles (~519 scanlines). Maybe develop custom compressor/decompressor?
 - If the use of any of the alternative compression/decompression methods is better than Stef's LZ4W then:
 	- use new video from VirtualDub2 project. Better definition and right width and height.
 	- new dims are 272 width x 200 height (34 * 25 tiles).

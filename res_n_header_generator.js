@@ -39,6 +39,8 @@ const sortedFileNames = fileNames
 const sortedFileNamesEveryFirstStrip = sortedFileNames
 	.filter((_, index) => index % stripsPerFrame === 0);
 
+const resPropertiesMap = loadResourceProperties("res/ext.resource.properties");
+
 const tilesetStatsId = "tilesetStats_1"
 
 // You first enable the stats and disable the loader, so you end up with the stats file.
@@ -54,6 +56,8 @@ const tilesCacheId = "tilesCache_movie1"; // this is also the name of the variab
 const tilesCacheFile_countLines = countTilesCacheLines("res/" + tilesCacheId + ".txt");
 const cacheStartIndexInVRAM = 1792 - tilesCacheFile_countLines;
 
+checkCacheStartIndexAfterTilesets(loadTilesCache, cacheStartIndexInVRAM, resPropertiesMap);
+
 // split tileset in N chunks. Current valid values are [1, 2, 3]
 const tilesetSplit = 3;
 // split tilemap in N chunks. Current values are [1, 2, 3]. Always <= tilesetSplit
@@ -61,12 +65,17 @@ const tilemapSplit = 1;
 // add compression field if you know some tilesets and tilemaps are not compressed (by rescomp rules) or if you plan to test different compression algorithms
 const imageAddCompressionField = true;
 
+var videoFrameTilesetChunkSize = 0;
+var videoFrameTilesetTotalSize = 0;
+
 var type_ImageNoPals = "ImageNoPals";
 if (tilesetSplit == 2) {
     if (tilemapSplit == 1)
 	    type_ImageNoPals = "ImageNoPalsSplit21";
     else
         type_ImageNoPals = "ImageNoPalsSplit22";
+	videoFrameTilesetChunkSize = resPropertiesMap.get('MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_2');
+	videoFrameTilesetTotalSize = resPropertiesMap.get('MAX_TILESET_TOTAL_SIZE_FOR_SPLIT_IN_2');
 }
 else if (tilesetSplit == 3) {
     if (tilemapSplit == 1)
@@ -75,6 +84,8 @@ else if (tilesetSplit == 3) {
         type_ImageNoPals = "ImageNoPalsSplit32";
     else
 	    type_ImageNoPals = "ImageNoPalsSplit33";
+	videoFrameTilesetChunkSize = resPropertiesMap.get('MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_3');
+	videoFrameTilesetTotalSize = resPropertiesMap.get('MAX_TILESET_TOTAL_SIZE_FOR_SPLIT_IN_3');
 }
 
 if (imageAddCompressionField)
@@ -114,6 +125,8 @@ if (!fs.existsSync(GEN_INC_DIR)) {
 	fs.mkdirSync(GEN_INC_DIR, { recursive: true });
 }
 
+const tileUserIndexCustom = resPropertiesMap.get('STARTING_TILESET_ON_SGDK');
+
 // --------- Generate movie_data_consts.h file
 fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`, 
 `#ifndef _MOVIE_DATA_CONSTS_H
@@ -135,6 +148,14 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 #define MOVIE_FRAME_COLORS_PER_STRIP 32
 // In case you were to split any calculation over the colors of strip by an odd divisor n
 #define MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(n) (MOVIE_FRAME_COLORS_PER_STRIP % n)
+
+/// SGDK reserves 16 tiles starting at address 0. That's the purpose of using SGDK's TILE_USER_INDEX so you don't its tiles.
+/// Tile address 0 holds a black tile and it shouldn't be overriden since is what an empty tilemap in VRAM points to. Also other internal effects use it.
+/// Remaining 15 tiles are OK to override for re use. So we can start using tiles at index 1.
+#define TILE_USER_INDEX_CUSTOM ${tileUserIndexCustom}
+
+#define VIDEO_FRAME_TILESET_CHUNK_SIZE ${videoFrameTilesetChunkSize} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
+#define VIDEO_FRAME_TILESET_TOTAL_SIZE ${videoFrameTilesetTotalSize} // Got experimentally from rescomp output (using TILESET_STATS_COLLECTOR). If odd then use next even number.
 
 #define MOVIE_TILES_CACHE_START_INDEX ${cacheStartIndexInVRAM}
 
@@ -232,4 +253,36 @@ function countTilesCacheLines (filePath) {
 		return 0;
 		//throw error;
 	}
+}
+
+function loadResourceProperties (filePath) {
+	const table = new Map();
+  
+	try {
+	  const fileContent = fs.readFileSync(filePath, 'utf-8');
+	  const lines = fileContent.split('\n');
+  
+	  for (const line of lines) {
+		if (line.trim() === '' || line.startsWith('#')) {
+		  continue;
+		}
+  
+		const [key, value] = line.split('=');
+		table.set(key.trim(), parseInt(value.trim()));
+	  }
+	} catch (error) {
+		throw new Error("Error loading file " + filePath);
+	}
+
+	return table;
+}
+
+function checkCacheStartIndexAfterTilesets (loadTilesCache, cacheStartIndexInVRAM, resPropertiesMap) {
+	if (loadTilesCache != true)
+		return;
+	const maxTilesetNum = resPropertiesMap.get('MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX');
+	const startingTilesetIndex = resPropertiesMap.get('STARTING_TILESET_ON_SGDK');
+	const finalTilesetIndex = startingTilesetIndex + (2 * maxTilesetNum);
+	if (cacheStartIndexInVRAM <= finalTilesetIndex)
+		throw new Error("Starting Tiles Cache Index overlaps the last movie tileset location. Try to reduce the number of loaded cache tiles.");
 }

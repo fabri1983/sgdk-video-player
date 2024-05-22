@@ -33,13 +33,6 @@
 /// If you are 100% sure ALL the palettes were NOT compressed by rescomp tool (by looking at the console output) then set this to FALSE.
 #define ALL_PALETTES_COMPRESSED TRUE
 
-/// SGDK reserves 16 tiles starting at address 0. That's the purpose of using SGDK's TILE_USER_INDEX so you don't its tiles.
-/// Tile address 0 holds a black tile and it shouldn't be overriden since is what an empty tilemap in VRAM points to. Also other internal effects use it.
-/// Remaining 15 tiles are OK to override for re use. So we can start using tiles at index 1.
-#define TILE_USER_INDEX_CUSTOM 1
-
-#define VIDEO_FRAME_TILESET_CHUNK_SIZE 272 // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
-#define VIDEO_FRAME_TILESET_TOTAL_SIZE 716 // Got experimentally from rescomp output (using TILESET_STATS_COLLECTOR). If odd then use next even number.
 #define VIDEO_FRAME_TILEMAP_NUM (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES)
 #define VIDEO_FRAME_TILEMAP_NUM_CHUNK (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES / 1))
 #define VIDEO_FRAME_TILEMAP_NUM_CHUNK_LAST (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES / 1) + (MOVIE_FRAME_HEIGHT_IN_TILES % 1)))
@@ -47,6 +40,7 @@
 #define VIDEO_FRAME_PALS_CHUNK_SIZE (VIDEO_FRAME_PALS_NUM / 3)
 #define VIDEO_FRAME_PALS_CHUNK_SIZE_LAST ((VIDEO_FRAME_PALS_NUM / 3) + (VIDEO_FRAME_PALS_NUM % 3))
 
+/// NOT USED ANYMORE! We now have splitted every frame's tileset in 3 chunks and using VIDEO_FRAME_TILESET_CHUNK_SIZE instead.
 /// Number of Tiles to be transferred by DMA_flushQueue() with mandatory off/on VDP setting to speed up the transfer (otherwise it glitches up).
 /// NOTE: this has to be enough to support VIDEO_FRAME_TILESET_TOTAL_SIZE / 3 which is the buffer size that holds the unpack of half a tileset.
 /// 320 tiles * 32 bytes = 10240 as maxTransferPerFrame. 
@@ -56,7 +50,7 @@
 /// If number is bigger then you will notice some flickering on top of image meaning the transfer takes more time than Vertical retrace.
 /// The flickering still exists but is not noticeable due to lower image Y position in plane. 
 /// Using bigger image height or locating it at upper Y values will reveal the flickering.
-#define TILES_PER_DMA_TRANSFER 368 // NOT USED ANYMORE since we now have splitted every frame's tileset in 3 chunks and using VIDEO_FRAME_TILESET_CHUNK_SIZE instead.
+#define TILES_PER_DMA_TRANSFER 368
 
 #define FADE_TO_BLACK_STEP_FREQ 4 // Every N frames we apply one fade to black step
 
