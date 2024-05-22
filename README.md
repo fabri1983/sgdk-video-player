@@ -79,13 +79,13 @@ format for the SGDK rescomp tool.
 	- remove the condition if (!((prevFrame ^ vFrame) & 1))
 	- search for TODO PALS_1 and act accordingly.
 	- If the first 2 strips' pals are DMA_QUEUE in waitVInt_AND_flushDMA() then use flushQueue from Stef's: flushQueue(DMA_getQueueSize())
-- Clear mem used by sound when exiting the video loop?
 - Try 20 FPS NTSC (16 FPS PAL). So 60/3=20 in NTSC. And 50/3=16 in PAL.
 	- update MOVIE_FRAME_RATE at res_n_header_generator.js.
 	- update README.md steps 2 and 4.
 	- update videoPlayer in order to do the unpack/load of all the elements along 3 display loops.
 - Try final frame size: 288 x 208 px (36 x 26 tiles).
 - Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
+- Clear mem used by sound when exiting the video loop?
 - Try to change from H40 to H32 (or was it viceversa?) on HInt Callback, and hope for any any speed gain?
 	See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
 	See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
