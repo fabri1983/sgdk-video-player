@@ -59,13 +59,13 @@ static FORCE_INLINE void setBusProtection_Z80 (bool value) {
 	Z80_releaseBus();
 }
 
-/// @brief This implementation differs from DMA_flushQueue() in that:
+/// @brief This implementation differs from DMA_flushQueue() in which:
 /// - it doesn't check if transfer size exceeds capacity because we know before hand the max capacity.
 /// - it assumes Z80 bus wasn't requested and hence request it.
 static FORCE_INLINE void fast_DMA_flushQueue () {
 	#ifdef DEBUG_VIDEO_PLAYER
 	if (DMA_getQueueTransferSize() > DMA_getMaxTransferSize())
-		KLog("WARNING: DMA transfer size limit raised. Modify the capacity in your DMA_initEx() call.");
+		KLog("[VIDEOPLAYER] WARNING: DMA transfer size limit raised. Modify the capacity in your DMA_initEx() call.");
 	#endif
     // u8 autoInc = VDP_getAutoInc(); // save autoInc
 	// Z80_requestBus(FALSE);
@@ -101,7 +101,8 @@ static void NO_INLINE waitVInt_AND_flushDMA () {
 
 	// AT THIS POINT THE VInt callback WAS ALREADY CALLED. Check sega.s to see when vtimer is updated and what other callbacks are called.
 
-	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);//VDP_setEnable(FALSE);
+	//VDP_setEnable(FALSE);
+	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);
 
 	setBusProtection_Z80(TRUE);
 	waitSubTick_(10); // Z80 delay --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
@@ -113,7 +114,8 @@ static void NO_INLINE waitVInt_AND_flushDMA () {
 	// This needed for DMA setup used in HInt, and likely needed for the CPU HInt too.
 	// *((vu16*) VDP_CTRL_PORT) = 0x8F00 | 2; // instead of VDP_setAutoInc(2) due to additionals read and write from/to internal regValues[]
 
-	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 | 0x40);//VDP_setEnable(TRUE);
+	//VDP_setEnable(TRUE);
+	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 | 0x40);
 
 	// We can perform the previous two operations in one call to VDP control port using sending u32 data
 	// u32 twoWrites = (0x8F00 | 2) | ((0x8100 | (116 | 0x40)) << 16);
@@ -147,7 +149,6 @@ static void loadTilesCache () {
 		// }
 
 		PAL_setPalette(PAL0, palette_grey, CPU);
-
 		// Fill all VRAM targeted for cached tiles with 0x66, which points to the 7th color for whatever palette is loaded in CRAM.
 		// This way we can see in the VRAM Debugger the are occupied by the cached tiles.
 		//VDP_fillTileData(0x66, MOVIE_TILES_CACHE_START_INDEX, tilesCache_movie1.numTile, TRUE);
@@ -155,8 +156,13 @@ static void loadTilesCache () {
 		// By loading the cached tiles we can see in the VRAM Debugger the tiles with more details.
 		VDP_loadTileSet((TileSet* const) &tilesCache_movie1, MOVIE_TILES_CACHE_START_INDEX, DMA);
 		VDP_waitDMACompletion();
-
-		while (1) waitVInt();
+		// Set palette buffer with white color 0xEEE only for strips using PAL0
+		u16* rendPtr = unpackedPalsRender;
+		for (u16 i=0; i < MOVIE_FRAME_STRIPS; ++i) {
+			memsetU16(rendPtr + 1, 0xEEE, 15);
+			rendPtr += MOVIE_FRAME_COLORS_PER_STRIP;
+		}
+		//while (1) waitVInt();
 	}
 #else
 	if (tilesCache_movie1.numTile > 0) {
@@ -198,6 +204,20 @@ static FORCE_INLINE void unpackFrameTilemap (TileMapCustomCompField* src, u16 le
 	else
     	memcpy((u8*) (unpackedTilemap + offset), FAR_SAFE(src->tilemap, size), size);
 #endif
+	// KLog("---MAP ENTRY---");
+	// u16* mapPtr = unpackedTilemap;
+	// for (u16 i=0; i < MOVIE_FRAME_HEIGHT_IN_TILES; ++i) {
+	// 	static u16 r[40];
+	// 	for (u16 j=0; j < 40; ++j) {
+	// 		u16 data = *mapPtr++;
+	// 		u16 tileIndex = data & 0b11111111111;
+	// 		r[j] = tileIndex;
+	// 	}
+	// 	mapPtr += 64-40;
+	// 	// print 24 tile indexes
+	// 	kprintf("%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d", 
+	// 		r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15], r[16], r[17], r[18], r[19], r[20], r[21], r[22], r[23], r[24], r[25], r[26], r[27], r[28], r[29], r[30], r[31], r[32]);
+	// }
 }
 
 static void freeTilemapBuffer () {
@@ -335,7 +355,7 @@ void playMovie () {
 	u16 yp = (screenHeight - MOVIE_FRAME_HEIGHT_IN_TILES*8 + 7)/8/2; // centered in Y axis
 	yp = max(yp, MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER); // offsets the Y axis plane position to avoid the flickering due to DMA transfer leaking into active display area
 
-	u16 tilemapAddrInPlane = VDP_getPlaneAddress(BG_A, xp, yp);
+	u16 tilemapAddrInPlane = VDP_getPlaneAddress(BG_B, xp, yp);
 
 	// Load the appropriate driver
 	// Z80_loadDriver(Z80_DRIVER_PCM, TRUE);
@@ -375,13 +395,21 @@ void playMovie () {
 		// Wait for VInt so the logic can start at the beginning of the active display period
 		waitVInt();
 
+		// Start sound
+		// SND_PCM_startPlay(sound_wav, sizeof(sound_wav), SOUND_PCM_RATE_22050, SOUND_PAN_CENTER, FALSE);
+		XGM2_playPCMEx(sound_wav, sizeof(sound_wav), SOUND_PCM_CH1, 1, FALSE, FALSE);
+		// XGM_setPCM(1, sound_wav, sizeof(sound_wav));
+		// XGM_startPlayPCM(1, 1, SOUND_PCM_CH1);
+		// XGM_setLoopNumber(0);
+
 		SYS_disableInts();
 		#ifdef DEBUG_FIXED_FRAME
-		vtimer = DEBUG_FIXED_FRAME;
 		u16 vFrame = DEBUG_FIXED_FRAME;
+		vtimer = ((IS_PAL_SYSTEM ? 50 : 60) / MOVIE_FRAME_RATE) * DEBUG_FIXED_FRAME;
 		#else
-		vtimer = 0; // reset vTimer so we can use it as our hardware frame counter
-		u16 vFrame = 0;
+		// NOTE: somehow the content of VRAM is erased when vFrame is 0, removing the cached tiles, so use next even number.
+		u16 vFrame = 2;
+		vtimer = ((IS_PAL_SYSTEM ? 50 : 60) / MOVIE_FRAME_RATE) * vFrame; // reset vtimer so we can use it as our hardware frame counter
 		#endif
 		SYS_enableInts();
 
@@ -392,19 +420,11 @@ void playMovie () {
 
 		bool exitPlayer = FALSE;
 
-		// Start sound
-		// SND_PCM_startPlay(sound_wav, sizeof(sound_wav), SOUND_PCM_RATE_22050, SOUND_PAN_CENTER, FALSE);
-		XGM2_playPCMEx(sound_wav, sizeof(sound_wav), SOUND_PCM_CH1, 1, FALSE, FALSE);
-		// XGM_setPCM(1, sound_wav, sizeof(sound_wav));
-		// XGM_startPlayPCM(1, 1, SOUND_PCM_CH1);
-		// XGM_setLoopNumber(0);
-
 		while (vFrame < MOVIE_FRAME_COUNT)
 		{
 			u16 numTile1 = data[vFrame]->tileset1->numTile;
 			unpackFrameTileset(data[vFrame]->tileset1);
 			enqueueTilesetData(baseTileIndex, numTile1);
-
 			waitVInt_AND_flushDMA();
 
 			u16 numTile2 = data[vFrame]->tileset2->numTile;
@@ -426,7 +446,7 @@ void playMovie () {
 			//unpackFramePalettes(pals_data[vFrame]->data2, VIDEO_FRAME_PALS_CHUNK_SIZE, VIDEO_FRAME_PALS_CHUNK_SIZE);
 			//unpackFramePalettes(pals_data[vFrame]->data3, VIDEO_FRAME_PALS_CHUNK_SIZE_LAST, 2*VIDEO_FRAME_PALS_CHUNK_SIZE);
 
-			// Swaps buffers pals so now the pals render buffer points to the unpacked pals
+			// Swaps buffers pals
 			swapPalsBuffers();
 
 			unpackFrameTilemap(data[vFrame]->tilemap1, VIDEO_FRAME_TILEMAP_NUM, 0);
@@ -438,7 +458,7 @@ void playMovie () {
 			// Enqueue tilemap for DMA
 			enqueueTilemapData(tilemapAddrInPlane);
 
-			// NOTE: first 2 strips' palettes which were previously unpacked will be enqueued in waitVInt_AND_flushDMA()
+			// NOTE: first 2 strips' palettes (previously unpacked) will be enqueued in waitVInt_AND_flushDMA()
 			// NOTE2: not true until TODO PALS_1 is done
 
 			#if EXIT_PLAYER_WITH_JOY_START
@@ -461,49 +481,28 @@ void playMovie () {
 			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 4 /* Takes 71~93 cycles with a peak of 534. HInt disabled. */
 			vFrame = framerateDivLUT[hwFrameCntr];
 			#endif
-			#ifdef DEBUG_FIXED_FRAME
-			// If previous frame is same than fixed frame, it means this current frame must be displayed
-			if (prevFrame == DEBUG_FIXED_FRAME) {
-			#endif
 
-			#ifdef DEBUG_FIXED_FRAME
-			}
-			#endif
-
-			#ifdef DEBUG_FIXED_FRAME
-			// If previous frame wasn't the fixed frame, we don't need to modify the pointers the HInt is using so it continues showing the fixed frame
-			if (prevFrame != DEBUG_FIXED_FRAME)
-				waitVInt_AND_flushDMA();
-			else {
-				setMoviePalsPointer(unpackedPalsRender);
-				waitVInt_AND_flushDMA();
-			}
-			#else
 			setMoviePalsPointer(unpackedPalsRender);
 			waitVInt_AND_flushDMA();
+
+			#ifdef DEBUG_FIXED_FRAME
+			prevFrame = DEBUG_FIXED_FRAME;
+			vFrame = DEBUG_FIXED_FRAME;
+			#else
+			#if FORCE_NO_MISSING_FRAMES
+			// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) active display periods (for MOVIE_FRAME_RATE = 15)
+			vFrame = prevFrame + 1;
+			#else
+			// IMPORTANT: next frame must be counter parity from previous frame. If same parity (both even or both odd) then we will mistakenly 
+			// override the tileset VRAM region currently is being used for display the recently loaded frame.
+			if (!((prevFrame ^ vFrame) & 1))
+				++vFrame; // move into next frame so parity is not shared with previous frame
+			#endif
 			#endif
 
 			#ifdef LOG_DIFF_BETWEEN_VIDEO_FRAMES
 			u16 frmCntr = (u16) vtimer;
 			KLog_U1("", frmCntr - prevFrame); // this tells how many system frames are spent for unpack, load, etc, per video frame
-			#endif
-
-			#ifdef DEBUG_FIXED_FRAME
-				// Once we already draw the target frame and let the next one load its data but not drawn => we go back to fixed frame
-				if (prevFrame != DEBUG_FIXED_FRAME)
-					vFrame = DEBUG_FIXED_FRAME;
-				else
-					++vFrame
-			#else
-				#if FORCE_NO_MISSING_FRAMES
-				// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) active display periods (for MOVIE_FRAME_RATE = 15)
-				vFrame = prevFrame + 1;
-				#else
-				// IMPORTANT: next frame must be counter parity from previous frame. If same parity (both even or both odd) then we will mistakenly 
-				// override the tileset VRAM region currently is being used for display the recently loaded frame.
-				if (!((prevFrame ^ vFrame) & 1))
-					++vFrame; // move into next frame so parity is not shared with previous frame
-				#endif
 			#endif
 
 			#if EXIT_PLAYER_WITH_START
@@ -536,8 +535,8 @@ void playMovie () {
 		// Loop the video
 		else {
 			// Clears all tilemap VRAM region for BG_A
-			VDP_clearTileMap(VDP_BG_A, 0, 1 << (planeWidthSft + planeHeightSft), TRUE); // See VDP_clearPlane() for details
-			waitMs_(500);
+			VDP_clearTileMap(VDP_BG_B, 0, 1 << (planeWidthSft + planeHeightSft), TRUE); // See VDP_clearPlane() for details
+			waitMs_(1000);
 		}
     }
 

@@ -6,7 +6,7 @@
 
 // #define DEBUG_VIDEO_PLAYER
 // #define DEBUG_TILES_CACHE
-// #define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the static map base tile index statically set on each frame by our custom rescomp extension
+// #define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the map base tile index statically set on each frame by our custom rescomp extension
 // #define LOG_DIFF_BETWEEN_VIDEO_FRAMES
 
 /// If TRUE then it will add Joy plling logic and user can exit the video playback at any time. FALSE otherwise.

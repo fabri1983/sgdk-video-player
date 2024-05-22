@@ -46,7 +46,7 @@ const tilesetStatsId = "tilesetStats_1"
 // Then you disable the stats and enable the loader.
 // Finally check the new TILESET_STATS_COLLECTOR's output stats to accomodate new tiles max chunk and total values.
 const enableTilesCacheStats = false;
-const loadTilesCache = false;
+const loadTilesCache = true;
 const tilesCacheId = "tilesCache_movie1"; // this is also the name of the variable contaning the Tileset with the cached tiles (it keeps the case)
 // 1792 is the max amount of tiles we allow with the plane size of 64x32 and custom config of BG_B (and the window) and BG_A starting at address 0xE000.
 // If we have a cache of 216 elemens then 1792-216=1576 is our cache starting index. 
