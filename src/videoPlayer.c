@@ -258,14 +258,14 @@ static FORCE_INLINE void enqueueTilesetData (u16 startTileIndex, u16 length) {
 	// This was the previous way
 	// VDP_loadTileData(unpackedTilesetChunk, startTileIndex, length, DMA_QUEUE);
 	// Now we use custom DMA_queueDmaFast() because the data is in RAM, so no 128KB bank boundary check is needed
-	enqueueDMA_1elem((void*) unpackedTilesetChunk, startTileIndex * 32, length * 16, 2);
+	enqueueDMA_1elem((void*) unpackedTilesetChunk, startTileIndex * 32, length * 16);
 }
 
 static FORCE_INLINE void enqueueTilemapData (u16 tilemapAddrInPlane) {
 	// This was the previous way which benefits from tilemap width being 64 tiles
 	// VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, VIDEO_FRAME_TILEMAP_NUM, 2, DMA_QUEUE);
 	// Now we use custom DMA_queueDmaFast() because the data is in RAM, so no 128KB bank boundary check is needed
-	enqueueDMA_1elem((void*) unpackedTilemap, tilemapAddrInPlane + (0 * 2), VIDEO_FRAME_TILEMAP_NUM, 2);
+	enqueueDMA_1elem((void*) unpackedTilemap, tilemapAddrInPlane + (0 * 2), VIDEO_FRAME_TILEMAP_NUM);
 }
 
 #if VIDEO_FRAME_ADVANCE_STRATEGY == 4
@@ -280,6 +280,16 @@ static u16* createFramerateDivLUT () {
 	return lut;
 }
 #endif
+
+static u16 calculatePlaneAddress () {
+	// u16 xp = (screenWidth - MOVIE_FRAME_WIDTH_IN_TILES*8 + 7)/8/2; // centered in X axis (in tiles)
+	// u16 yp = (screenHeight - MOVIE_FRAME_HEIGHT_IN_TILES*8 + 7)/8/2; // centered in Y axis (in tiles)
+	// yp = max(yp, MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER); // offsets the Y axis plane position to avoid the flickering due to DMA transfer leaking into active display area
+	// u16 tilemapAddrInPlane = VDP_getPlaneAddress(BG_B, xp, yp);
+	// return tilemapAddrInPlane;
+	// For a frame size of 34x22 tiles the plane address for BG_B is 0xE186
+	return 0xE186;
+}
 
 static void fadeToBlack () {
 	// Last frame's palettes is still pointed by unpackedPalsRender
@@ -351,12 +361,7 @@ void playMovie () {
 	// dmaQueues = MEM_alloc(1 * sizeof(DMAOpInfo));
 	// MEM_pack();
 
-	// Position in screen (in tiles)
-	u16 xp = (screenWidth - MOVIE_FRAME_WIDTH_IN_TILES*8 + 7)/8/2; // centered in X axis
-	u16 yp = (screenHeight - MOVIE_FRAME_HEIGHT_IN_TILES*8 + 7)/8/2; // centered in Y axis
-	yp = max(yp, MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER); // offsets the Y axis plane position to avoid the flickering due to DMA transfer leaking into active display area
-
-	u16 tilemapAddrInPlane = VDP_getPlaneAddress(BG_B, xp, yp);
+	u16 tilemapAddrInPlane = calculatePlaneAddress();
 
 	// Load the appropriate driver
 	// Z80_loadDriver(Z80_DRIVER_PCM, TRUE);
@@ -423,19 +428,28 @@ void playMovie () {
 
 		while (vFrame < MOVIE_FRAME_COUNT)
 		{
-			u16 numTile1 = data[vFrame]->tileset1->numTile;
 			unpackFrameTileset(data[vFrame]->tileset1);
-			enqueueTilesetData(baseTileIndex, numTile1);
+			u16 numTile1 = data[vFrame]->tileset1->numTile;
+			if (baseTileIndex == TILE_USER_INDEX_CUSTOM)
+				enqueueTilesetData(TILE_USER_INDEX_CUSTOM, numTile1);
+			else
+				enqueueTilesetData(TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE, numTile1);
 			waitVInt_AND_flushDMA();
 
-			u16 numTile2 = data[vFrame]->tileset2->numTile;
 			unpackFrameTileset(data[vFrame]->tileset2);
-			enqueueTilesetData(baseTileIndex + numTile1, numTile2);
+			u16 numTile2 = data[vFrame]->tileset2->numTile;
+			if (baseTileIndex == TILE_USER_INDEX_CUSTOM)
+				enqueueTilesetData(numTile1 + TILE_USER_INDEX_CUSTOM, numTile2);
+			else
+				enqueueTilesetData(numTile1 + TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE, numTile2);
 			waitVInt_AND_flushDMA();
 
-			u16 numTile3 = data[vFrame]->tileset3->numTile;
 			unpackFrameTileset(data[vFrame]->tileset3);
-			enqueueTilesetData(baseTileIndex + numTile1 + numTile2, numTile3);
+			u16 numTile3 = data[vFrame]->tileset3->numTile;
+			if (baseTileIndex == TILE_USER_INDEX_CUSTOM)
+				enqueueTilesetData(numTile1 + numTile2 + TILE_USER_INDEX_CUSTOM, numTile3);
+			else
+				enqueueTilesetData(numTile1 + numTile2 + TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE, numTile3);
 			waitVInt_AND_flushDMA();
 
 			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE
@@ -507,7 +521,7 @@ void playMovie () {
 				"1:\n"
 				: "=>d" (vFrame), "=>d" (prevFrame)
 				: "0" (vFrame), "1" (prevFrame)
-				: "cc"
+				: "cc", "memory"
 			);
 			#endif
 			#endif

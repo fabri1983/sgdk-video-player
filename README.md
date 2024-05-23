@@ -9,11 +9,11 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 
 
 ### Features
-- Supports up to 256 colors per frame (at the expense of a smaller frame size).
+- Supports up to 256 colors per frame.
 - Supports both NTSC and PAL console systems.
-- Currently running at 15 FPS in NTSC and 12 FPS in PAL, with a frame size of 272x176 pixels.
+- Currently running at 10~15 FPS in NTSC and 10~12 FPS in PAL, with a frame size of 272x176 pixels.
 - Uses custom extensions for the [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
-
+- Uses custom `sega.s` *_VINT* which directly calls user's VInt Callback and saves some cycles by discarding User tasks, Bitmap tasks, and XGM tasks. Although it works with stock _VINT.
 
 ### Config theese first:
 - You need *Image Magick v7.x* tools and set in _PATH_.
@@ -26,7 +26,10 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 1) `env.bat`
 Set NodeJs env var.
 
-2) `extract.bat video.mp4 tmpmv 272 176 8 15 n`
+2) By default we use resolution 272x176 pixels for the video processing and displaying.
+If you change that resolution you need to update the `tilemapAddrInPlane` calculation in `videoPlayer.c`, as well as next steps.
+
+3) `extract.bat video.mp4 tmpmv 272 176 8 15 n`
 tmpmv: output folder
 272: frame width (multiple of 8)
 176: frame height(multiple of 8)
@@ -34,7 +37,7 @@ tmpmv: output folder
 15: frame rate
 n: color reduction (optional parameter). Max value 256 (for PNGs).
 
-3) Use nodejs custom app tiledpalettequant (this isn't public yet) to generate all RGB images with palettes data.
+4) Use nodejs custom app tiledpalettequant (this isn't public yet) to generate all RGB images with palettes data.
 Once rgb images with palettes were generated and before saving them ensure the next config:
 - in _SGDK settings_ section:
 	- check _Switch 2 Palettes positions_
@@ -42,19 +45,20 @@ Once rgb images with palettes were generated and before saving them ensure the n
 	- enter 22 (strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
 - Download the images and move them at res\rgb folder.
 
-4) `node res_n_header_generator.js 272 176 8 15`
+5) `node res_n_header_generator.js 272 176 8 15`
 frame width: 272 (multiple of 8)
 frame height: 176 (multiple of 8)
 rows per strip: 8
 frame rate: 15
 
-5) `compile_n_run.bat release`
+6) `compile_n_run.bat release`
 Run it once to catch rescomp output to know tileset stats (resource TILESET_STATS_COLLECTOR). Then:
-- edit `res/ext.resource.properties` and update next constants
-	- VIDEO_FRAME_TILESET_CHUNK_SIZE (with suffix SPLIT2 or SPLIT3 accordingly to your case)
-	- VIDEO_FRAME_TILESET_TOTAL_SIZE (with suffix SPLIT2 or SPLIT3 accordingly to your case)
+- edit `res/ext.resource.properties` and update next constants:
+	- MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_<split> (with suffix SPLIT2 or SPLIT3 accordingly to your case)
+	- MAX_TILESET_TOTAL_SIZE_FOR_SPLIT_IN_<split> (with suffix SPLIT2 or SPLIT3 accordingly to your case)
+	- MAX_TILESET_CHUNK_<N>_SIZE_FOR_SPLIT_IN_<split> (with suffix SPLIT2 or SPLIT3 accordingly to your case)
 	- MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX
-- go to step 4.
+- run step **5** again.
 `rom.bin` generated at out folder.  
 `Blastem's binary` location is set inside the bat script (edit accordingly or add --no-emu parameter).
 

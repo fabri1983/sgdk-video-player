@@ -65,8 +65,8 @@ const tilemapSplit = 1;
 // add compression field if you know some tilesets and tilemaps are not compressed (by rescomp rules) or if you plan to test different compression algorithms
 const imageAddCompressionField = true;
 
-var videoFrameTilesetChunkSize = 0;
-var videoFrameTilesetTotalSize = 0;
+var videoFrameTilesetChunkSize = resPropertiesMap.get('MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX');
+var videoFrameTilesetTotalSize = resPropertiesMap.get('MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX');
 
 var type_ImageNoPals = "ImageNoPals";
 if (tilesetSplit == 2) {
@@ -126,6 +126,18 @@ if (!fs.existsSync(GEN_INC_DIR)) {
 }
 
 const tileUserIndexCustom = resPropertiesMap.get('STARTING_TILESET_ON_SGDK');
+var tilesetMaxChunk1Size = resPropertiesMap.get('MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX');
+var tilesetMaxChunk2Size = 0;
+var tilesetMaxChunk3Size = 0;
+if (tilesetSplit == 2) {
+	tilesetMaxChunk1Size = resPropertiesMap.get('MAX_TILESET_CHUNK_1_SIZE_FOR_SPLIT_IN_2');
+	tilesetMaxChunk2Size = resPropertiesMap.get('MAX_TILESET_CHUNK_2_SIZE_FOR_SPLIT_IN_2');
+}
+else if (tilesetSplit == 3) {
+	tilesetMaxChunk1Size = resPropertiesMap.get('MAX_TILESET_CHUNK_1_SIZE_FOR_SPLIT_IN_3');
+	tilesetMaxChunk2Size = resPropertiesMap.get('MAX_TILESET_CHUNK_2_SIZE_FOR_SPLIT_IN_3');
+	tilesetMaxChunk3Size = resPropertiesMap.get('MAX_TILESET_CHUNK_3_SIZE_FOR_SPLIT_IN_3');
+}
 
 // --------- Generate movie_data_consts.h file
 fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`, 
@@ -155,9 +167,12 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 #define TILE_USER_INDEX_CUSTOM ${tileUserIndexCustom}
 
 #define VIDEO_FRAME_TILESET_CHUNK_SIZE ${videoFrameTilesetChunkSize} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
-#define VIDEO_FRAME_TILESET_TOTAL_SIZE ${videoFrameTilesetTotalSize} // Got experimentally from rescomp output (using TILESET_STATS_COLLECTOR). If odd then use next even number.
+#define VIDEO_FRAME_TILESET_TOTAL_SIZE ${videoFrameTilesetTotalSize} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
+#define VIDEO_FRAME_TILESET_MAX_CHUNK_1_SIZE ${tilesetMaxChunk1Size} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
+#define VIDEO_FRAME_TILESET_MAX_CHUNK_2_SIZE ${tilesetMaxChunk2Size} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
+#define VIDEO_FRAME_TILESET_MAX_CHUNK_3_SIZE ${tilesetMaxChunk3Size} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
 
-#define MOVIE_TILES_CACHE_START_INDEX ${cacheStartIndexInVRAM}
+#define MOVIE_TILES_CACHE_START_INDEX ${cacheStartIndexInVRAM} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
 
 #endif // _MOVIE_DATA_CONSTS_H
 `);

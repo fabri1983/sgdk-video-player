@@ -6,14 +6,14 @@
 
 DMAOpInfo elem;
 
-FORCE_INLINE void enqueueDMA_1elem (void* from, u16 to, u16 len, u16 step) {
+FORCE_INLINE void enqueueDMA_1elem (void* from, u16 to, u16 len) {
     u32 fromAddr = (u32) from;
 
     // $13:len L  $14:len H (DMA length in word)
     elem.regLenL = 0x9300 | (len & 0xFF);
     elem.regLenH = 0x9400 | ((len >> 8) & 0xFF);
     // $16:M  $f:step (DMA address M and Step register)
-    elem.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | step;
+    elem.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // step = 2
     // $17:H  $15:L (DMA address H & L)
     elem.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
 

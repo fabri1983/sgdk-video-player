@@ -25,7 +25,7 @@ import sgdk.tool.ArrayUtil;
 
 public class TilemapOriginalCustom extends Resource
 {
-	private static TilemapCreationData createTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetForTilesets,
+	private static TilemapCreationData createTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetPerTilesetChunk,
 			ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int imageWidth, int imageHeight,
 			int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt, Compression compression, 
 			int mapExtendedWidth, String tilesCacheId) {
@@ -84,9 +84,22 @@ public class TilemapOriginalCustom extends Resource
                 int index;
                 TileEquality equality = TileEquality.NONE;
 
-                // if no optimization, just use current offset as index
+                // if no optimization, just use current offset as index (or the one from the cache)
                 if (opt == TileOptimization.NONE)
-                    index = offset + mapBaseTileInd;
+                {
+                	TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
+                	
+                	// we found the cached tile
+                	if (match != null) {
+                		Tile existentTile = match.getTile();
+                        equality = tile.getEquality(existentTile);
+                        index = match.getIndexInCache();
+                	}
+                	else {
+                		int tilesetsListIdx = TilemapCustomTools.getTilesetIndexFor(tile, opt, tilesets);
+                		index = offset + mapBaseTileInd + offsetPerTilesetChunk[tilesetsListIdx];
+                	}
+                }
                 else
                 {
                     // use system tiles for plain tiles if possible
@@ -117,7 +130,7 @@ public class TilemapOriginalCustom extends Resource
 	                        // get equality info
 							equality = tile.getEquality(existentTile);
 	                        // can add base index now
-	                        index += mapBaseTileInd + offsetForTilesets[tilesetsListIdx];
+	                        index += mapBaseTileInd + offsetPerTilesetChunk[tilesetsListIdx];
                     	}
                     }
                 }
@@ -135,12 +148,12 @@ public class TilemapOriginalCustom extends Resource
         return new TilemapCreationData(id, data, w, h, compression);
 	}
 
-	public static TilemapOriginalCustom getTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetForTilesets, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, 
+	public static TilemapOriginalCustom getTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetPerTilesetChunk, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, 
 			int mapBase, byte[] image8bpp, int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile, 
 			TileOptimization opt, Compression compression, CompressionCustom compressionCustom, int mapExtendedWidth, String tilesCacheId, 
 			boolean addCompressionField)
 	{
-		TilemapCreationData tmData = createTilemap(id, tilesets, offsetForTilesets, toggleMapTileBaseIndexFlag, mapBase, image8bpp,
+		TilemapCreationData tmData = createTilemap(id, tilesets, offsetPerTilesetChunk, toggleMapTileBaseIndexFlag, mapBase, image8bpp,
 				imageWidth, imageHeight, startTileX, startTileY, widthTile, heightTile, opt, compression, mapExtendedWidth, tilesCacheId);
 		return new TilemapOriginalCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, compressionCustom, addCompressionField);
 	}

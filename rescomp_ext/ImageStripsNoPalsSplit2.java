@@ -63,23 +63,24 @@ public class ImageStripsNoPalsSplit2 extends Resource
     			(tileset1.getNumTile() + tileset2.getNumTile()) + ". ");
     	TilesetStatsCollector.count2chunks(tilesetStatsCollectorId, tileset1.getNumTile(), tileset2.getNumTile());
 
-        int[] offsetForTilesets = {0, tileset1.getNumTile()};
+        int[] offsetPerTilesetChunk = {0, tileset1.getNumTile()};
+//    	int[] offsetPerTilesetChunk = {0, ExtProperties.getInt(ExtProperties.MAX_TILESET_CHUNK_1_SIZE_FOR_SPLIT_IN_2)};
 
         if (splitTilemap == 1) {
 	        List<TilesetOriginalCustom> tilesetsList = Arrays.asList(tileset1, tileset2);
-			tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList, offsetForTilesets, 
+			tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList, offsetPerTilesetChunk, 
 	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, 0, wt, ht, tileOpt, compression, compressionCustomTilemap, 
 	        		mapExtendedWidth, tilesCacheId, addCompressionField));
 			tilemap2 = null;
         }
         else {
         	List<TilesetOriginalCustom> tilesetsList_t1 = Arrays.asList(tileset1);
-			tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList_t1, offsetForTilesets, 
+			tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList_t1, offsetPerTilesetChunk, 
 	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, 0, wt, ht_1, tileOpt, compression, compressionCustomTilemap, 
 	        		mapExtendedWidth, tilesCacheId, addCompressionField));
 	
 			List<TilesetOriginalCustom> tilesetsList_t2 = Arrays.asList(tileset1, tileset2);
-	        tilemap2 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tilesetsList_t2, offsetForTilesets, 
+	        tilemap2 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tilesetsList_t2, offsetPerTilesetChunk, 
 	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, ht_1, wt, ht_2, tileOpt, compression, compressionCustomTilemap, 
 	        		mapExtendedWidth, tilesCacheId, addCompressionField));
         	

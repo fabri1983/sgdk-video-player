@@ -7,74 +7,66 @@ public class TilesetStatsCollector {
 
 	private static Map<String, Integer> minTilenumPerId = new HashMap<>();
 	private static Map<String, Integer> maxTilenumPerId = new HashMap<>();
+	private static Map<String, Integer> maxTilenumChunk1PerId = new HashMap<>();
+	private static Map<String, Integer> maxTilenumChunk2PerId = new HashMap<>();
+	private static Map<String, Integer> maxTilenumChunk3PerId = new HashMap<>();
 	private static Map<String, Integer> minTotalTilenumPerId = new HashMap<>();
 	private static Map<String, Integer> maxTotalTilenumPerId = new HashMap<>();
 
-	public static void count1chunk(String id, int chunk1) {
-		counForMin(id, chunk1);
-		counForMax(id, chunk1);
-		counForMinTotal(id, chunk1);
-		counForMaxTotal(id, chunk1);
+	public static void count1chunk(String id, int chunkSize1) {
+		counForMin(id, chunkSize1, minTilenumPerId);
+		counForMax(id, chunkSize1, maxTilenumPerId);
+		counForMax(id, chunkSize1, maxTilenumChunk1PerId);
+		counForMax(id, 0, maxTilenumChunk2PerId);
+		counForMax(id, 0, maxTilenumChunk3PerId);
+		counForMin(id, chunkSize1, minTotalTilenumPerId);
+		counForMax(id, chunkSize1, maxTotalTilenumPerId);
 	}
 
-	public static void count2chunks(String id, int chunk1, int chunk2) {
-		counForMin(id, chunk1);
-		counForMax(id, chunk1);
-		counForMin(id, chunk2);
-		counForMax(id, chunk2);
-		counForMinTotal(id, chunk1 + chunk2);
-		counForMaxTotal(id, chunk1 + chunk2);
+	public static void count2chunks(String id, int chunkSize1, int chunkSize2) {
+		counForMin(id, chunkSize1, minTilenumPerId);
+		counForMax(id, chunkSize1, maxTilenumPerId);
+		counForMax(id, chunkSize1, maxTilenumChunk1PerId);
+		counForMin(id, chunkSize2, minTilenumPerId);
+		counForMax(id, chunkSize2, maxTilenumPerId);
+		counForMax(id, chunkSize2, maxTilenumChunk2PerId);
+		counForMax(id, 0, maxTilenumChunk3PerId);
+		counForMin(id, chunkSize1 + chunkSize2, minTotalTilenumPerId);
+		counForMax(id, chunkSize1 + chunkSize2, maxTotalTilenumPerId);
 	}
 
-	public static void count3chunks(String id, int chunk1, int chunk2, int chunk3) {
-		counForMin(id, chunk1);
-		counForMax(id, chunk1);
-		counForMin(id, chunk2);
-		counForMax(id, chunk2);
-		counForMin(id, chunk3);
-		counForMax(id, chunk3);
-		counForMinTotal(id, chunk1 + chunk2 + chunk3);
-		counForMaxTotal(id, chunk1 + chunk2 + chunk3);
+	public static void count3chunks(String id, int chunkSize1, int chunkSize2, int chunkSize3) {
+		counForMin(id, chunkSize1, minTilenumPerId);
+		counForMax(id, chunkSize1, maxTilenumPerId);
+		counForMax(id, chunkSize1, maxTilenumChunk1PerId);
+		counForMin(id, chunkSize2, minTilenumPerId);
+		counForMax(id, chunkSize2, maxTilenumPerId);
+		counForMax(id, chunkSize2, maxTilenumChunk2PerId);
+		counForMin(id, chunkSize3, minTilenumPerId);
+		counForMax(id, chunkSize3, maxTilenumPerId);
+		counForMax(id, chunkSize3, maxTilenumChunk3PerId);
+		counForMin(id, chunkSize1 + chunkSize2 + chunkSize3, minTotalTilenumPerId);
+		counForMax(id, chunkSize1 + chunkSize2 + chunkSize3, maxTotalTilenumPerId);
 	}
 
-	private static void counForMin(String id, int chunk1) {
-		Integer min = minTilenumPerId.get(id);
+	private static void counForMin(String id, int chunkSize, Map<String, Integer> map) {
+		Integer min = map.get(id);
 		if (min == null) {
-			min = Integer.valueOf(chunk1);
-			minTilenumPerId.put(id, min);
+			min = Integer.valueOf(chunkSize);
+			map.put(id, min);
 		}
-		if (chunk1 < min.intValue())
-			minTilenumPerId.put(id, Integer.valueOf(chunk1));
+		if (chunkSize < min.intValue())
+			map.put(id, Integer.valueOf(chunkSize));
 	}
 
-	private static void counForMax(String id, int chunk1) {
-		Integer max = maxTilenumPerId.get(id);
+	private static void counForMax(String id, int chunkSize, Map<String, Integer> map) {
+		Integer max = map.get(id);
 		if (max == null) {
-			max = Integer.valueOf(chunk1);
-			maxTilenumPerId.put(id, max);
+			max = Integer.valueOf(chunkSize);
+			map.put(id, max);
 		}
-		if (chunk1 > max.intValue())
-			maxTilenumPerId.put(id, Integer.valueOf(chunk1));
-	}
-
-	private static void counForMinTotal(String id, int total) {
-		Integer min = minTotalTilenumPerId.get(id);
-		if (min == null) {
-			min = Integer.valueOf(total);
-			minTotalTilenumPerId.put(id, min);
-		}
-		if (total < min.intValue())
-			minTotalTilenumPerId.put(id, Integer.valueOf(total));
-	}
-
-	private static void counForMaxTotal(String id, int total) {
-		Integer max = maxTotalTilenumPerId.get(id);
-		if (max == null) {
-			max = Integer.valueOf(total);
-			maxTotalTilenumPerId.put(id, max);
-		}
-		if (total > max.intValue())
-			maxTotalTilenumPerId.put(id, Integer.valueOf(total));
+		if (chunkSize > max.intValue())
+			map.put(id, Integer.valueOf(chunkSize));
 	}
 
 	public static Integer getMinTileNum(String id) {
@@ -86,6 +78,27 @@ public class TilesetStatsCollector {
 
 	public static Integer getMaxTileNum(String id) {
 		Integer max = maxTilenumPerId.get(id);
+		if (max == null)
+			return null;
+		return max.intValue();
+	}
+
+	public static Integer getMaxTileNumChunk1(String id) {
+		Integer max = maxTilenumChunk1PerId.get(id);
+		if (max == null)
+			return null;
+		return max.intValue();
+	}
+
+	public static Integer getMaxTileNumChunk2(String id) {
+		Integer max = maxTilenumChunk2PerId.get(id);
+		if (max == null)
+			return null;
+		return max.intValue();
+	}
+
+	public static Integer getMaxTileNumChunk3(String id) {
+		Integer max = maxTilenumChunk3PerId.get(id);
 		if (max == null)
 			return null;
 		return max.intValue();
