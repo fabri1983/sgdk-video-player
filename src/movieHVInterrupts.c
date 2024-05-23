@@ -232,7 +232,7 @@ MEMORY_BARRIER();
     //setupDMAForPals(8, fromAddrForDMA);
     // Setup DMA length (in word here)
     *((vu16*) VDP_CTRL_PORT) = 0x9300 | (8 & 0xff);
-    //*((vu16*) VDP_CTRL_PORT) = 0x9400 | ((8 >> 8) & 0xff);
+    *((vu16*) VDP_CTRL_PORT) = 0x9400 | ((8 >> 8) & 0xff);
     // Setup DMA address
     *((vu16*) VDP_CTRL_PORT) = 0x9500 | (fromAddrForDMA & 0xff);
     *((vu16*) VDP_CTRL_PORT) = 0x9600 | ((fromAddrForDMA >> 8) & 0xff);
@@ -251,7 +251,7 @@ MEMORY_BARRIER();
     //setupDMAForPals(12, fromAddrForDMA);
     // Setup DMA length (in word here)
     *((vu16*) VDP_CTRL_PORT) = 0x9300 | (12 & 0xff);
-    //*((vu16*) VDP_CTRL_PORT) = 0x9400 | ((12 >> 8) & 0xff);
+    *((vu16*) VDP_CTRL_PORT) = 0x9400 | ((12 >> 8) & 0xff);
     // Setup DMA address
     *((vu16*) VDP_CTRL_PORT) = 0x9500 | (fromAddrForDMA & 0xff);
     *((vu16*) VDP_CTRL_PORT) = 0x9600 | ((fromAddrForDMA >> 8) & 0xff);
@@ -270,7 +270,7 @@ MEMORY_BARRIER();
     //setupDMAForPals(12, fromAddrForDMA);
     // Setup DMA length (in word here)
     *((vu16*) VDP_CTRL_PORT) = 0x9300 | (12 & 0xff);
-    //*((vu16*) VDP_CTRL_PORT) = 0x9400 | ((12 >> 8) & 0xff);
+    *((vu16*) VDP_CTRL_PORT) = 0x9400 | ((12 >> 8) & 0xff);
     // Setup DMA address
     *((vu16*) VDP_CTRL_PORT) = 0x9500 | (fromAddrForDMA & 0xff);
     *((vu16*) VDP_CTRL_PORT) = 0x9600 | ((fromAddrForDMA >> 8) & 0xff);

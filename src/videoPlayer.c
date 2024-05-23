@@ -496,8 +496,19 @@ void playMovie () {
 			#else
 			// IMPORTANT: next frame must be counter parity from previous frame. If same parity (both even or both odd) then we will mistakenly 
 			// override the tileset VRAM region currently is being used for display the recently loaded frame.
-			if (!((prevFrame ^ vFrame) & 1))
-				++vFrame; // move into next frame so parity is not shared with previous frame
+			//if (!((prevFrame ^ vFrame) & 1))
+			//    ++vFrame; // move into next frame so parity is not shared with previous frame
+			// Faster version in ASM takes 16/18 cycles
+			ASM_STATEMENT __volatile__ (
+				"    eor.b   %0, %1\n"
+				"    btst.b  #0, %1\n"
+				"    bne.s   1f\n"
+				"    addq.w  #1, %0\n"
+				"1:\n"
+				: "=>d" (vFrame), "=>d" (prevFrame)
+				: "0" (vFrame), "1" (prevFrame)
+				: "cc"
+			);
 			#endif
 			#endif
 

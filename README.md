@@ -3,18 +3,23 @@ A video converter and video player ready to use with the [SGDK v2.0](https://git
 Originally inspired by [sgdk-video-player](https://github.com/haroldo-ok/sgdk-video-player) made by _haroldo-ok_.  
 
 
+**Work In Progress. Only tested with Blastem and Nuked-MD.**
+
+For convenience testing you can directly try the last compiled rom [videoplayer_rom.bin](videoplayer_rom.bin?raw=true "videoplayer_rom.bin").
+
+
 ### Features
-- Supports up to 252 colors per frame (at the expense of a slightly smaller frame size).
+- Supports up to 256 colors per frame (at the expense of a smaller frame size).
 - Supports both NTSC and PAL console systems.
 - Currently running at 15 FPS in NTSC and 12 FPS in PAL, with a frame size of 272x176 pixels.
 - Uses custom extensions for the [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
 
 
 ### Config theese first:
-- You need to have *Image Magick v7.x* tools installed and set in _PATH_.
-- You need to have *ffmpeg* installed and set in the _PATH_.
+- You need *Image Magick v7.x* tools and set in _PATH_.
+- You need *ffmpeg* and set in the _PATH_.
 - Set `ENABLE_BANK_SWITCH` 1 in _SGDK_'s `config.h` if the rom size is bigger than 4MB, and re build the _SGDK_ lib.
-- You need to have *NodeJs* installed and set *NODEJS_HOME* in your user/system variables.
+- You need *NodeJs* and set *NODEJS_HOME* in your user/system variables.
 
 
 ### Instructions using custom tiledpalettequant app
@@ -34,7 +39,7 @@ Once rgb images with palettes were generated and before saving them ensure the n
 - in _SGDK settings_ section:
 	- check _Switch 2 Palettes positions_
 	- check _Start at [PAL0,PAL1] first_
-	- enter 23 (strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
+	- enter 22 (strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
 - Download the images and move them at res\rgb folder.
 
 4) `node res_n_header_generator.js 272 176 8 15`
@@ -43,7 +48,7 @@ frame height: 176 (multiple of 8)
 rows per strip: 8
 frame rate: 15
 
-5) `compile_n_run.bat`
+5) `compile_n_run.bat release`
 Run it once to catch rescomp output to know tileset stats (resource TILESET_STATS_COLLECTOR). Then:
 - edit `res/ext.resource.properties` and update next constants
 	- VIDEO_FRAME_TILESET_CHUNK_SIZE (with suffix SPLIT2 or SPLIT3 accordingly to your case)
@@ -51,7 +56,7 @@ Run it once to catch rescomp output to know tileset stats (resource TILESET_STAT
 	- MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX
 - go to step 4.
 `rom.bin` generated at out folder.  
-`Blastem's binary` location is set inside the bat script (edit accordingly).
+`Blastem's binary` location is set inside the bat script (edit accordingly or add --no-emu parameter).
 
 
 ### NOTES
@@ -62,7 +67,7 @@ format for the SGDK rescomp tool.
 
 
 ### TODO
-- Tileset decompression worst case takes 249052 cycles (~519 scanlines). Maybe develop custom compressor/decompressor?
+- Tileset decompression worst case takes 249052 cycles (~519 scanlines) including all the delays added by VInt and Hint callbacks. Maybe develop custom compressor/decompressor?
 - If the use of any of the alternative compression/decompression methods is better than Stef's LZ4W then:
 	- use new video from VirtualDub2 project. Better definition and right width and height.
 	- new dims are 272 width x 200 height (34 * 25 tiles).
