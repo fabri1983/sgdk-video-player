@@ -34,7 +34,7 @@
 .macro RLEWXM_ADVANCE_ON_PARITY_ODD
     move.w      a0, d4
 	andi.b      #1, d4
-    beq         1f                  ;// if parity is even then jump and continue
+    beq.s       1f                  ;// if parity is even then jump and continue
     lea         (1,a0), a0        ;// parity is odd then advance one byte
 1:
 .endm
@@ -71,13 +71,13 @@ func rlewxmap_decomp_b
     RLEWXM_ADVANCE_ON_PARITY_ODD
     move.w      (a0)+, d2          ;// d2: u16 value_w = *(u16*) in; // read word
     btst        #0, d3              ;// test length parity
-    beq         2f                   ;// length is even? then jump
-    ;// length parity is odd => copy a single word
+    beq.s       2f                   ;// length is even? then jump
+    ;// length is odd => copy first word
     move.w      d2, (a1)+          ;// *(u16*) out = value_w
     subq.b      #1, d3              ;// --length
-    beq         .rlewxm_desc        ;// if length == 0 then jump to get next descriptor
+    beq.s       .rlewxm_desc        ;// if length == 0 then jump to get next descriptor
 2:
-    ;// length parity is even => copy 2 words at a time
+    ;// length is even => copy 2 words at a time
     move.w      d2, d4
     swap        d2
     move.w      d4, d2              ;// u32 value_l = (value_w << 16) | value_w;
@@ -96,7 +96,7 @@ func rlewxmap_decomp_b
 
 .rlewxm_end_of_row:
     lea         (a1,d0), a1          ;// jumps the gap used as expanded width of the map
-    dbf         d1, .rlewxm_desc      ;// dbra/dbf: test if not zero, then decrement rows and branch
+    dbf         d1, .rlewxm_desc      ;// dbra/dbf: decrement rows, test if rows >= 0 then branch back. When rows = -1 then no branch
 
 * ---------------------------------------------------------------------------
 .rlewxm_quit:

@@ -36,9 +36,9 @@ FORCE_INLINE void waitHCounter (u8 n) {
     u32* regA=0; // placeholder used to indicate the use of an An register
     ASM_STATEMENT __volatile__ (
         "    move.l    #0xC00009,%0\n"    // Load HCounter (VDP_HVCOUNTER_PORT + 1 = 0xC00009) into an An register
-        ".loopHC%=:\n" 
+        "1:\n" 
         "    cmp.b     (%0),%1\n"         // cmp: n - (0xC00009). Compares byte because hcLimit won't be > 160 for our practical cases
-        "    bhi       .loopHC%=\n"       // loop back if n is higher than (0xC00009)
+        "    bhi.s     1b\n"              // loop back if n is higher than (0xC00009)
             // bhi is for unsigned comparisons
         : "+a" (regA)
         : "d" (n)
@@ -238,7 +238,7 @@ MEMORY_BARRIER();
     *((vu16*) VDP_CTRL_PORT) = 0x9600 | ((fromAddrForDMA >> 8) & 0xff);
     *((vu16*) VDP_CTRL_PORT) = 0x9700 | ((fromAddrForDMA >> 16) & 0x7f);
 
-    waitHCounter(150);
+    waitHCounter(152);
     turnOffVDP(116);
     *((vu32*) VDP_CTRL_PORT) = palCmdForDMA; // trigger DMA transfer
     turnOnVDP(116);
@@ -257,7 +257,7 @@ MEMORY_BARRIER();
     *((vu16*) VDP_CTRL_PORT) = 0x9600 | ((fromAddrForDMA >> 8) & 0xff);
     *((vu16*) VDP_CTRL_PORT) = 0x9700 | ((fromAddrForDMA >> 16) & 0x7f);
 
-    waitHCounter(150);
+    waitHCounter(152);
     turnOffVDP(116);
     *((vu32*) VDP_CTRL_PORT) = palCmdForDMA; // trigger DMA transfer
     turnOnVDP(116);
@@ -276,7 +276,7 @@ MEMORY_BARRIER();
     *((vu16*) VDP_CTRL_PORT) = 0x9600 | ((fromAddrForDMA >> 8) & 0xff);
     *((vu16*) VDP_CTRL_PORT) = 0x9700 | ((fromAddrForDMA >> 16) & 0x7f);
 
-    waitHCounter(150);
+    waitHCounter(152);
     turnOffVDP(116);
     *((vu32*) VDP_CTRL_PORT) = palCmdForDMA; // trigger DMA transfer
     turnOnVDP(116);

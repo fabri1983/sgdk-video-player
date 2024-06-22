@@ -6,40 +6,38 @@
     ASM_STATEMENT __volatile__ (\
         "    move.w  %0, %1\n"\
         "    andi.b  #1, %1\n"\
-        "    beq     1f\n"\
+        "    beq.s   1f\n"\
         "    lea     (1,%0), %0\n"\
         "1:\n"\
-        : "+a" (in), "=d" (dx) \
-        : "0" (in), "1" (dx)\
+        : "+a" (in)\
+        : "d" (dx)\
         :\
     )\
 
-// NOTE: use +d for vword since it is a read/write operand
 #define DUPLICATE_WORD_INTO_LONG(vword, vlong)\
     ASM_STATEMENT __volatile__ (\
         "    move.w  %0, %1\n"\
         "    swap    %1\n"\
         "    move.w  %0, %1\n"\
-        : "=d" (vword), "=d" (vlong)\
-        : "0" (vword), "1" (vlong)\
+        : "+d" (vword), "=d" (vlong)\
+        :\
         :\
     )\
 
-// NOTE: modify the macro so vlong is read only
 #define COPY_LONG_INTO_OUT(vlong, out)\
     ASM_STATEMENT __volatile__ (\
-        "    move.l  %0, (%1)+\n"\
-        : "=d" (vlong), "=a" (out)\
-        : "0" (vlong), "1" (out)\
-        : "memory"\
+        "    move.l  %1, (%0)+\n"\
+        : "=a" (out)\
+        : "d" (vlong)\
+        :\
     )\
 
 #define GET_LONG_AND_COPY_INTO_OUT(in, out)\
     ASM_STATEMENT __volatile__ (\
         "    move.l  (%0)+, (%1)+\n"\
         : "+a" (in), "=a" (out)\
-        : "0" (in), "1" (out)\
-        : "memory"\
+        :\
+        :\
     )\
 
 #define GET_BYTE_AS_HIGH_INTO_WORD(in, vword)\
@@ -47,8 +45,8 @@
         "    move.b  (%0)+, -(%%sp)\n" /* byte goes to high half of new word on stack */ \
         "    move.w  (%%sp)+, %1\n"    /* pop the word into dx. Lower byte is 0 */ \
         : "+a" (in), "=d" (vword)\
-        : "0" (in), "1" (vword)\
-        : "memory"\
+        :\
+        :\
     )\
 
 #define GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, vword, out)\
@@ -56,8 +54,8 @@
         "    move.b  (%0)+, %1\n" /* byte goes to low half of destination leaving high half as it is */ \
         "    move.w  %1, (%2)+\n"\
         : "+a" (in), "+d" (vword), "=a" (out)\
-        : "0" (in), "1" (vword), "2" (out)\
-        : "memory"\
+        :\
+        :\
     )\
 
 void NO_INLINE rlewxmap_decomp_A (const u8 jumpGap, u8* in, u8* out) {
