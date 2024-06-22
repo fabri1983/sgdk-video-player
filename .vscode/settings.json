@@ -23,7 +23,12 @@
     "type_traits": "c",
     "xhash": "c",
     "xtree": "c",
-    "xutility": "c"
+    "xutility": "c",
+    "functional": "c",
+    "system_error": "c",
+    "xtr1common": "c",
+    "xiosbase": "c",
+    "xlocale": "c"
 },
 "C_Cpp.errorSquiggles": "enabled",
 "[m68k]": {

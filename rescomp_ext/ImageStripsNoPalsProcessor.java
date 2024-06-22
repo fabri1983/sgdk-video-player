@@ -58,8 +58,8 @@ public class ImageStripsNoPalsProcessor implements Processor
 			System.out.println("                       " + ToggleMapTileBaseIndex.NONE.getValue() + " disabled.");
 			System.out.println("                       " + ToggleMapTileBaseIndex.EVEN.getValue() + " if first frame num is even.");
 			System.out.println("                       " + ToggleMapTileBaseIndex.ODD.getValue() + " if first frame is odd.");
-			System.out.println("  mapExtendedWidth   Extends the map width to 64 o 128 tiles (filled with 0s) so you can use VDP_setTileMapData() if your plane width is 64 or 128 tiles.");
-			System.out.println("                       Accepted values: 0 (disabled), 64 or 128.");
+			System.out.println("  mapExtendedWidth   Extends the map width to 32, 64, or 128 tiles (filled with 0s) so you can use VDP_setTileMapData() if your plane width is 32, 64, or 128 tiles.");
+			System.out.println("                       Accepted values: 0 (disabled), 32, 64 or 128.");
 			System.out.println("  compression        Compression type for Tileset and Tilemaps. Accepted values:");
 			System.out.println("                       -1 / BEST / AUTO = use best compression");
 			System.out.println("                        0 / NONE        = no compression (default)");
@@ -138,7 +138,7 @@ public class ImageStripsNoPalsProcessor implements Processor
         int mapExtendedWidth = 0;
         if (fields.length >= 10) {
         	int value = StringUtil.parseInt(fields[9], 0);
-        	if (value == 0 || value == 64 || value == 128)
+        	if (value == 0 || value == 32 || value == 64 || value == 128)
         		mapExtendedWidth = value;
         }
 
@@ -243,15 +243,15 @@ public class ImageStripsNoPalsProcessor implements Processor
 //		ImageStripsNoPalsProcessor p = new ImageStripsNoPalsProcessor();
 //		String[] fields_test_A = {
 //				resId, "mv_frame_47_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_47_0_RGB.png", "22", "tilesetStats1", 
-//				"TilesCache_Movie1", "2", "2", "ODD", "64", "FAST", "NONE", "ALL"
+//				"TilesCache_Movie1", "2", "2", "ODD", "64", "FAST", "NONE", "NONE", "TRUE", "ALL"
 //			};
 //		String[] fields_test_B = {
-//				resId, "mv_frame_160_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_160_0_RGB.png", "22", "tilesetStats1", 
-//				"TilesCache_Movie1", "3", "1", "ODD", "64", "FAST", "NONE", "ALL"
+//				resId, "mv_frame_161_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_161_0_RGB.png", "22", "tilesetStats1", 
+//				"TilesCache_Movie1", "3", "1", "ODD", "64", "NONE", "NONE", "RLEWXMAP_B", "TRUE", "ALL"
 //			};
 //		String[] fields_test_Titan = {
 //				resId, "titanRGB", "C:\\MyProjects\\VSCode\\sgdk\\titan256c\\res\\titan256c\\titan_0_0_RGB.png", "28", "tilesetStats1", 
-//				"NULL", "1", "1", "NONE", "0", "FAST", "NONE", "ALL"
+//				"NULL", "1", "1", "NONE", "0", "FAST", "NONE", "NONE", "TRUE", "ALL"
 //			};
 //		p.execute(fields_test_B);
 //	}

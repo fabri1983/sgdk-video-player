@@ -4,12 +4,12 @@ import sgdk.rescomp.type.Basics.Compression;
 
 public enum CompressionCustom {
 
-	AUTO(					"AUTO",					"",						0),
-	NONE(					"NONE",					"",						0),
-	FAST(					"FAST",					"",						0),
-	LZ4W(					"LZ4W",					"",						0),
-	APLIB(					"APLIB",				"",						0),
-	BEST(					"BEST",					"",						0),
+	AUTO(					"AUTO",					"",						0), // just a place holder, BinCustom changes the type to Compress before creating the bin
+	NONE(					"NONE",					"",						0), // just a place holder, BinCustom changes the type to Compress before creating the bin
+	FAST(					"FAST",					"",						0), // just a place holder, BinCustom changes the type to Compress before creating the bin
+	LZ4W(					"LZ4W",					"",						0), // just a place holder, BinCustom changes the type to Compress before creating the bin
+	APLIB(					"APLIB",				"",						0), // just a place holder, BinCustom changes the type to Compress before creating the bin
+	BEST(					"BEST",					"",						0), // just a place holder, BinCustom changes the type to Compress before creating the bin
 	BYTEKILLER(				"BYTEKILLER",			"bytekiller",			10),
 	CLOWNNEMESIS(			"CLOWNNEMESIS",			"clownnemesis",			11),
 	COMPER(					"COMPER",				"compcmp",				12),
@@ -28,16 +28,18 @@ public enum CompressionCustom {
 	NEMESIS(				"NEMESIS",				"nemcmp",				25),
 	NIBBLER(				"NIBBLER",				"Nibble",				26),
 	PACKFIRE(				"PACKFIRE",				"packfire",				27),
-	RNC1(					"RNC1",					"rnc_propack_x64",		28),
-	RNC2(					"RNC2",					"rnc_propack_x64",		29),
-	ROCKET(					"ROCKET",				"rockcmp",				30),
-	SAXMAN(					"SAXMAN",				"saxcmp",				31),
-	SBZ(					"SBZ",					"sbz",					32),
-	SNKRLE(					"SNKRLE",				"snkcmp",				33),
-	UFTC(					"UFTC",					"uftc",					34),
-	UFTC15(					"UFTC15",				"uftc",					35),
-	UNAPLIB(				"UNAPLIB",				"",						36),
-	ZX0(					"ZX0",					"salvador",				37);
+	RLEWXMAP_A(				"RLEWXMAP_A",			"",						28),
+	RLEWXMAP_B(				"RLEWXMAP_B",			"",						29),
+	RNC1(					"RNC1",					"rnc_propack_x64",		30),
+	RNC2(					"RNC2",					"rnc_propack_x64",		31),
+	ROCKET(					"ROCKET",				"rockcmp",				32),
+	SAXMAN(					"SAXMAN",				"saxcmp",				33),
+	SBZ(					"SBZ",					"sbz",					34),
+	SNKRLE(					"SNKRLE",				"snkcmp",				35),
+	UFTC(					"UFTC",					"uftc",					36),
+	UFTC15(					"UFTC15",				"uftc",					37),
+	UNAPLIB(				"UNAPLIB",				"",						38),
+	ZX0(					"ZX0",					"salvador",				39);
 
     private final String value;
     private final String exeName;

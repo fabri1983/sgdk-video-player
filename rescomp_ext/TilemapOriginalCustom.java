@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.ExtProperties;
+import sgdk.rescomp.tool.RLEWXMapCompressor;
 import sgdk.rescomp.tool.TilemapCustomTools;
 import sgdk.rescomp.tool.TilesCacheManager;
 import sgdk.rescomp.tool.Util;
@@ -64,8 +65,7 @@ public class TilemapOriginalCustom extends Resource
     	mapBaseTileInd += videoFrameBufferOffsetIndex;
 
 		// we have a base offset --> we can use system plain tiles
-		// fabri1983: don't use system plain tiles
-        final boolean useSystemTiles = false;//mapBaseTileInd != 0;
+        final boolean useSystemTiles = mapBaseTileInd != 0;
 
         short[] data = new short[w * h];
 
@@ -87,23 +87,31 @@ public class TilemapOriginalCustom extends Resource
                 // if no optimization, just use current offset as index (or the one from the cache)
                 if (opt == TileOptimization.NONE)
                 {
-                	TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
-                	
-                	// we found the cached tile
-                	if (match != null) {
-                		Tile existentTile = match.getTile();
-                        equality = tile.getEquality(existentTile);
-                        index = match.getIndexInCache();
-                	}
-                	else {
-                		int tilesetsListIdx = TilemapCustomTools.getTilesetIndexFor(tile, opt, tilesets);
-                		index = offset + mapBaseTileInd + offsetPerTilesetChunk[tilesetsListIdx];
-                	}
+                	// fabri1983: we only allow index 0 (the black tile) to be used as a plain tile
+                	// because that's the first SGDK tile reserved in VRAM at address 0
+                    if (tile.isPlain() && tile.getPlainValue() == 0)
+                        index = tile.getPlainValue();
+                    else {
+	                	TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
+	                	
+	                	// we found the cached tile
+	                	if (match != null) {
+	                		Tile existentTile = match.getTile();
+	                        equality = tile.getEquality(existentTile);
+	                        index = match.getIndexInCache();
+	                	}
+	                	else {
+	                		int tilesetsListIdx = TilemapCustomTools.getTilesetIndexFor(tile, opt, tilesets);
+	                		index = offset + mapBaseTileInd + offsetPerTilesetChunk[tilesetsListIdx];
+	                	}
+                    }
                 }
                 else
                 {
                     // use system tiles for plain tiles if possible
-                    if (useSystemTiles && tile.isPlain())
+                	// fabri1983: we only allow index 0 (the black tile) to be used as a plain tile
+                	// because that's the first SGDK tile reserved in VRAM at address 0
+                    if (useSystemTiles && tile.isPlain() && tile.getPlainValue() == 0)
                         index = tile.getPlainValue();
                     else
                     {
@@ -140,7 +148,7 @@ public class TilemapOriginalCustom extends Resource
             }
         }
 
-        if (mapExtendedWidth != 0) {
+        if (mapExtendedWidth == 64 || mapExtendedWidth == 128) {
         	data = TilemapCustomTools.convertDataToNTilesWidth(data, w, h, mapExtendedWidth);
         	w = mapExtendedWidth;
         }
@@ -148,23 +156,31 @@ public class TilemapOriginalCustom extends Resource
         return new TilemapCreationData(id, data, w, h, compression);
 	}
 
-	public static TilemapOriginalCustom getTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetPerTilesetChunk, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, 
-			int mapBase, byte[] image8bpp, int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile, 
-			TileOptimization opt, Compression compression, CompressionCustom compressionCustom, int mapExtendedWidth, String tilesCacheId, 
-			boolean addCompressionField)
+	public static TilemapOriginalCustom getTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetPerTilesetChunk, 
+			ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int imageWidth, int imageHeight, 
+			int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt, Compression compression, 
+			CompressionCustom compressionCustom, int mapExtendedWidth, String tilesCacheId, boolean addCompressionField)
 	{
 		TilemapCreationData tmData = createTilemap(id, tilesets, offsetPerTilesetChunk, toggleMapTileBaseIndexFlag, mapBase, image8bpp,
 				imageWidth, imageHeight, startTileX, startTileY, widthTile, heightTile, opt, compression, mapExtendedWidth, tilesCacheId);
+
+		if (compression == Compression.NONE && (compressionCustom == CompressionCustom.RLEWXMAP_A || compressionCustom == CompressionCustom.RLEWXMAP_B))
+			tmData.data = RLEWXMapCompressor.extractTilemapDataOnly_short(tmData.data, widthTile, mapExtendedWidth);
+
 		return new TilemapOriginalCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, compressionCustom, addCompressionField);
 	}
 
-	public static TilemapOriginalCustom getTilemap(String id, TilesetOriginalCustom tileset, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapBase, 
-			byte[] image8bpp, int widthTile, int heightTile, TileOptimization opt, Compression compression, CompressionCustom compressionCustom, 
-			int mapExtendedWidth, String tilesCacheId, boolean addCompressionField)
+	public static TilemapOriginalCustom getTilemap(String id, TilesetOriginalCustom tileset, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, 
+			int mapBase, byte[] image8bpp, int widthTile, int heightTile, TileOptimization opt, Compression compression, 
+			CompressionCustom compressionCustom, int mapExtendedWidth, String tilesCacheId, boolean addCompressionField)
     {
 		List<TilesetOriginalCustom> tilesets = Arrays.asList(tileset);
 		TilemapCreationData tmData = createTilemap(id, tilesets, new int[]{0}, toggleMapTileBaseIndexFlag, mapBase, image8bpp, widthTile * 8, 
 				heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, mapExtendedWidth, tilesCacheId);
+
+		if (compression == Compression.NONE && (compressionCustom == CompressionCustom.RLEWXMAP_A || compressionCustom == CompressionCustom.RLEWXMAP_B))
+			tmData.data = RLEWXMapCompressor.extractTilemapDataOnly_short(tmData.data, widthTile, mapExtendedWidth);
+
 		return new TilemapOriginalCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, compressionCustom, addCompressionField);
     }
 

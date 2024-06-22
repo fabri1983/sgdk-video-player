@@ -6,7 +6,7 @@
 
 // #define DEBUG_VIDEO_PLAYER
 // #define DEBUG_TILES_CACHE
-// #define DEBUG_FIXED_FRAME 196 // Always use an even frame number due to the map base tile index statically set on each frame by our custom rescomp extension
+#define DEBUG_FIXED_FRAME 160 // Always use an even frame number due to the map base tile index statically set on each frame by our custom rescomp extension
 // #define LOG_DIFF_BETWEEN_VIDEO_FRAMES
 
 /// If TRUE then it will add Joy plling logic and user can exit the video playback at any time. FALSE otherwise.
@@ -25,17 +25,14 @@
 // Enables HInt callback implementation using DMA (TRUE) or pure CPU (FALSE)
 #define HINT_USE_DMA TRUE
 
-/// If you are 100% sure ALL the tilemaps were compressed by rescomp tool (by looking at the console output) then set this to TRUE.
-/// If you are 100% sure ALL the tilemaps were NOT compressed by rescomp tool (by looking at the console output) then set this to FALSE.
+/// If you are 100% sure ALL the tilemaps were compressed by rescomp tool (see console output) then set it TRUE
 #define ALL_TILEMAPS_COMPRESSED TRUE
+/// If you are 100% sure ALL the tilemaps were NOT compressed by rescomp tool (see console output) then set it TRUE
+#define ALL_TILEMAPS_NOT_COMPRESSED FALSE
 
-/// If you are 100% sure ALL the palettes were compressed by rescomp tool (by looking at the console output) then set this to TRUE.
-/// If you are 100% sure ALL the palettes were NOT compressed by rescomp tool (by looking at the console output) then set this to FALSE.
+/// If you are 100% sure ALL the palettes were compressed by rescomp tool (see console output) then set it TRUE
 #define ALL_PALETTES_COMPRESSED TRUE
 
-#define VIDEO_FRAME_TILEMAP_NUM (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES)
-#define VIDEO_FRAME_TILEMAP_NUM_CHUNK (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * (MOVIE_FRAME_HEIGHT_IN_TILES / 1))
-#define VIDEO_FRAME_TILEMAP_NUM_CHUNK_LAST (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * ((MOVIE_FRAME_HEIGHT_IN_TILES / 1) + (MOVIE_FRAME_HEIGHT_IN_TILES % 1)))
 #define VIDEO_FRAME_PALS_NUM (MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP)
 #define VIDEO_FRAME_PALS_CHUNK_SIZE (VIDEO_FRAME_PALS_NUM / 3)
 #define VIDEO_FRAME_PALS_CHUNK_SIZE_LAST ((VIDEO_FRAME_PALS_NUM / 3) + (VIDEO_FRAME_PALS_NUM % 3))
@@ -52,7 +49,8 @@
 /// Using bigger image height or locating it at upper Y values will reveal the flickering.
 #define TILES_PER_DMA_TRANSFER 368
 
-#define FADE_TO_BLACK_STEP_FREQ 4 // Every N frames we apply one fade to black step
+#define FADE_TO_BLACK_STEPS 7 // How many steps needs to be applied as much to reach black color. Max is 7.
+#define FADE_TO_BLACK_STEP_FREQ 4 // Every N frames we apply one fade to black step.
 
 void playMovie ();
 

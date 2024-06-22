@@ -26,14 +26,14 @@ public class MdComp {
 			.getParentFile().getAbsolutePath();
 	private static final String tmdDir = SystemUtil.getProperty("java.io.tmpdir");
 
-	public static PackedDataCustom pack(byte[] data, CompressionCustom compression) {
+	public static PackedDataCustom pack(byte[] data, String binId, CompressionCustom compression) {
 		// nothing to do
 		if (compression == CompressionCustom.NONE)
 			return new PackedDataCustom(data, CompressionCustom.NONE);
 
 		byte[] result = data;
-		result = compress(data, compression);
-		// no good compression ? return origin data
+		result = compress(data, binId, compression);
+		// no good compression? return origin data
         if (!isCompressionValuable(result.length, data.length))
             return new PackedDataCustom(data, CompressionCustom.NONE);
         else
@@ -50,17 +50,26 @@ public class MdComp {
         return Math.round((compressedSize * 100f) / uncompressedSize) <= maxPourcentage;
     }
 
-	private static byte[] compress(byte[] data, CompressionCustom compression) {
+	private static byte[] compress(byte[] data, String binId, CompressionCustom compression) {
+
+		//countUnique(data);
+
 		if (compression == CompressionCustom.UNAPLIB) {
 			byte[] result = Util.appack(data);
 			return result;
 		}
-
-		//countUnique(data);
+		else if (compression == CompressionCustom.RLEWXMAP_A) {
+			byte[] result = RLEWXMapCompressor.compressMap_A(data, binId);
+			return result;
+		}
+		else if (compression == CompressionCustom.RLEWXMAP_B) {
+			byte[] result = RLEWXMapCompressor.compressMap_B(data, binId);
+			return result;
+		}
 
 		long suffix = System.currentTimeMillis();
-		String infile = tmdDir + File.separator + compression.getValue() + "_tmp_res_IN_" + suffix + ".bin";
-		String outfile = tmdDir + File.separator + compression.getValue() + "_tmp_res_OUT_" + suffix + ".bin";
+		String infile = tmdDir + File.separator + compression.getValue() + "_" + binId + "_IN_" + suffix + ".bin";
+		String outfile = tmdDir + File.separator + compression.getValue() + "_" + binId + "_OUT_" + suffix + ".bin";
 
 		try {
 			writeBytesToFile(data, infile);
@@ -155,13 +164,13 @@ public class MdComp {
 
 	/**
 	 * Converts the byte array to LittleEndian order on a word (16 bits) basis.
-	 * This only needed for decompressors that work on a word basis, as LZ4W does.
+	 * This only needed if the byte array isn't generated with little endian order in a per word basis.
 	 * @param byteArray
 	 * @return
 	 */
 	private static byte[] convertToLE(byte[] byteArray) {
 		ByteBuffer bb = ByteBuffer.wrap(byteArray);
-		bb.order( ByteOrder.LITTLE_ENDIAN);
+		bb.order(ByteOrder.LITTLE_ENDIAN);
 		
 		byte[] result = new byte[byteArray.length];
 		int offset = 0;

@@ -72,7 +72,7 @@ public class BinCustom extends Bin
 
         // IMPORTANT: CompressionCustom option has priority over Compression option
         if (wantedCompressionCustom != CompressionCustom.NONE) {
-        	PackedDataCustom packedDataCustom = MdComp.pack(data, wantedCompressionCustom);
+        	PackedDataCustom packedDataCustom = MdComp.pack(data, id, wantedCompressionCustom);
         	packedData = (PackedData) packedDataCustom;
         	doneCompressionCustom = packedDataCustom.compressionCustom;
         	doneCompression = Compression.NONE;
@@ -119,10 +119,12 @@ public class BinCustom extends Bin
                     break;
 
                 case APLIB:
+                	CompressionCustomUsageTracker.markUsed(CompressionCustom.AUTO);
                     System.out.print("packed with APLIB, ");
                     break;
 
                 case LZ4W:
+                	CompressionCustomUsageTracker.markUsed(CompressionCustom.LZ4W);
                     System.out.print("packed with LZ4W, ");
                     break;
 

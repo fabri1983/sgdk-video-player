@@ -84,8 +84,12 @@ public class TilesetOriginalCustom extends Resource
                 // blank tile
                 hasBlank |= tile.isBlank();
 
-                TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
+                // fabri1983: tile with all zeros is the first SGDK tile reserved in VRAM at address 0
+                // so we don't need to add it
+                if (tile.getPlainValue() == 0)
+                	continue;
 
+                TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
             	// found the cached tile? then continue with next one
             	if (match != null)
             		continue;

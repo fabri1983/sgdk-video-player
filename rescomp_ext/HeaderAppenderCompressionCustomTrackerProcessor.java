@@ -22,7 +22,7 @@ public class HeaderAppenderCompressionCustomTrackerProcessor implements Processo
         if (fields.length < 2)
         {
             System.out.println("Wrong " + resId + " definition.");
-            System.out.println("This processor enables the tracking of the CompressionCustom used in this resource file.");
+            System.out.println("This processor enables the tracking of the CompressionCustom used in this .res file.");
             System.out.println("Add it at the end of all resource files you use any of CompressionCustom algorithms.");
             System.out.println("It outputs file " + headerFileName + " at rescomp_ext.jar location, containig all the resources's CompressionCustom algorithm used.");
             System.out.println(resId + " name");

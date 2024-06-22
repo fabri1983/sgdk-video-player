@@ -60,7 +60,7 @@ Run it once to catch rescomp output to know tileset stats (resource TILESET_STAT
 	- MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX
 - run step **5** again.
 `rom.bin` generated at out folder.  
-`Blastem's binary` location is set inside the bat script (edit accordingly or add --no-emu parameter).
+`Blastem's binary` location is set inside the bat script (edit accordingly or add *--no-emu* parameter).
 
 
 ### NOTES
@@ -71,6 +71,9 @@ format for the SGDK rescomp tool.
 
 
 ### TODO
+- FAR_SAFE() takes 150~153 cycles. Create dynamically a lookup table by frame (and chunk for tilesets) to provide the final location address.
+- Try Enigma on tilemaps and check if decompression time is same or lower than LZ4.
+- Pre load frame 0 before starting music and see how does result with sound timing and the deleted cache tiles issue.
 - Tileset decompression worst case takes 249052 cycles (~519 scanlines) including all the delays added by VInt and Hint callbacks. Maybe develop custom compressor/decompressor?
 - If the use of any of the alternative compression/decompression methods is better than Stef's LZ4W then:
 	- use new video from VirtualDub2 project. Better definition and right width and height.

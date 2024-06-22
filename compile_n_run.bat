@@ -1,4 +1,6 @@
 @ECHO OFF
+:: Eg:
+::    compile_n_run.bat release --no-emu
 
 SET "target=%1"
 IF NOT "%target%" == "release" IF NOT "%target%" == "debug" IF NOT "%target%" == "clean" IF NOT "%target%" == "asm" (

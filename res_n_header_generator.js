@@ -114,12 +114,11 @@ if (paletteAddCompressionField)
 const matchFirstFrame = FILE_REGEX_2.exec(sortedFileNamesEveryFirstStrip[0]);
 const toggleMapTileBaseIndexFlag = parseInt(matchFirstFrame[1]) % 2 == 0 ? "EVEN" : "ODD"; // use NONE to disable it
 
-// extends map width to 64 (0: not extended). Setting 0 demands you to update enqueueTilemapData() in videoPlayer.c
-const mapExtendedWidth = 64;
-var widthTilesExt = mapExtendedWidth;
-if (mapExtendedWidth == 0) {
-	widthTilesExt = widthTiles;
-}
+// Resource plugin: extends map width to N tiles. Values: 0 (disabled), 32, 64, 128.
+// videoPlayer.c: buffer allocation and copy algorithm.
+// NOTE: changing any of the values here demands you to review/update enqueueTilemapData() in videoPlayer.c.
+const mapExtendedWidth_forResource = 64; // If using RLEWXMAP compression then it has no effect on generated data
+const widthTilesExt_forVideoPlayer = 64;
 
 if (!fs.existsSync(GEN_INC_DIR)) {
 	fs.mkdirSync(GEN_INC_DIR, { recursive: true });
@@ -154,7 +153,7 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 #define MOVIE_FRAME_COUNT ${sortedFileNamesEveryFirstStrip.length}
 #define MOVIE_FRAME_WIDTH_IN_TILES ${widthTiles}
 #define MOVIE_FRAME_HEIGHT_IN_TILES ${heightTiles}
-#define MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES ${widthTilesExt}
+#define MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES ${widthTilesExt_forVideoPlayer}
 #define MOVIE_FRAME_STRIPS ${stripsPerFrame}
 
 #define MOVIE_FRAME_COLORS_PER_STRIP 32
@@ -213,18 +212,18 @@ const headerAppenderAllCustom = `HEADER_APPENDER_ALL_CUSTOM  headerAllCustomType
 
 // Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1648  movieFrames_cache.txt APLIB NONE
 // Flag 'enable' possible values: FALSE, TRUE
-const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache?"TRUE":"FALSE"}  `
-		+ `${cacheStartIndexInVRAM}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
+const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache?"TRUE":"FALSE"}`
+		+ `  ${cacheStartIndexInVRAM}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
 
 // Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  600
 // Flag 'enable' possible values: FALSE, TRUE
 const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${enableTilesCacheStats?"TRUE":"FALSE"}  600` + '\n\n';
 
-// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesCache_movie1  3  1  ODD  64  FAST  NONE  NONE  TRUE  ALL
+// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesetStats1  tilesCache_movie1  3  1  ODD  64  FAST  NONE  NONE  TRUE  ALL
 const imageResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `IMAGE_STRIPS_NO_PALS  mv_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${tilesetStatsId}`
 			+ `  ${tilesCacheId}  ${tilesetSplit}  ${tilemapSplit}`
-            + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth}  FAST  NONE  NONE`
+            + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth_forResource}  NONE  FAST  RLEWXMAP_B`
 			+ `  ` + (imageAddCompressionField ? 'TRUE' : 'FALSE')
 			+ `  ALL`)
 	.join('\n') + '\n\n';

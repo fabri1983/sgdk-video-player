@@ -78,43 +78,43 @@ public class TilesCacheManager {
 		File file = new File(location + File.separator + filename);
 
 		try (Scanner scanner = new Scanner(file)) {
-            if (!file.exists()) {
-    			System.out.println("ERROR! Couldn't load file " + filename);
-    			return Collections.emptyList();
-    		}
+			if (!file.exists()) {
+				System.out.println("ERROR! Couldn't load file " + filename);
+				return Collections.emptyList();
+			}
 
-            // Read the first line as the id
-            String id = null;
-            if (scanner.hasNextLine()) {
-                id = scanner.nextLine();
-            }
-            if (!cacheId.equals(id)) {
-            	System.out.println("ERROR! provided cacheId is different from cacheId in file " + filename);
-    			return Collections.emptyList();
-            }
+			// Read the first line as the id
+			String id = null;
+			if (scanner.hasNextLine()) {
+				id = scanner.nextLine();
+			}
+			if (!cacheId.equals(id)) {
+            	System.out.println("ERROR! " + TilesCacheManager.class.getSimpleName() + ": provided cacheId is different from cacheId in file " + filename);
+				return Collections.emptyList();
+			}
 
-            List<Tile> tiles = new ArrayList<>(256);
-            // Read the remaining lines as comma-separated integers each
-            while (scanner.hasNextLine()) {
-                String[] values = scanner.nextLine().split(",");
-                if (values == null || values.length != 8)
-                	continue;
-                int[] data = new int[8];
-                for (int i = 0; i < values.length && i < 8; i++) {
-                    data[i] = Integer.parseInt(values[i].trim());
-                }
-                Tile tile = new Tile(data, 8, 0, false, 0);
-                tiles.add(tile);
-            }
+			List<Tile> tiles = new ArrayList<>(256); // initial capacity
+			// Read the remaining lines as comma-separated integers each
+			while (scanner.hasNextLine()) {
+				String[] values = scanner.nextLine().split(",");
+				if (values == null || values.length != 8)
+					continue;
+				int[] data = new int[8];
+				for (int i = 0; i < values.length && i < 8; i++) {
+					data[i] = Integer.parseInt(values[i].trim());
+				}
+				Tile tile = new Tile(data, 8, 0, false, 0);
+				tiles.add(tile);
+			}
 
-            System.out.println(cacheId + ": Loaded tiles: " + tiles.size());
-            cachedTilesByCacheId.put(cacheId, tiles);
-            return tiles;
+			System.out.println(cacheId + ": Loaded tiles: " + tiles.size());
+			cachedTilesByCacheId.put(cacheId, tiles);
+			return tiles;
 
-        } catch (FileNotFoundException e) {
-            System.out.println("ERROR! " + e.getMessage());
-            return Collections.emptyList();
-        }
+		} catch (FileNotFoundException e) {
+			System.out.println("ERROR! " + TilesCacheManager.class.getSimpleName() + ": " + e.getMessage());
+			return Collections.emptyList();
+		}
 	}
 
 	/**
@@ -187,6 +187,9 @@ public class TilesCacheManager {
 		Map<Integer, AtomicInteger> resourcesPerTile = statsCacheResourcesPerTileByCacheId.get(cacheId);
 		HashSet<Integer> alreadyProcessed = new HashSet<>((int)(tiles.size() / 0.75) + 1);
 		for (Tile tile : tiles) {
+			// we don't process the tile that is black because that's the first SGDK tile reserved in VRAM at address 0
+			if (tile.getPlainValue() == 0)
+				continue;
 			int key = tile.hashCode();//Arrays.hashCode(tile.data);
 			if (alreadyProcessed.contains(key))
 				continue;
@@ -220,6 +223,9 @@ public class TilesCacheManager {
 
 		Map<Integer, AtomicInteger> occurrencesPerTile = statsCacheTotalOccurrsByCacheId.get(cacheId);
 		for (Tile tile : tiles) {
+			// we don't process the tile that is black because that's the first SGDK tile reserved in VRAM at address 0
+			if (tile.getPlainValue() == 0)
+				continue;
 			int key = tile.hashCode();//Arrays.hashCode(tile.data);
 			if (!occurrencesPerTile.containsKey(key))
 				occurrencesPerTile.put(key, new AtomicInteger(1));
