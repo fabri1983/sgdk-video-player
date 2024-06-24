@@ -43,7 +43,7 @@
 #define GET_BYTE_AS_HIGH_INTO_WORD(in, vword)\
     ASM_STATEMENT __volatile__ (\
         "    move.b  (%0)+, -(%%sp)\n" /* byte goes to high half of new word on stack */ \
-        "    move.w  (%%sp)+, %1\n"    /* pop the word into dx. Lower byte is 0 */ \
+        "    move.w  (%%sp)+, %1\n"    /* pop the word into dx. Lower byte is garbage (whatever it was in the stack) */ \
         : "+a" (in), "=d" (vword)\
         :\
         :\
@@ -65,7 +65,7 @@ void NO_INLINE rlewxmap_decomp_A (const u8 jumpGap, u8* in, u8* out) {
 
         // if rleDescriptor != 0 then it's a simple RLE: just copy a word value N times
         if (rleDescriptor != 0) {
-            // current address is odd? then consume additional parity byte
+            // current in address is odd? then consume additional parity byte
             ADVANCE_ON_PARITY_ODD(in);
             u16 value_w = *(u16*) in; // read word
             in += 2;
@@ -82,6 +82,9 @@ void NO_INLINE rlewxmap_decomp_A (const u8 jumpGap, u8* in, u8* out) {
                 DUPLICATE_WORD_INTO_LONG(value_w, value_l);
                 // copy the long value N/2 times
                 switch (length) {
+                    case 40: COPY_LONG_INTO_OUT(value_l, out); // fall through
+                    case 38: COPY_LONG_INTO_OUT(value_l, out); // fall through
+                    case 36: COPY_LONG_INTO_OUT(value_l, out); // fall through
                     case 34: COPY_LONG_INTO_OUT(value_l, out); // fall through
                     case 32: COPY_LONG_INTO_OUT(value_l, out); // fall through
                     case 30: COPY_LONG_INTO_OUT(value_l, out); // fall through
@@ -113,7 +116,7 @@ void NO_INLINE rlewxmap_decomp_A (const u8 jumpGap, u8* in, u8* out) {
         // rleDescriptor == 0 then we're going to copy a stream of words
         else {
             u8 newRleDescriptor = *in++; // read new RLE descriptor byte and advance
-            // current address is odd? then consume additional parity byte
+            // current in address is odd? then consume additional parity byte
             ADVANCE_ON_PARITY_ODD(in);
             u8 length = newRleDescriptor & 0b00111111; // we know for sure length >= 2
             // length is odd? then copy first word
@@ -126,6 +129,9 @@ void NO_INLINE rlewxmap_decomp_A (const u8 jumpGap, u8* in, u8* out) {
             if (length != 0) {
                 // copy remaining even number of words as pairs, ie copying 2 words (1 long) at a time
                 switch (length) {
+                    case 40: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                    case 38: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                    case 36: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
                     case 34: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
                     case 32: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
                     case 30: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
@@ -161,7 +167,6 @@ void NO_INLINE rlewxmap_decomp_B (const u8 jumpGap, u8* in, u8* out) {
     u8 rows = *in++; // get map rows
     while (rows) {
         u8 rleDescriptor = *in++; // read RLE descriptor byte and advance
-        u8 length = rleDescriptor & 0b00111111;
 
         // is end of row byte?
         if (rleDescriptor == 0) {
@@ -171,10 +176,11 @@ void NO_INLINE rlewxmap_decomp_B (const u8 jumpGap, u8* in, u8* out) {
         }
         // if descriptor's MSB == 0 (simple RLE) then just copy a word value N times
         else if (rleDescriptor < 0b10000000) {
-            // current address is odd? then consume additional parity byte
+            // current in address is odd? then consume additional parity byte
             ADVANCE_ON_PARITY_ODD(in);
             u16 value_w = *(u16*) in; // read word
             in += 2;
+            u8 length = rleDescriptor & 0b00111111;
             // length is odd? then copy first word
             if ((length & 1) != 0) {
                 *(u16*) out = value_w;
@@ -188,6 +194,9 @@ void NO_INLINE rlewxmap_decomp_B (const u8 jumpGap, u8* in, u8* out) {
             DUPLICATE_WORD_INTO_LONG(value_w, value_l);
             // copy the long value N/2 times
             switch (length) {
+                case 40: COPY_LONG_INTO_OUT(value_l, out); // fall through
+                case 38: COPY_LONG_INTO_OUT(value_l, out); // fall through
+                case 36: COPY_LONG_INTO_OUT(value_l, out); // fall through
                 case 34: COPY_LONG_INTO_OUT(value_l, out); // fall through
                 case 32: COPY_LONG_INTO_OUT(value_l, out); // fall through
                 case 30: COPY_LONG_INTO_OUT(value_l, out); // fall through
@@ -210,8 +219,9 @@ void NO_INLINE rlewxmap_decomp_B (const u8 jumpGap, u8* in, u8* out) {
         }
         // descriptor's MSB == 1 (stream) and if next bit for common high byte is 0, then is a stream of words
         else if (rleDescriptor < 0b11000000) {
-            // current address is odd? then consume additional parity byte
+            // current in address is odd? then consume additional parity byte
             ADVANCE_ON_PARITY_ODD(in);
+            u8 length = rleDescriptor & 0b00111111;
             // length is odd? then copy first word
             if ((length & 1) != 0) {
                 *(u16*) out = *(u16*) in; // read word
@@ -223,6 +233,9 @@ void NO_INLINE rlewxmap_decomp_B (const u8 jumpGap, u8* in, u8* out) {
             }
             // copy remaining even number of words as pairs, ie copying 2 words (1 long) at a time
             switch (length) {
+                case 40: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 38: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 36: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
                 case 34: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
                 case 32: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
                 case 30: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
@@ -248,7 +261,14 @@ void NO_INLINE rlewxmap_decomp_B (const u8 jumpGap, u8* in, u8* out) {
             // read common byte into high half of word and advance
             u16 value_w = 0;
             GET_BYTE_AS_HIGH_INTO_WORD(in, value_w);
+            u8 length = rleDescriptor & 0b00111111;
             switch (length) { // we know length >= 2
+                case 40: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
+                case 39: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
+                case 38: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
+                case 37: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
+                case 36: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
+                case 35: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
                 case 34: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
                 case 33: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
                 case 32: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
