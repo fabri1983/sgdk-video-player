@@ -43,7 +43,7 @@
 #define GET_BYTE_AS_HIGH_INTO_WORD(in, vword)\
     ASM_STATEMENT __volatile__ (\
         "    move.b  (%0)+, -(%%sp)\n" /* byte goes to high half of new word on stack */ \
-        "    move.w  (%%sp)+, %1\n"    /* pop the word into dx. Lower byte is garbage (whatever it was in the stack) */ \
+        "    move.w  (%%sp)+, %1\n"    /* pop the word into dx. Lower byte is garbage (whatever was in the stack) */ \
         : "+a" (in), "=d" (vword)\
         :\
         :\

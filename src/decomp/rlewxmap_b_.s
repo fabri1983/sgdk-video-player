@@ -33,7 +33,7 @@
 
 .macro RLEWXM_ADVANCE_ON_PARITY_ODD
     move.w      a0, d4
-	andi.w      #1, d4
+	andi.b      #1, d4
     beq.s       1f                  ;// if parity is even then jump and continue
     lea         (1,a0), a0          ;// parity is odd then advance one byte
 1:
@@ -47,21 +47,21 @@ func rlewxmap_decomp_B_asm
 	movem.l     d1-d4, -(sp)        ;// save registers (except the scratch pad)
 
     move.b      (a0)+, d1           ;// d1: rows
-    andi.w      #0x00FF,d1          ;// clean higher byte of d1
+    andi.w      #0xFF,d1            ;// clean higher byte of d1
     subq.b      #1, d1              ;// decrement rows here because we use dbra/dbf for the big loop at the end
 
-.b_rlewxm_desc:
+.b_rlewxm_get_desc:
     move.b      (a0)+, d2           ;// d2: rleDescriptor
     tst.b       d2
-    bne.s       .b_rlewxm_new_block     ;// if (descriptor != 0) then we continue with a new block
+    bne.s       .b_rlewxm_new_segment   ;// if (descriptor != 0) then we continue with a new segment
     ;// descriptor == 0 => is end of row
     adda.l      d0, a1              ;// jumps the gap used as expanded width in the map
-    dbra        d1, .b_rlewxm_desc  ;// dbra/dbf: decrement rows, test if rows >= 0 then branch back. When rows = -1 then no branch
+    dbra        d1, .b_rlewxm_get_desc  ;// dbra/dbf: decrement rows, test if rows >= 0 then branch back. When rows = -1 then no branch
     ;// no more rows then quit
     movem.l     (sp)+, d1-d4        ;// restore registers (except the scratch pad)
     rts
 
-.b_rlewxm_new_block:
+.b_rlewxm_new_segment:
     cmpi.b      #0x80, d2           ;// test rleDescriptor < 0b10000000 => bit 8 set and 7 not set
     bcs         .b_rlewxm_rle       ;// if (rleDescriptor < 0b10000000) then is a simple RLE
     cmpi.b      #0xC0, d2           ;// test rleDescriptor < 0b11000000 => bit 8 and 7 set
@@ -77,14 +77,14 @@ func rlewxmap_decomp_B_asm
     add.w       d3, d3
     add.w       d3, d3              ;// d3 * 4 because every target instruction set takes 4 bytes
     move.b      (a0)+, -(sp)        ;// byte goes to high half of new word on stack
-    move.w      (sp)+, d2           ;// pop the word into d2. Lower byte is garbage (whatever it was in the stack)
+    move.w      (sp)+, d2           ;// pop the word into d2. Lower byte is garbage (whatever was in the stack)
     jmp         .b_jmp_stream_cb(pc,d3.w)
 .b_jmp_stream_cb:
 .rept (RLEWXMAP_WIDTH_IN_TILES)
     move.b      (a0)+, d2           ;// byte goes to low half of destination leaving high half as it is
     move.w      d2, (a1)+
 .endr
-    bra         .b_rlewxm_desc      ;// jump to get next descriptor
+    bra         .b_rlewxm_get_desc  ;// jump to get next descriptor
 
 .b_rlewxm_stream_sw:
     RLEWXM_ADVANCE_ON_PARITY_ODD    ;// current in address is odd? then consume additional parity byte
@@ -94,7 +94,7 @@ func rlewxmap_decomp_B_asm
     ;// length is odd => copy first word
     move.w      (a0)+, (a1)+        ;// *(u16*) out = *(u16*) in
     subq.w      #1, d2              ;// --length
-    beq         .b_rlewxm_desc      ;// if length == 0 then jump to get next descriptor
+    beq         .b_rlewxm_get_desc  ;// if length == 0 then jump to get next descriptor
 2:
     ;// length is even => copy 2 words (1 long) at a time
     ;// prepare jump offset
@@ -106,7 +106,7 @@ func rlewxmap_decomp_B_asm
 .rept (RLEWXMAP_WIDTH_IN_TILES/2)   ;// for RLEWXMAP_WIDTH_IN_TILES being odd we already covered that case above
     move.l	    (a0)+, (a1)+
 .endr
-    bra         .b_rlewxm_desc      ;// jump to get next descriptor
+    bra         .b_rlewxm_get_desc  ;// jump to get next descriptor
 
 .b_rlewxm_rle:
     RLEWXM_ADVANCE_ON_PARITY_ODD    ;// current in address is odd? then consume additional parity byte
@@ -117,7 +117,7 @@ func rlewxmap_decomp_B_asm
     ;// length is odd => copy first word
     move.w      d3, (a1)+           ;// *(u16*) out = value_w
     subq.w      #1, d2              ;// --length
-    beq         .b_rlewxm_desc      ;// if length == 0 then jump to get next descriptor
+    beq         .b_rlewxm_get_desc  ;// if length == 0 then jump to get next descriptor
 2:
     ;// length is even => copy 2 words (1 long) at a time
     move.w      d3, d4
@@ -132,4 +132,4 @@ func rlewxmap_decomp_B_asm
 .rept (RLEWXMAP_WIDTH_IN_TILES/2)   ;// for RLEWXMAP_WIDTH_IN_TILES being odd we already covered that case above
     move.l	    d3, (a1)+
 .endr
-    bra         .b_rlewxm_desc      ;// jump to get next descriptor
+    bra         .b_rlewxm_get_desc  ;// jump to get next descriptor

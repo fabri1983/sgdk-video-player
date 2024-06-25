@@ -43,6 +43,7 @@ public class RLEWXMapCompressor {
 			throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + ": data[] length " + data.length + " + is not even");
 
 		// TODO use pattern matching on the binId to extract the value from the ExtProperties class.
+
 		// this is the width in tiles of the tilemap region containing valid data (not the extended width).
 		final int mapTilesPerRow = 34; // up to 64 because we use 6 bits for the length
 
@@ -71,6 +72,7 @@ public class RLEWXMapCompressor {
 			throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + ": data[] length " + data.length + " + is not even");
 
 		// TODO use pattern matching on the binId to extract the value from the ExtProperties class.
+
 		// this is the width in tiles of the tilemap region containing valid data (not the extended width).
 		final int mapTilesPerRow = 34; // up to 64 because we use 6 bits for the length
 
@@ -139,7 +141,7 @@ public class RLEWXMapCompressor {
 	 * This has an impact on the decompressor algorithm time. SMALLER values produce slightly faster decompression 
 	 * because the copy of words is straight forward avoiding intermediate checks for descriptors and lengths.
 	 */
-	private static final int RLE_MIN_SEQUENCE_OF_1_LENGTH_OCCURRENCE = 2;
+	private static final int RLE_MIN_SEQUENCE_OF_LENGTH_1_OCCURRENCE = 2;
 	/**
 	 * Value must be >= 2.</br>
 	 * Play with this value to see how much the size of the encoded output changes.</br>
@@ -190,7 +192,6 @@ public class RLEWXMapCompressor {
 
 			ByteBuffer buffer = ByteBuffer.allocate(3);
 			byte rleDescriptor = (byte) (runLength & 0b00111111); // keep only first 6 bits
-
 			if (setEndOfRowBit)
 				rleDescriptor |= 0b10000000;
 
@@ -248,7 +249,7 @@ public class RLEWXMapCompressor {
 				break;
 		}
 
-		if (sequenceLength >= RLE_MIN_SEQUENCE_OF_1_LENGTH_OCCURRENCE) {
+		if (sequenceLength >= RLE_MIN_SEQUENCE_OF_LENGTH_1_OCCURRENCE) {
 			// Add the byte value 0 marking this is a stream of words
 			target.add((byte) 0);
 
@@ -327,7 +328,7 @@ public class RLEWXMapCompressor {
 		byte[] rleArrayPhase1 = outputStream.toByteArray();
 
 		// PHASE 2:
-		// Now transform consecutive words having RLE byte descriptor with length 1, at least 2 words, into one stream of words.
+		// Now transform consecutive words having RLE byte descriptor with length 1, at least N words, into one stream of words.
 		// The new RLE byte descriptor for such streams has 1 as its MSB and the length in the remaining 6 LSBs.
 		// The rest of the encoded RLE stays the same if the stream criteria is not met.
 
@@ -360,9 +361,9 @@ public class RLEWXMapCompressor {
 		byte[] rleArrayPhase2 = convertToByteArray(rleArrayPhase2List);
 
 		// PHASE 3:
-		// Process the streams of words and extract at least 2 consecutive words having the same high byte. 
+		// Process the streams of words and extract at least N consecutive words having the same high byte. 
 		// This way the common high byte can be included once at the beginning of the stream and then continue 
-		// with the low byte of every remaining word in the stream. This saves up to ~50% in the best case.
+		// with the low byte of every remaining word in the stream. This saves up to <50% in the best case.
 
 		List<Byte> rleArrayPhase3List = new ArrayList<>();
 
@@ -405,7 +406,7 @@ public class RLEWXMapCompressor {
 			i += 3; // Move to the next descriptor
 		}
 
-		if (sequenceLength >= RLE_MIN_SEQUENCE_OF_1_LENGTH_OCCURRENCE) {
+		if (sequenceLength >= RLE_MIN_SEQUENCE_OF_LENGTH_1_OCCURRENCE) {
 			// Set the MSB to 1 to tell this is a stream of words, followed by the length of 
 			// the stream in the remaining 6 LSBs
 			byte newDescriptor = (byte) (0b10000000 | (sequenceLength & 0b00111111));
@@ -450,17 +451,15 @@ public class RLEWXMapCompressor {
 
 			// If at least 2 words share the same high byte then we can compress them
 			if (sequenceLength >= RLE_MIN_COMMON_HIGH_BYTE_SEQUENCE) {
-				// Set the first 2 MSBs to 1 to tell this is a stream of bytes using a common high byte  
-				// for the following N bytes.
+				// Set the first 2 MSBs to 1 to tell this is a stream of bytes using a common high byte for the following N bytes.
 				byte newDescriptor = (byte) (0b11000000 | (sequenceLength & 0b00111111));
 				tempCollectorListPass1.add(newDescriptor);
 				tempCollectorListPass1.add(currentHighByte);
-
 				// Add the low byte of every collected word
 				for (int j = 0; j < sequenceLength; j++)
 					tempCollectorListPass1.add(rleArrayPhase2[sequenceStart + 1 + 2*j]); // word's low byte
 			}
-			// Not enough length to compress the words, copy the words as is
+			// Not enough length to compress the words, then copy every word as a RLE of length 1
 			else {
 				for (int j = sequenceStart; j < (sequenceStart + 2 * sequenceLength); j += 2) {
 					// Use a RLE descriptor with length 1 so we can convert them into a stream later on
@@ -491,7 +490,7 @@ public class RLEWXMapCompressor {
 			else if ((byte)(descriptor & 0b11000000) == (byte)0b11000000) {
 				tempCollectorListPass2.add(descriptor);
 				j++; // move to the high common byte
-				tempCollectorListPass2.add(tempCollectorArrayPass1[j++]); // collect the high common byte and move
+				tempCollectorListPass2.add(tempCollectorArrayPass1[j++]); // collect the high common byte and move forward
 				int len = descriptor & 0b00111111;
 				for (int k = 0; k < len; ++k)
 					tempCollectorListPass2.add(tempCollectorArrayPass1[j++]);
@@ -621,7 +620,7 @@ public class RLEWXMapCompressor {
 			// descriptor MSB == 1 and next bit for common high byte is 1, then is a stream with a common high byte
 			else {
 				list.add(rleData[index++]); // common high byte
-				int length = descriptor & 0x3F; // First 6 bits for length
+				int length = descriptor & 0x3F; // length is first 6 bits
 				// copy the bytes
 				for (int i = 0; i < length; i++)
 					list.add(rleData[index++]);
@@ -642,11 +641,11 @@ public class RLEWXMapCompressor {
 			if (descriptor != 0) {
 				int length = descriptor & 0x3F; // First 6 bits for length
 				rowLengthAccum += length;
-				index += 2;
+				index += 2; // consume the word
 				// if MSB is set then it marks end of row
 				if ((descriptor & 0b10000000) != 0) {
 					if (rowLengthAccum != mapTilesPerRow)
-						throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + ": method A: wrong number of rows in packed array.");
+						throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + " method A: wrong number of tiles in row.");
 					rowLengthAccum = 0;
 				}
 			}
@@ -655,7 +654,7 @@ public class RLEWXMapCompressor {
 				byte newDescriptor = rleData[index++];
 				int length = newDescriptor & 0x3F; // First 6 bits for length
 				rowLengthAccum += length;
-				index += 2 * length;
+				index += 2 * length; // consume the all the words
 			}
 		}
 	}
@@ -670,7 +669,7 @@ public class RLEWXMapCompressor {
 			// descriptor == 0 is the mark for end of row
 			if (descriptor == 0) {
 				if (rowLengthAccum != mapTilesPerRow)
-					throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + ": method B: wrong number of rows in packed array.");
+					throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + " method B: wrong number of tiles in row.");
 				rowLengthAccum = 0;
 				continue;
 			}
@@ -678,20 +677,20 @@ public class RLEWXMapCompressor {
 			else if ((descriptor & 0b10000000) == 0) {
 				int length = descriptor & 0x3F; // First 6 bits for length
 				rowLengthAccum += length;
-				index += 2;
+				index += 2; // consume the word
 			}
 			// descriptor MSB == 1, test if next bit for common high byte is 0, then is a stream of words
 			else if ((descriptor & 0b01000000) == 0) {
 				int length = descriptor & 0x3F; // First 6 bits for length
 				rowLengthAccum += length;
-				index += 2 * length;
+				index += 2 * length; // consume all the words
 			}
 			// descriptor MSB == 1 and next bit for common high byte is 1, then is a stream with a common high byte
 			else {
 				int length = descriptor & 0x3F; // First 6 bits for length
 				index++; // consume common high byte
 				rowLengthAccum += length;
-				index += length;
+				index += length; // consume all the bytes
 			}
 		}
 	}
