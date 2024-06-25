@@ -89,12 +89,11 @@ func rlewxmap_decomp_B_asm
 .b_rlewxm_stream_sw:
     RLEWXM_ADVANCE_ON_PARITY_ODD    ;// current in address is odd? then consume additional parity byte
     andi.w      #0x3F, d2           ;// d2: length = rleDescriptor & 0b00111111
-    btst        #0, d2              ;// test length parity
+    btst        #0, d2              ;// test length parity. Here we know length >= 2.
     beq.s       2f                  ;// length is even? then jump
     ;// length is odd => copy first word
     move.w      (a0)+, (a1)+        ;// *(u16*) out = *(u16*) in
     subq.w      #1, d2              ;// --length
-    beq         .b_rlewxm_get_desc  ;// if length == 0 then jump to get next descriptor
 2:
     ;// length is even => copy 2 words (1 long) at a time
     ;// prepare jump offset
@@ -112,7 +111,7 @@ func rlewxmap_decomp_B_asm
     RLEWXM_ADVANCE_ON_PARITY_ODD    ;// current in address is odd? then consume additional parity byte
     move.w      (a0)+, d3           ;// d3: u16 value_w = *(u16*) in
     andi.w      #0x3F, d2           ;// d2: length = rleDescriptor & 0b00111111
-    btst        #0, d2              ;// test length parity
+    btst        #0, d2              ;// test length parity. Here we know length >= 1.
     beq.s       2f                  ;// length is even? then jump
     ;// length is odd => copy first word
     move.w      d3, (a1)+           ;// *(u16*) out = value_w

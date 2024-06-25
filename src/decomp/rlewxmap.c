@@ -120,37 +120,35 @@ void NO_INLINE rlewxmap_decomp_A (const u8 jumpGap, u8* in, u8* out) {
             ADVANCE_ON_PARITY_ODD(in);
             u8 length = newRleDescriptor & 0b00111111; // we know for sure length >= 2
             // length is odd? then copy first word
-            if ((length & 1) != 0) {
+            if ((length & 1) != 0) { // we know length >= 2
                 *(u16*) out = *(u16*) in; // copy a word
                 in += 2;
                 out += 2;
                 --length;
             }
-            if (length != 0) {
-                // copy remaining even number of words as pairs, ie copying 2 words (1 long) at a time
-                switch (length) {
-                    case 40: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 38: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 36: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 34: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 32: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 30: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 28: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 26: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 24: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 22: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 20: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 18: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 16: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 14: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 12: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case 10: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case  8: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case  6: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case  4: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    case  2: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                    default: break;
-                }
+            // copy remaining even number of words as pairs, ie copying 2 words (1 long) at a time
+            switch (length) {
+                case 40: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 38: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 36: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 34: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 32: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 30: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 28: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 26: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 24: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 22: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 20: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 18: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 16: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 14: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 12: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 10: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case  8: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case  6: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case  4: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case  2: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                default: break;
             }
 
             // is end of row bit set?
@@ -182,7 +180,7 @@ void NO_INLINE rlewxmap_decomp_B (const u8 jumpGap, u8* in, u8* out) {
             in += 2;
             u8 length = rleDescriptor & 0b00111111;
             // length is odd? then copy first word
-            if ((length & 1) != 0) {
+            if ((length & 1) != 0) { // we know length >= 1
                 *(u16*) out = value_w;
                 out += 2;
                 --length;
@@ -223,13 +221,11 @@ void NO_INLINE rlewxmap_decomp_B (const u8 jumpGap, u8* in, u8* out) {
             ADVANCE_ON_PARITY_ODD(in);
             u8 length = rleDescriptor & 0b00111111;
             // length is odd? then copy first word
-            if ((length & 1) != 0) {
+            if ((length & 1) != 0) { // we know length >= 2
                 *(u16*) out = *(u16*) in; // read word
                 in += 2;
                 out += 2;
                 --length;
-                if (length == 0)
-                    continue;
             }
             // copy remaining even number of words as pairs, ie copying 2 words (1 long) at a time
             switch (length) {
