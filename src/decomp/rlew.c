@@ -1,4 +1,4 @@
-#include "decomp/rlewxmap.h"
+#include "decomp/rlew.h"
 #include "compatibilities.h"
 
 #define ADVANCE_ON_PARITY_ODD(in)\
@@ -58,7 +58,7 @@
         :\
     )\
 
-void NO_INLINE rlewxmap_decomp_A (const u8 jumpGap, u8* in, u8* out) {
+void NO_INLINE rlew_decomp_A (const u8 jumpGap, u8* in, u8* out) {
     u8 rows = *in++; // get map rows
     while (rows) {
         u8 rleDescriptor = *in++; // read RLE descriptor byte and advance
@@ -161,7 +161,7 @@ void NO_INLINE rlewxmap_decomp_A (const u8 jumpGap, u8* in, u8* out) {
     }
 }
 
-void NO_INLINE rlewxmap_decomp_B (const u8 jumpGap, u8* in, u8* out) {
+void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
     u8 rows = *in++; // get map rows
     while (rows) {
         u8 rleDescriptor = *in++; // read RLE descriptor byte and advance

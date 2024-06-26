@@ -11,15 +11,15 @@ import java.util.stream.Collectors;
 
 /**
  * RLE compression algorithm that combines Variable-Length Encoding, Block Based Encoding, and Run-Length Limited (RLL) Coding.</br>
- * Each row of the source map is treated as an independent block of RLE encoding with a limited max length.</br>
+ * The source array is treated as a multi row of words, each row is treated as an independent block of RLE encoding with a limited max length.</br>
  * It runs 3 RLE phases which aim to reduce the size of the final encoding, with some configurable parameters to slightly speedup decompression.</br>
- * <b>NOTE:</b> only supports maps up to 63 tiles width due to 6 bits dedicated for length.</br>
+ * <b>NOTE:</b> only supports arrays up to 63 words due to 6 bits dedicated for length.</br>
  * IS USEFUL IF YOUR TARGET MAP BUFFER HAS AN EXTENDED WIDTH TO [32, 64, 128] TILES (GOOD FOR FASTER DMA OPERATION).</br>
  * THIS WAY YOU CAN DECOMPRESS A BLOCK AND LEAVE UNTOUCHED THE EXTRA SPACE USED TO FULFILL THE WIDTH UP TO [32, 64, 128] TILES.</br>
  *  
  * @author fabri1983
  */
-public class RLEWXMapCompressor {
+public class RLEWCompressor {
 
 	public static class WordInfo {
 		int count;
@@ -33,27 +33,26 @@ public class RLEWXMapCompressor {
 
 	/**
 	 * Method A: lower compression ratio but faster decompression time.<br/>
-	 * Compress a tilemap data using RLE for 16 bits words. Only up to {@link RLEWXMapCompressor#RLE_MAX_RUN_LENGTH} tiles per row.
+	 * Compress an array of words using RLE for 16 bits words. Only up to {@link RLEWCompressor#RLE_MAX_RUN_LENGTH} word per row.
 	 * @param data
 	 * @param binId Used to extract from the properties file some parameters
 	 * @return
 	 */
-	public static byte[] compressMap_A (byte[] data, String binId) {
+	public static byte[] compress_A (byte[] data, String binId) {
 		if ((data.length % 2) != 0)
-			throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + ": data[] length " + data.length + " + is not even");
+			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": data[] length " + data.length + " + is not even");
 
-		// TODO use pattern matching on the binId to extract the value from the ExtProperties class.
+		// TODO use pattern matching on the binId to extract next value from the ExtProperties class.
+		// this is the width in words of the data region containing valid data (not the extended width in the case of a map).
+		final int wordsPerRow = 34; // up to 63 because we use 6 bits for the length
 
-		// this is the width in tiles of the tilemap region containing valid data (not the extended width).
-		final int mapTilesPerRow = 34; // up to 63 because we use 6 bits for the length
+		byte[] packed = methodA(data, wordsPerRow);
 
-		byte[] packed = methodA(data, mapTilesPerRow);
+		checkCorrectRowLength_A(packed, wordsPerRow);
+//		Map<String, WordInfo> wordInfo_A = decodeRLEforStats_A(packed);
+//		printStats(wordInfo_A);
 
-		checkCorrectRowLength_A(packed, mapTilesPerRow);
-//		Map<String, WordInfo> wordInfoMap_A = decodeRLEforStats_A(packed);
-//		printStats(wordInfoMap_A);
-
-		final int rows = data.length / (mapTilesPerRow * 2); // multiply by 2 because every tilemap entry is 2 bytes
+		final int rows = data.length / (wordsPerRow * 2); // multiply by 2 because every word entry is 2 bytes
 		byte[] packedWithHeader = addHeader(packed, rows);
 		byte[] packedFinal = addParityBytes_A(packedWithHeader);
 //		printAsHexa(packedFinal);
@@ -62,27 +61,26 @@ public class RLEWXMapCompressor {
 
 	/**
 	 * Method B: higher compression ratio but slower decompression time.<br/>
-	 * Compress a tilemap data using RLE for 16 bits words. Only up to {@link RLEWXMapCompressor#RLE_MAX_RUN_LENGTH} tiles per row.
+	 * Compress an array of words using RLE for 16 bits words. Only up to {@link RLEWCompressor#RLE_MAX_RUN_LENGTH} words per row.
 	 * @param data
 	 * @param binId Used to extract from the properties file some parameters
 	 * @return
 	 */
-	public static byte[] compressMap_B (byte[] data, String binId) {
+	public static byte[] compress_B (byte[] data, String binId) {
 		if ((data.length % 2) != 0)
-			throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + ": data[] length " + data.length + " + is not even");
+			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": data[] length " + data.length + " + is not even");
 
-		// TODO use pattern matching on the binId to extract the value from the ExtProperties class.
+		// TODO use pattern matching on the binId to extract next value from the ExtProperties class.
+		// this is the width in words of the data region containing valid data (not the extended width in the case of a map).
+		final int wordsPerRow = 34; // up to 63 because we use 6 bits for the length
 
-		// this is the width in tiles of the tilemap region containing valid data (not the extended width).
-		final int mapTilesPerRow = 34; // up to 63 because we use 6 bits for the length
+		byte[] packed = methodB(data, wordsPerRow);
 
-		byte[] packed = methodB(data, mapTilesPerRow);
+		checkCorrectRowLength_B(packed, wordsPerRow);
+//		Map<String, WordInfo> wordInfo_B = decodeRLEforStats_B(packed);
+//		printStats(wordInfo_B);
 
-		checkCorrectRowLength_B(packed, mapTilesPerRow);
-//		Map<String, WordInfo> wordInfoMap_B = decodeRLEforStats_B(packed);
-//		printStats(wordInfoMap_B);
-
-		final int rows = data.length / (mapTilesPerRow * 2); // multiply by 2 because every tilemap entry is 2 bytes
+		final int rows = data.length / (wordsPerRow * 2); // multiply by 2 because every word entry is 2 bytes
 		byte[] packedWithHeader = addHeader(packed, rows);
 		byte[] packedFinal = addParityBytes_B(packedWithHeader);
 //		printAsHexa(packedFinal);
@@ -101,7 +99,7 @@ public class RLEWXMapCompressor {
 		if (extTilesWidthPerRow == 0)
 			return data;
 		if (origTilesWidthPerRow > extTilesWidthPerRow)
-			throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + ": origTilesWidthPerRow must be <= extTilesWidthPerRow");
+			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": origTilesWidthPerRow must be <= extTilesWidthPerRow");
 		int rows = data.length / (extTilesWidthPerRow * 2); // multiply by 2 because every tilemap entry is 2 bytes
 		byte[] result = new byte[rows * origTilesWidthPerRow * 2]; // multiply by 2 because every tilemap entry is 2 bytes
 		for (int i=0; i < rows; ++i) {
@@ -122,7 +120,7 @@ public class RLEWXMapCompressor {
 		if (extTilesWidthPerRow == 0)
 			return data;
 		if (origTilesWidthPerRow > extTilesWidthPerRow)
-			throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + ": origTilesWidthPerRow must be <= extTilesWidthPerRow");
+			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": origTilesWidthPerRow must be <= extTilesWidthPerRow");
 		int rows = data.length / extTilesWidthPerRow;
 		short[] result = new short[rows * origTilesWidthPerRow];
 		for (int i=0; i < rows; ++i) {
@@ -132,20 +130,20 @@ public class RLEWXMapCompressor {
 	}
 
 	/**
-	 * Only 6 bits used for the length, hence (2^6)-1=63.
+	 * Only 6 bits used for the length (in words), hence (2^6)-1=63.
 	 */
 	private static final int RLE_MAX_RUN_LENGTH = 63;
 	/**
 	 * Value must be >= 2</br>
 	 * Play with this value to see how much the size of the encoded output changes.</br>
-	 * This has an impact on the decompressor algorithm time. SMALLER values produce slightly faster decompression 
+	 * This has an impact in the unpack algorithm time. SMALLER values produce slightly faster decompression 
 	 * because the copy of words is straight forward avoiding intermediate checks for descriptors and lengths.
 	 */
 	private static final int RLE_MIN_SEQUENCE_OF_LENGTH_1_OCCURRENCE = 2;
 	/**
 	 * Value must be >= 2.</br>
 	 * Play with this value to see how much the size of the encoded output changes.</br>
-	 * This has an impact on the decompressor algorithm time. BIGGER values produce slightly faster decompression 
+	 * This has an impact in the unpacker algorithm time. BIGGER values produce slightly faster decompression 
 	 * because the preparation of the high common byte into a word consumes time, plus the additional checks for 
 	 * descriptors and lengths in case the sequences are short.
 	 */
@@ -157,12 +155,12 @@ public class RLEWXMapCompressor {
 	private static final double RLE_THRESHOLD_PHASE_2_TO_PHASE_3 = 0.8;
 	
 	/**
-	 * Compress a tilemap data using RLE for 16 bits words. Only up to {@link RLEWXMapCompressor#RLE_MAX_RUN_LENGTH} tiles per row.
+	 * Compress an array of words using RLE for 16 bits words. Only up to {@link RLEWCompressor#RLE_MAX_RUN_LENGTH} words per row.
 	 * @param data
-	 * @param mapTilesPerRow
+	 * @param wordsPerRow
 	 * @return
 	 */
-	private static byte[] methodA (byte[] data, int mapTilesPerRow) {
+	private static byte[] methodA (byte[] data, int wordsPerRow) {
 
 		// PHASE 1: basic RLE
 		// Uses a byte descriptor to hold the run length (first 6 LSBs) followed by a word (2 bytes) value.
@@ -177,7 +175,7 @@ public class RLEWXMapCompressor {
 			int runLength = 1;
 			accumWordsThisRow++; // current word being analyzed per row
 
-			while ((i+2) < data.length && runLength < RLE_MAX_RUN_LENGTH && accumWordsThisRow < mapTilesPerRow && 
+			while ((i+2) < data.length && runLength < RLE_MAX_RUN_LENGTH && accumWordsThisRow < wordsPerRow && 
 					(data[i] == data[i + 2]) && (data[i + 1] == data[i + 3])) {
 				runLength++;
 				accumWordsThisRow++;
@@ -185,7 +183,7 @@ public class RLEWXMapCompressor {
 			}
 
 			boolean setEndOfRowBit = false;
-			if (accumWordsThisRow == mapTilesPerRow) {
+			if (accumWordsThisRow == wordsPerRow) {
 				accumWordsThisRow = 0;
 				setEndOfRowBit = true;
 			}
@@ -279,12 +277,12 @@ public class RLEWXMapCompressor {
 	}
 
 	/**
-	 * Compress a tilemap data using RLE for 16 bits words. Only up to {@link RLEWXMapCompressor#RLE_MAX_RUN_LENGTH} tiles per row.
+	 * Compress an array of words data using RLE for 16 bits words. Only up to {@link RLEWCompressor#RLE_MAX_RUN_LENGTH} words per row.
 	 * @param data
-	 * @param mapTilesPerRow
+	 * @param wordsPerRow
 	 * @return
 	 */
-	private static byte[] methodB (byte[] data, int mapTilesPerRow) {
+	private static byte[] methodB (byte[] data, int wordsPerRow) {
 
 		// PHASE 1: basic RLE
 		// Uses a byte descriptor to hold the run length (first 6 LSBs) followed by a word (2 bytes) value.
@@ -299,7 +297,7 @@ public class RLEWXMapCompressor {
 			int runLength = 1;
 			accumWordsThisRow++; // current word being analyzed per row
 
-			while ((i+2) < data.length && runLength < RLE_MAX_RUN_LENGTH && accumWordsThisRow < mapTilesPerRow && 
+			while ((i+2) < data.length && runLength < RLE_MAX_RUN_LENGTH && accumWordsThisRow < wordsPerRow && 
 					(data[i] == data[i + 2]) && (data[i + 1] == data[i + 3])) {
 				runLength++;
 				accumWordsThisRow++;
@@ -307,7 +305,7 @@ public class RLEWXMapCompressor {
 			}
 
 			boolean setEndOfRowBit = false;
-			if (accumWordsThisRow == mapTilesPerRow) {
+			if (accumWordsThisRow == wordsPerRow) {
 				accumWordsThisRow = 0;
 				setEndOfRowBit = true;
 			}
@@ -496,7 +494,7 @@ public class RLEWXMapCompressor {
 					tempCollectorListPass2.add(tempCollectorArrayPass1[j++]);
 			}
 			else
-				throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + ": descriptor is not expected.");
+				throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": descriptor is not expected.");
 		}
 
 		// Resulting array must be at least 80% smaller than the original stream of words
@@ -630,7 +628,7 @@ public class RLEWXMapCompressor {
 		return convertToByteArray(list);
 	}
 
-	private static void checkCorrectRowLength_A(byte[] rleData, int mapTilesPerRow) {
+	private static void checkCorrectRowLength_A(byte[] rleData, int wordsPerRow) {
 		int rowLengthAccum = 0;
 		int index = 0;
 
@@ -644,8 +642,8 @@ public class RLEWXMapCompressor {
 				index += 2; // consume the word
 				// if MSB is set then it marks end of row
 				if ((descriptor & 0b10000000) != 0) {
-					if (rowLengthAccum != mapTilesPerRow)
-						throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + " method A: wrong number of tiles in row.");
+					if (rowLengthAccum != wordsPerRow)
+						throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + " method A: wrong number of words in row.");
 					rowLengthAccum = 0;
 				}
 			}
@@ -659,7 +657,7 @@ public class RLEWXMapCompressor {
 		}
 	}
 	
-	private static void checkCorrectRowLength_B(byte[] rleData, int mapTilesPerRow) {
+	private static void checkCorrectRowLength_B(byte[] rleData, int wordsPerRow) {
 		int rowLengthAccum = 0;
 		int index = 0;
 
@@ -668,8 +666,8 @@ public class RLEWXMapCompressor {
 
 			// descriptor == 0 is the mark for end of row
 			if (descriptor == 0) {
-				if (rowLengthAccum != mapTilesPerRow)
-					throw new RuntimeException("ERROR: " + RLEWXMapCompressor.class.getSimpleName() + " method B: wrong number of tiles in row.");
+				if (rowLengthAccum != wordsPerRow)
+					throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + " method B: wrong number of words in row.");
 				rowLengthAccum = 0;
 				continue;
 			}

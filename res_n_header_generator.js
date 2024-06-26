@@ -117,7 +117,7 @@ const toggleMapTileBaseIndexFlag = parseInt(matchFirstFrame[1]) % 2 == 0 ? "EVEN
 // Resource plugin: extends map width to N tiles. Values: 0 (disabled), 32, 64, 128.
 // videoPlayer.c: buffer allocation and copy algorithm.
 // NOTE: changing any of the values here demands you to review/update enqueueTilemapData() in videoPlayer.c.
-const mapExtendedWidth_forResource = 64; // If using RLEWXMAP compression then it has no effect on generated data
+const mapExtendedWidth_forResource = 64; // If using RLEW compression then it has no effect on generated data
 const widthTilesExt_forVideoPlayer = 64;
 
 if (!fs.existsSync(GEN_INC_DIR)) {
@@ -223,7 +223,7 @@ const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${
 const imageResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `IMAGE_STRIPS_NO_PALS  mv_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${tilesetStatsId}`
 			+ `  ${tilesCacheId}  ${tilesetSplit}  ${tilemapSplit}`
-            + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth_forResource}  NONE  FAST  RLEWXMAP_B`
+            + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth_forResource}  NONE  FAST  RLEW_B`
 			+ `  ` + (imageAddCompressionField ? 'TRUE' : 'FALSE')
 			+ `  ALL`)
 	.join('\n') + '\n\n';

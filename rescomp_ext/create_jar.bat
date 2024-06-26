@@ -71,7 +71,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/tool/CompressionCustomUsageTracker.class ^
 	./sgdk/rescomp/tool/ExtProperties.class ^
 	./sgdk/rescomp/tool/MdComp.class ^
-	./sgdk/rescomp/tool/RLEWXMapCompressor.class ^
+	./sgdk/rescomp/tool/RLEWCompressor.class ^
 	./sgdk/rescomp/tool/TilemapCustomTools.class ^
 	./sgdk/rescomp/tool/TilesCacheManager.class ^
 	./sgdk/rescomp/tool/TilesetStatsCollector.class ^

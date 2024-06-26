@@ -9,7 +9,7 @@ import java.util.regex.Pattern;
 
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.ExtProperties;
-import sgdk.rescomp.tool.RLEWXMapCompressor;
+import sgdk.rescomp.tool.RLEWCompressor;
 import sgdk.rescomp.tool.TilemapCustomTools;
 import sgdk.rescomp.tool.TilesCacheManager;
 import sgdk.rescomp.tool.Util;
@@ -164,9 +164,10 @@ public class TilemapCustom extends Resource
 		TilemapCreationData tmData = createTilemap(id, tilesets, offsetPerTilesetChunk, toggleMapTileBaseIndexFlag, mapBase, image8bpp,
 				imageWidth, imageHeight, startTileX, startTileY, widthTile, heightTile, opt, compression, mapExtendedWidth, tilesCacheId);
 
-		if (compression == Compression.NONE && (compressionCustom == CompressionCustom.RLEWXMAP_A || compressionCustom == CompressionCustom.RLEWXMAP_B)) {
-			tmData.data = RLEWXMapCompressor.extractTilemapDataOnly_short(tmData.data, widthTile, mapExtendedWidth);
+		if (compression == Compression.NONE && (compressionCustom == CompressionCustom.RLEW_A || compressionCustom == CompressionCustom.RLEW_B)) {
+			tmData.data = RLEWCompressor.extractTilemapDataOnly_short(tmData.data, widthTile, mapExtendedWidth);
 			tmData.w = widthTile;
+//RLEWCompressor.compress_A(ArrayUtil.shortToByte(tmData.data), id);
 		}
 
 		return new TilemapCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, compressionCustom, addCompressionField);
@@ -180,9 +181,10 @@ public class TilemapCustom extends Resource
 		TilemapCreationData tmData = createTilemap(id, tilesets, new int[]{0}, toggleMapTileBaseIndexFlag, mapBase, image8bpp, widthTile * 8, 
 				heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, mapExtendedWidth, tilesCacheId);
 
-		if (compression == Compression.NONE && (compressionCustom == CompressionCustom.RLEWXMAP_A || compressionCustom == CompressionCustom.RLEWXMAP_B)) {
-			tmData.data = RLEWXMapCompressor.extractTilemapDataOnly_short(tmData.data, widthTile, mapExtendedWidth);
+		if (compression == Compression.NONE && (compressionCustom == CompressionCustom.RLEW_A || compressionCustom == CompressionCustom.RLEW_B)) {
+			tmData.data = RLEWCompressor.extractTilemapDataOnly_short(tmData.data, widthTile, mapExtendedWidth);
 			tmData.w = widthTile;
+//RLEWCompressor.compress_A(ArrayUtil.shortToByte(tmData.data), id);
 		}
 
 		return new TilemapCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, compressionCustom, addCompressionField);

@@ -58,12 +58,12 @@ public class MdComp {
 			byte[] result = Util.appack(data);
 			return result;
 		}
-		else if (compression == CompressionCustom.RLEWXMAP_A) {
-			byte[] result = RLEWXMapCompressor.compressMap_A(data, binId);
+		else if (compression == CompressionCustom.RLEW_A) {
+			byte[] result = RLEWCompressor.compress_A(data, binId);
 			return result;
 		}
-		else if (compression == CompressionCustom.RLEWXMAP_B) {
-			byte[] result = RLEWXMapCompressor.compressMap_B(data, binId);
+		else if (compression == CompressionCustom.RLEW_B) {
+			byte[] result = RLEWCompressor.compress_B(data, binId);
 			return result;
 		}
 
