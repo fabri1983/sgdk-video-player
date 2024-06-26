@@ -50,10 +50,9 @@ func rlewxmap_decomp_B_asm
     andi.w      #0xFF,d1            ;// clean higher byte of d1
     subq.b      #1, d1              ;// decrement rows here because we use dbra/dbf for the big loop at the end
 
-.b_rlewxm_get_desc:
-    move.b      (a0)+, d2           ;// d2: rleDescriptor
-    tst.b       d2
-    bne.s       .b_rlewxm_new_segment   ;// if (descriptor != 0) then we continue with a new segment
+    bra         .b_rlewxm_get_desc
+
+.b_rlewxm_end_row:
     ;// descriptor == 0 => is end of row
     adda.l      d0, a1              ;// jumps the gap used as expanded width in the map
     dbra        d1, .b_rlewxm_get_desc  ;// dbra/dbf: decrement rows, test if rows >= 0 then branch back. When rows = -1 then no branch
@@ -61,32 +60,47 @@ func rlewxmap_decomp_B_asm
     movem.l     (sp)+, d1-d4        ;// restore registers (except the scratch pad)
     rts
 
-.b_rlewxm_new_segment:
+* Operations for a Stream with High Common Byte
+.rept (RLEWXMAP_WIDTH_IN_TILES)
+    move.b      (a0)+, d3           ;// byte goes to low half of destination leaving high half as it is
+    move.w      d3, (a1)+
+.endr
+.b_jmp_stream_cb:
+    * Next instruction commented out because now it just falls down and get new descriptor
+    *bra         .b_rlewxm_get_desc  ;// jump to get next descriptor
+
+.b_rlewxm_get_desc:
+    move.b      (a0)+, d2           ;// d2: rleDescriptor
+    tst.b       d2
+    beq         .b_rlewxm_end_row   ;// if (descriptor == 0) then is end of row
+    ;// descriptor != 0 then we continue with a new segment
     cmpi.b      #0x80, d2           ;// test rleDescriptor < 0b10000000 => bit 8 set and 7 not set
     bcs         .b_rlewxm_rle       ;// if (rleDescriptor < 0b10000000) then is a simple RLE
     cmpi.b      #0xC0, d2           ;// test rleDescriptor < 0b11000000 => bit 8 and 7 set
     ;// At this point MSB == 1 so its a stream. Then check if it's a stream of words or bytes
-    bcs         .b_rlewxm_stream_sw     ;// if (rleDescriptor < 0b11000000) then is a stream of words
+    bcs         .b_rlewxm_stream_w  ;// if (rleDescriptor < 0b11000000) then is a stream of words
     ;// It's a stream of a common high byte followed by lower bytes
 
+* Stream with High Common Byte
 .b_rlewxm_stream_cb:
     andi.w      #0x3F, d2           ;// d2: length = rleDescriptor & 0b00111111
-    ;// prepare jump offset
-    moveq       #RLEWXMAP_WIDTH_IN_TILES, d3    ;// moveq is longword operation and won't hold garbage in higher bytes
-    sub.w       d2, d3              ;// jump offset => d3 = RLEWXMAP_WIDTH_IN_TILES - length
-    add.w       d3, d3
-    add.w       d3, d3              ;// d3 * 4 because every target instruction set takes 4 bytes
     move.b      (a0)+, -(sp)        ;// byte goes to high half of new word on stack
-    move.w      (sp)+, d2           ;// pop the word into d2. Lower byte is garbage (whatever was in the stack)
-    jmp         .b_jmp_stream_cb(pc,d3.w)
-.b_jmp_stream_cb:
-.rept (RLEWXMAP_WIDTH_IN_TILES)
-    move.b      (a0)+, d2           ;// byte goes to low half of destination leaving high half as it is
-    move.w      d2, (a1)+
+    move.w      (sp)+, d3           ;// pop the word into d3. Lower byte is garbage (whatever was in the stack)
+    ;// prepare jump offset
+    add.w       d2, d2
+    add.w       d2, d2              ;// d2: length * 4 because every target instruction set takes 4 bytes
+    neg.w       d2                  ;// -d2 in 2's Complement so we can jump back
+    jmp         .b_jmp_stream_cb(pc,d2.w)
+
+* Operations for a Stream of Words
+.rept (RLEWXMAP_WIDTH_IN_TILES/2)   ;// for RLEWXMAP_WIDTH_IN_TILES being odd we already covered that case above
+    move.l	    (a0)+, (a1)+
 .endr
+.b_jmp_stream_w:
     bra         .b_rlewxm_get_desc  ;// jump to get next descriptor
 
-.b_rlewxm_stream_sw:
+* Stream of Words
+.b_rlewxm_stream_w:
     RLEWXM_ADVANCE_ON_PARITY_ODD    ;// current in address is odd? then consume additional parity byte
     andi.w      #0x3F, d2           ;// d2: length = rleDescriptor & 0b00111111
     btst        #0, d2              ;// test length parity. Here we know length >= 2.
@@ -97,16 +111,18 @@ func rlewxmap_decomp_B_asm
 2:
     ;// length is even => copy 2 words (1 long) at a time
     ;// prepare jump offset
-    moveq       #RLEWXMAP_WIDTH_IN_TILES, d3    ;// moveq is longword operation and won't hold garbage in higher bytes
-    sub.w       d2, d3              ;// jump offset => d3 = RLEWXMAP_WIDTH_IN_TILES - length
-                                    ;// every target instruction takes 2 bytes but we have *2 inherently in d3
-    jmp         .b_jmp_stream_w(pc,d3.w)
-.b_jmp_stream_w:
+    neg.w       d2                  ;// -d2 in 2's Complement so we can jump back
+                                    ;// every target instruction takes 2 bytes but we have *2 inherently in d2
+    jmp         .b_jmp_stream_w(pc,d2.w)
+
+* Operations for a Simple RLE
 .rept (RLEWXMAP_WIDTH_IN_TILES/2)   ;// for RLEWXMAP_WIDTH_IN_TILES being odd we already covered that case above
-    move.l	    (a0)+, (a1)+
+    move.l	    d3, (a1)+
 .endr
+.b_jmp_rle:
     bra         .b_rlewxm_get_desc  ;// jump to get next descriptor
 
+* Simple RLE
 .b_rlewxm_rle:
     RLEWXM_ADVANCE_ON_PARITY_ODD    ;// current in address is odd? then consume additional parity byte
     move.w      (a0)+, d3           ;// d3: u16 value_w = *(u16*) in
@@ -123,12 +139,6 @@ func rlewxmap_decomp_B_asm
     swap        d3
     move.w      d4, d3              ;// d3: u32 value_l = (value_w << 16) | value_w;
     ;// prepare jump offset
-    moveq       #RLEWXMAP_WIDTH_IN_TILES, d4    ;// moveq is longword and operation won't hold garbage in higher bytes
-    sub.w       d2, d4              ;// jump offset => d4 = RLEWXMAP_WIDTH_IN_TILES - length
-                                    ;// every target instruction takes 2 bytes but we have *2 inherently in d4
-    jmp         .b_jmp_rle(pc,d4.w)
-.b_jmp_rle:
-.rept (RLEWXMAP_WIDTH_IN_TILES/2)   ;// for RLEWXMAP_WIDTH_IN_TILES being odd we already covered that case above
-    move.l	    d3, (a1)+
-.endr
-    bra         .b_rlewxm_get_desc  ;// jump to get next descriptor
+    neg.w       d2                  ;// -d2 in 2's Complement so we can jump back
+                                    ;// every target instruction takes 2 bytes but we have *2 inherently in d2
+    jmp         .b_jmp_rle(pc,d2.w)

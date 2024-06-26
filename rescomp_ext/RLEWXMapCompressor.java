@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
  * RLE compression algorithm that combines Variable-Length Encoding, Block Based Encoding, and Run-Length Limited (RLL) Coding.</br>
  * Each row of the source map is treated as an independent block of RLE encoding with a limited max length.</br>
  * It runs 3 RLE phases which aim to reduce the size of the final encoding, with some configurable parameters to slightly speedup decompression.</br>
- * <b>NOTE:</b> only supports maps up to 64 tiles width due to 6 bits dedicated for length.</br>
+ * <b>NOTE:</b> only supports maps up to 63 tiles width due to 6 bits dedicated for length.</br>
  * IS USEFUL IF YOUR TARGET MAP BUFFER HAS AN EXTENDED WIDTH TO [32, 64, 128] TILES (GOOD FOR FASTER DMA OPERATION).</br>
  * THIS WAY YOU CAN DECOMPRESS A BLOCK AND LEAVE UNTOUCHED THE EXTRA SPACE USED TO FULFILL THE WIDTH UP TO [32, 64, 128] TILES.</br>
  *  
@@ -45,7 +45,7 @@ public class RLEWXMapCompressor {
 		// TODO use pattern matching on the binId to extract the value from the ExtProperties class.
 
 		// this is the width in tiles of the tilemap region containing valid data (not the extended width).
-		final int mapTilesPerRow = 34; // up to 64 because we use 6 bits for the length
+		final int mapTilesPerRow = 34; // up to 63 because we use 6 bits for the length
 
 		byte[] packed = methodA(data, mapTilesPerRow);
 
@@ -55,9 +55,9 @@ public class RLEWXMapCompressor {
 
 		final int rows = data.length / (mapTilesPerRow * 2); // multiply by 2 because every tilemap entry is 2 bytes
 		byte[] packedWithHeader = addHeader(packed, rows);
-		byte[] packedWithHeaderAndParityBytes = addParityBytes_A(packedWithHeader);
-//		printAsHexa(packedWithHeaderAndParityBytes);
-		return packedWithHeaderAndParityBytes;
+		byte[] packedFinal = addParityBytes_A(packedWithHeader);
+//		printAsHexa(packedFinal);
+		return packedFinal;
 	}
 
 	/**
@@ -74,7 +74,7 @@ public class RLEWXMapCompressor {
 		// TODO use pattern matching on the binId to extract the value from the ExtProperties class.
 
 		// this is the width in tiles of the tilemap region containing valid data (not the extended width).
-		final int mapTilesPerRow = 34; // up to 64 because we use 6 bits for the length
+		final int mapTilesPerRow = 34; // up to 63 because we use 6 bits for the length
 
 		byte[] packed = methodB(data, mapTilesPerRow);
 
@@ -84,9 +84,9 @@ public class RLEWXMapCompressor {
 
 		final int rows = data.length / (mapTilesPerRow * 2); // multiply by 2 because every tilemap entry is 2 bytes
 		byte[] packedWithHeader = addHeader(packed, rows);
-		byte[] packedWithHeaderAndParityBytes = addParityBytes_B(packedWithHeader);
-//		printAsHexa(packedWithHeaderAndParityBytes);
-		return packedWithHeaderAndParityBytes;
+		byte[] packedFinal = addParityBytes_B(packedWithHeader);
+//		printAsHexa(packedFinal);
+		return packedFinal;
 	}
 
 	/**
@@ -132,9 +132,9 @@ public class RLEWXMapCompressor {
 	}
 
 	/**
-	 * Only 6 bits used for the length, hence 2^6=64.
+	 * Only 6 bits used for the length, hence (2^6)-1=63.
 	 */
-	private static final int RLE_MAX_RUN_LENGTH = 64;
+	private static final int RLE_MAX_RUN_LENGTH = 63;
 	/**
 	 * Value must be >= 2</br>
 	 * Play with this value to see how much the size of the encoded output changes.</br>
@@ -620,7 +620,7 @@ public class RLEWXMapCompressor {
 			// descriptor MSB == 1 and next bit for common high byte is 1, then is a stream with a common high byte
 			else {
 				list.add(rleData[index++]); // common high byte
-				int length = descriptor & 0x3F; // length is first 6 bits
+				int length = (descriptor & 0x3F); // length is first 6 bits
 				// copy the bytes
 				for (int i = 0; i < length; i++)
 					list.add(rleData[index++]);
@@ -690,7 +690,7 @@ public class RLEWXMapCompressor {
 				int length = descriptor & 0x3F; // First 6 bits for length
 				index++; // consume common high byte
 				rowLengthAccum += length;
-				index += length; // consume all the bytes
+				index += length; // consume all the lower bytes
 			}
 		}
 	}
