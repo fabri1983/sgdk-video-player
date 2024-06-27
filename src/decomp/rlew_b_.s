@@ -45,7 +45,12 @@
 ;// C prototype: extern void rlew_decomp_B_asm (u8 jumpGap, u8* src, u8* dest);
 func rlew_decomp_B_asm
 	movem.l     4(sp), d0/a0-a1     ;// copy parameters into registers d0/a0-a1
-	movem.l     d1-d4, -(sp)        ;// save registers (except the scratch pad)
+	movem.l     d1-d7, -(sp)        ;// save registers (except the scratch pad)
+
+;// use registers instead of immediate values in and, cmp, is faster
+    move.w      #0x80,d5
+    move.w      #0xC0,d6
+    move.w      #0x3F,d7
 
     move.b      (a0)+, d1           ;// d1: rows
     andi.w      #0xFF,d1            ;// clean higher byte of d1
@@ -60,12 +65,12 @@ func rlew_decomp_B_asm
 #endif
     dbra        d1, .b_rlew_get_desc    ;// dbra/dbf: decrement rows, test if rows >= 0 then branch back. When rows = -1 then no branch
     ;// no more rows then quit
-    movem.l     (sp)+, d1-d4        ;// restore registers (except the scratch pad)
+    movem.l     (sp)+, d1-d7        ;// restore registers (except the scratch pad)
     rts
 
 ;// Operations for a Stream with High Common Byte
 .rept (RLEW_WIDTH_IN_TILES)
-    move.b      (a0)+, d3           ;// byte goes to low half of destination leaving high half as it is
+    move.b      (a0)+, d3           ;// byte goes to lower half of destination leaving the common byte in higher half
     move.w      d3, (a1)+
 .endr
 .b_jmp_stream_cb:
@@ -74,19 +79,19 @@ func rlew_decomp_B_asm
 
 .b_rlew_get_desc:
     move.b      (a0)+, d2           ;// d2: rleDescriptor
-    tst.b       d2
+    *tst.b       d2
     beq         .b_rlew_end_row     ;// if (descriptor == 0) then is end of row
     ;// descriptor != 0 then we continue with a new segment
-    cmpi.b      #0x80, d2           ;// test rleDescriptor < 0b10000000 => bit 8 set and 7 not set
+    cmp.b       d5, d2              ;// test rleDescriptor < 0b10000000 => bit 8 set and 7 not set
     bcs         .b_rlew_rle         ;// if (rleDescriptor < 0b10000000) then is a simple RLE
-    cmpi.b      #0xC0, d2           ;// test rleDescriptor < 0b11000000 => bit 8 and 7 set
+    cmp.b       d6, d2              ;// test rleDescriptor < 0b11000000 => bit 8 and 7 set
     ;// At this point MSB == 1 so its a stream. Then check if it's a stream of words or bytes
     bcs         .b_rlew_stream_w    ;// if (rleDescriptor < 0b11000000) then is a stream of words
     ;// It's a stream of a common high byte followed by lower bytes
 
 ;// Stream with High Common Byte
 .b_rlew_stream_cb:
-    andi.w      #0x3F, d2           ;// d2: length = rleDescriptor & 0b00111111
+    and.w       d7, d2              ;// d2: length = rleDescriptor & 0b00111111
     move.b      (a0)+, -(sp)        ;// byte goes to high half of new word on stack
     move.w      (sp)+, d3           ;// pop the word into d3. Lower byte is garbage (whatever was in the stack)
     ;// prepare jump offset
@@ -105,9 +110,9 @@ func rlew_decomp_B_asm
 ;// Stream of Words
 .b_rlew_stream_w:
     RLEW_ADVANCE_ON_PARITY_ODD      ;// current in address is odd? then consume additional parity byte
-    andi.w      #0x3F, d2           ;// d2: length = rleDescriptor & 0b00111111
-    btst        #0, d2              ;// test length parity. Here we know length >= 2.
-    beq.s       2f                  ;// length is even? then jump
+    and.w       d7, d2              ;// d2: length = rleDescriptor & 0b00111111
+    btst        #0, d2              ;// test length parity. Here we know length >= 2
+    beq.s       2f                  ;// length is even? then branch
     ;// length is odd => copy first word
     move.w      (a0)+, (a1)+        ;// *(u16*) out = *(u16*) in
     subq.w      #1, d2              ;// --length
@@ -129,9 +134,9 @@ func rlew_decomp_B_asm
 .b_rlew_rle:
     RLEW_ADVANCE_ON_PARITY_ODD      ;// current in address is odd? then consume additional parity byte
     move.w      (a0)+, d3           ;// d3: u16 value_w = *(u16*) in
-    andi.w      #0x3F, d2           ;// d2: length = rleDescriptor & 0b00111111
-    btst        #0, d2              ;// test length parity. Here we know length >= 1.
-    beq.s       2f                  ;// length is even? then jump
+    and.w       d7, d2              ;// d2: length = rleDescriptor & 0b00111111
+    btst        #0, d2              ;// test length parity. Here we know length >= 1
+    beq.s       2f                  ;// length is even? then branch
     ;// length is odd => copy first word
     move.w      d3, (a1)+           ;// *(u16*) out = value_w
     subq.w      #1, d2              ;// --length
