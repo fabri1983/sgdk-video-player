@@ -247,7 +247,7 @@ public class ImageStripsNoPalsProcessor implements Processor
 //			};
 //		String[] fields_test_B = {
 //				resId, "mv_frame_161_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_161_0_RGB.png", "22", "tilesetStats1", 
-//				"TilesCache_Movie1", "3", "1", "ODD", "64", "NONE", "NONE", "RLEWXMAP_B", "TRUE", "ALL"
+//				"TilesCache_Movie1", "3", "1", "ODD", "64", "NONE", "NONE", "RLEW_B", "TRUE", "ALL"
 //			};
 //		String[] fields_test_Titan = {
 //				resId, "titanRGB", "C:\\MyProjects\\VSCode\\sgdk\\titan256c\\res\\titan256c\\titan_0_0_RGB.png", "28", "tilesetStats1", 

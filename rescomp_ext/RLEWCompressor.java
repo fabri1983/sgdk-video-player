@@ -545,9 +545,11 @@ public class RLEWCompressor {
 
 			// test if descriptor != 0 then we have basic RLE entry
 			if (descriptor != 0) {
-				// if descriptor was at even position then we have to add an additional byte
+				// if descriptor was at even position then we'll add before him the parity byte
 				if ((((index - 1) + offsetAccum) % 2) == 0) {
-					list.add((byte) 0); // add byte so next values starts at an even address
+					list.remove(list.size() - 1); // remove descriptor
+					list.add((byte) 0b01000000); // add the parity byte
+					list.add(descriptor); // now add the descriptor
 					++offsetAccum;
 				}
 				// copy the word
@@ -558,9 +560,13 @@ public class RLEWCompressor {
 			else {
 				byte newDescriptor = rleData[index++];
 				list.add(newDescriptor);
-				// if new descriptor is at even position then we have to add an additional byte
-				if (((index - 1) % 2) == 0)
-					list.add((byte) 0); // add a byte so next values starts at an even address
+				// if newDescriptor was at even position then we'll add before him the parity byte
+				if ((((index - 1) + offsetAccum) % 2) == 0) {
+					list.remove(list.size() - 1); // remove descriptor
+					list.add((byte) 0b01000000); // add the parity byte
+					list.add(newDescriptor); // now add the newDescriptor
+					++offsetAccum;
+				}
 				// copy the words
 				int length = newDescriptor & 0x3F; // First 6 bits for length
 				for (int i = 0; i < length; i++) {
@@ -592,9 +598,11 @@ public class RLEWCompressor {
 			}
 			// test if descriptor MSB == 0 then we have basic RLE entry
 			else if ((descriptor & 0b10000000) == 0) {
-				// if descriptor was at even position then we have to add an additional byte
+				// if descriptor was at even position then we'll add before him the parity byte
 				if ((((index - 1) + offsetAccum) % 2) == 0) {
-					list.add((byte) 0); // add byte so next values starts at an even address
+					list.remove(list.size() - 1); // remove descriptor
+					list.add((byte) 0b01000000); // add the parity byte
+					list.add(descriptor); // now add the descriptor
 					++offsetAccum;
 				}
 				// copy the word
@@ -603,9 +611,11 @@ public class RLEWCompressor {
 			}
 			// descriptor MSB == 1, test if next bit for common high byte is 0, then is a stream of words
 			else if ((descriptor & 0b01000000) == 0) {
-				// if descriptor was at even position then we have to add an additional byte
+				// if descriptor was at even position then we'll add before him the parity byte
 				if ((((index - 1) + offsetAccum) % 2) == 0) {
-					list.add((byte) 0); // add a byte so next values starts at an even address
+					list.remove(list.size() - 1); // remove descriptor
+					list.add((byte) 0b01000000); // add the parity byte
+					list.add(descriptor); // now add the descriptor
 					++offsetAccum;
 				}
 				// copy the words

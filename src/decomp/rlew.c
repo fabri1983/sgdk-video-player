@@ -1,19 +1,6 @@
 #include "decomp/rlew.h"
 #include "compatibilities.h"
 
-#define ADVANCE_ON_PARITY_ODD(in)\
-    u8 dx = 0;\
-    ASM_STATEMENT __volatile__ (\
-        "    move.w  %0, %1\n"\
-        "    andi.b  #1, %1\n"\
-        "    beq.s   1f\n"\
-        "    lea     (1,%0), %0\n"\
-        "1:\n"\
-        : "+a" (in)\
-        : "d" (dx)\
-        :\
-    )\
-
 #define DUPLICATE_WORD_INTO_LONG(vword, vlong)\
     ASM_STATEMENT __volatile__ (\
         "    move.w  %0, %1\n"\
@@ -63,10 +50,13 @@ void NO_INLINE rlew_decomp_A (const u8 jumpGap, u8* in, u8* out) {
     while (rows) {
         u8 rleDescriptor = *in++; // read RLE descriptor byte and advance
 
+        // is descriptor the parity byte?
+        if (rleDescriptor == 0b01000000) {
+            rleDescriptor = *in++; // read RLE descriptor byte and advance
+        }
+
         // if rleDescriptor != 0 then it's a simple RLE: just copy a word value N times
         if (rleDescriptor != 0) {
-            // current in address is odd? then consume additional parity byte
-            ADVANCE_ON_PARITY_ODD(in);
             u16 value_w = *(u16*) in; // read word
             in += 2;
             u8 length = rleDescriptor & 0b00111111; // we know for sure length >= 1
@@ -116,8 +106,6 @@ void NO_INLINE rlew_decomp_A (const u8 jumpGap, u8* in, u8* out) {
         // rleDescriptor == 0 then we're going to copy a stream of words
         else {
             u8 newRleDescriptor = *in++; // read new RLE descriptor byte and advance
-            // current in address is odd? then consume additional parity byte
-            ADVANCE_ON_PARITY_ODD(in);
             u8 length = newRleDescriptor & 0b00111111; // we know for sure length >= 2
             // length is odd? then copy first word
             if ((length & 1) != 0) { // we know length >= 2
@@ -166,6 +154,11 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
     while (rows) {
         u8 rleDescriptor = *in++; // read RLE descriptor byte and advance
 
+        // is descriptor the parity byte?
+        if (rleDescriptor == 0b01000000) {
+            rleDescriptor = *in++; // read RLE descriptor byte and advance
+        }
+
         // is end of row byte?
         if (rleDescriptor == 0) {
             // makes the out buffer pointer jump over the region used as expanded width of the map
@@ -174,8 +167,6 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
         }
         // if descriptor's MSB == 0 (simple RLE) then just copy a word value N times
         else if (rleDescriptor < 0b10000000) {
-            // current in address is odd? then consume additional parity byte
-            ADVANCE_ON_PARITY_ODD(in);
             u16 value_w = *(u16*) in; // read word
             in += 2;
             u8 length = rleDescriptor & 0b00111111;
@@ -217,8 +208,6 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
         }
         // descriptor's MSB == 1 (stream) and if next bit for common high byte is 0, then is a stream of words
         else if (rleDescriptor < 0b11000000) {
-            // current in address is odd? then consume additional parity byte
-            ADVANCE_ON_PARITY_ODD(in);
             u8 length = rleDescriptor & 0b00111111;
             // length is odd? then copy first word
             if ((length & 1) != 0) { // we know length >= 2

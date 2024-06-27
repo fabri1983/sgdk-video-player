@@ -32,40 +32,35 @@
 #define RLEW_WIDTH_IN_TILES 34  // up to 63
 #define RLEW_APPLY_GAP 1
 
-.macro RLEW_ADVANCE_ON_PARITY_ODD
-    move.w      a0, d4
-	andi.b      #1, d4
-    beq.s       1f                  ;// if parity is even then jump and continue
-    lea         (1,a0), a0          ;// parity is odd then advance one byte
-1:
-.endm
-
 ;// ||||||||||||||| S U B R O U T I N E |||||||||||||||||||||||||||||||||||||||
 ;// ---------------------------------------------------------------------------
-;// C prototype: extern void rlew_decomp_B_asm (u8 jumpGap, u8* src, u8* dest);
+;// C prototype: extern void rlew_decomp_B_asm (const u8 jumpGap, u8* src, u8* dest);
 func rlew_decomp_B_asm
 	movem.l     4(sp), d0/a0-a1     ;// copy parameters into registers d0/a0-a1
-	movem.l     d1-d7, -(sp)        ;// save registers (except the scratch pad)
+	movem.l     d1-d7/a2-a3, -(sp)  ;// save registers (except the scratch pad)
 
-;// use registers instead of immediate values in and, cmp, is faster
-    move.w      #0x80,d5
-    move.w      #0xC0,d6
-    move.w      #0x3F,d7
+    ;// using registers instead of immediate values in some instructions is faster
+    move.w      d0, a2              ;// a2: jump gap
+    moveq       #0, d0              ;// 0 used with btst instruction
+    moveq       #0x40,d4            ;// 0b00111111 parity byte
+    move.w      #0x80,d5            ;// 0b10000000 to test if descriptor is a stream
+    move.w      #0xC0,d6            ;// 0b11000000 to test if descriptor is a stream of common high byte
+    moveq       #0x3F,d7            ;// 0b00111111 mask for length
 
-    move.b      (a0)+, d1           ;// d1: rows
-    andi.w      #0xFF,d1            ;// clean higher byte of d1
-    subq.b      #1, d1              ;// decrement rows here because we use dbra/dbf for the big loop at the end
+    moveq       #0, d1              ;// clean higher byte of register before any assignment
+    move.b      (a0)+, d1           ;// d1: rows       
+    subq.b      #1, d1              ;// decrement rows here because we use dbra/dbf for the big loop
 
     bra         .b_rlew_get_desc
 
 .b_rlew_end_row:
     ;// descriptor == 0 => is end of row
 #if RLEW_APPLY_GAP
-    adda.l      d0, a1              ;// jumps the gap used as expanded width in the map
+    adda.l      a2, a1              ;// jumps the gap used as expanded width in the map
 #endif
     dbra        d1, .b_rlew_get_desc    ;// dbra/dbf: decrement rows, test if rows >= 0 then branch back. When rows = -1 then no branch
     ;// no more rows then quit
-    movem.l     (sp)+, d1-d7        ;// restore registers (except the scratch pad)
+    movem.l     (sp)+, d1-d7/a2-a3      ;// restore registers (except the scratch pad)
     rts
 
 ;// Operations for a Stream with High Common Byte
@@ -79,8 +74,11 @@ func rlew_decomp_B_asm
 
 .b_rlew_get_desc:
     move.b      (a0)+, d2           ;// d2: rleDescriptor
-    *tst.b       d2
     beq         .b_rlew_end_row     ;// if (descriptor == 0) then is end of row
+    cmp.b       d4, d2              ;// check if descriptor == 0b01000000 (parity byte)
+    bne.s       2f                  ;// not a parity byte then continue with the new segment
+    move.b      (a0)+, d2           ;// d2: rleDescriptor
+2:
     ;// descriptor != 0 then we continue with a new segment
     cmp.b       d5, d2              ;// test rleDescriptor < 0b10000000 => bit 8 set and 7 not set
     bcs         .b_rlew_rle         ;// if (rleDescriptor < 0b10000000) then is a simple RLE
@@ -92,6 +90,7 @@ func rlew_decomp_B_asm
 ;// Stream with High Common Byte
 .b_rlew_stream_cb:
     and.w       d7, d2              ;// d2: length = rleDescriptor & 0b00111111
+    *move.w      (a0)+, d3           ;// d3: higher byte is the common byte, lower byte is 0
     move.b      (a0)+, -(sp)        ;// byte goes to high half of new word on stack
     move.w      (sp)+, d3           ;// pop the word into d3. Lower byte is garbage (whatever was in the stack)
     ;// prepare jump offset
@@ -109,9 +108,8 @@ func rlew_decomp_B_asm
 
 ;// Stream of Words
 .b_rlew_stream_w:
-    RLEW_ADVANCE_ON_PARITY_ODD      ;// current in address is odd? then consume additional parity byte
     and.w       d7, d2              ;// d2: length = rleDescriptor & 0b00111111
-    btst        #0, d2              ;// test length parity. Here we know length >= 2
+    btst        d0, d2              ;// test length parity. Here we know length >= 2
     beq.s       2f                  ;// length is even? then branch
     ;// length is odd => copy first word
     move.w      (a0)+, (a1)+        ;// *(u16*) out = *(u16*) in
@@ -132,10 +130,9 @@ func rlew_decomp_B_asm
 
 ;// Simple RLE
 .b_rlew_rle:
-    RLEW_ADVANCE_ON_PARITY_ODD      ;// current in address is odd? then consume additional parity byte
     move.w      (a0)+, d3           ;// d3: u16 value_w = *(u16*) in
     and.w       d7, d2              ;// d2: length = rleDescriptor & 0b00111111
-    btst        #0, d2              ;// test length parity. Here we know length >= 1
+    btst        d0, d2              ;// test length parity. Here we know length >= 1
     beq.s       2f                  ;// length is even? then branch
     ;// length is odd => copy first word
     move.w      d3, (a1)+           ;// *(u16*) out = value_w
@@ -143,9 +140,9 @@ func rlew_decomp_B_asm
     beq         .b_rlew_get_desc    ;// if length == 0 then jump to get next descriptor
 2:
     ;// length is even => copy 2 words (1 long) at a time
-    move.w      d3, d4
+    move.w      d3, a3
     swap        d3
-    move.w      d4, d3              ;// d3: u32 value_l = (value_w << 16) | value_w;
+    move.w      a3, d3              ;// d3: u32 value_l = (value_w << 16) | value_w;
     ;// prepare jump offset
     neg.w       d2                  ;// -d2 in 2's Complement so we can jump back
                                     ;// every target instruction takes 2 bytes but we have *2 inherently in d2

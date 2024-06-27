@@ -167,7 +167,7 @@ public class TilemapCustom extends Resource
 		if (compression == Compression.NONE && (compressionCustom == CompressionCustom.RLEW_A || compressionCustom == CompressionCustom.RLEW_B)) {
 			tmData.data = RLEWCompressor.extractTilemapDataOnly_short(tmData.data, widthTile, mapExtendedWidth);
 			tmData.w = widthTile;
-//RLEWCompressor.compress_A(ArrayUtil.shortToByte(tmData.data), id);
+//RLEWCompressor.compress_B(ArrayUtil.shortToByte(tmData.data), id);
 		}
 
 		return new TilemapCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, compressionCustom, addCompressionField);
@@ -184,7 +184,7 @@ public class TilemapCustom extends Resource
 		if (compression == Compression.NONE && (compressionCustom == CompressionCustom.RLEW_A || compressionCustom == CompressionCustom.RLEW_B)) {
 			tmData.data = RLEWCompressor.extractTilemapDataOnly_short(tmData.data, widthTile, mapExtendedWidth);
 			tmData.w = widthTile;
-//RLEWCompressor.compress_A(ArrayUtil.shortToByte(tmData.data), id);
+//RLEWCompressor.compress_B(ArrayUtil.shortToByte(tmData.data), id);
 		}
 
 		return new TilemapCustom(tmData.id, tmData.data, tmData.w, tmData.h, tmData.compression, compressionCustom, addCompressionField);
