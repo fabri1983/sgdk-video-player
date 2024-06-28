@@ -21,6 +21,31 @@ import java.util.stream.Collectors;
  */
 public class RLEWCompressor {
 
+	/**
+	 * Only 6 bits used for the length (in words), hence (2^6)-1=63.
+	 */
+	private static final int RLE_MAX_RUN_LENGTH = 63;
+	/**
+	 * Value must be >= 2</br>
+	 * Play with this value to see how much the size of the encoded output changes.</br>
+	 * This has an impact in the unpack algorithm time. SMALLER values produce slightly faster decompression 
+	 * because the copy of words is straight forward avoiding intermediate checks for descriptors and lengths.
+	 */
+	private static final int RLE_MIN_SEQUENCE_OF_LENGTH_1_OCCURRENCE = 2;
+	/**
+	 * Value must be >= 2.</br>
+	 * Play with this value to see how much the size of the encoded output changes.</br>
+	 * This has an impact in the unpacker algorithm time. BIGGER values produce slightly faster decompression 
+	 * because the preparation of the high common byte into a word consumes time, plus the additional checks for 
+	 * descriptors and lengths in case the sequences are short.
+	 */
+	private static final int RLE_MIN_COMMON_HIGH_BYTE_SEQUENCE = 2;
+	/**
+	 * Maximum ratio of reduction between phase 2 and phase 3. Put in other words, it says that phase 3 
+	 * encoding size must be <= than the N percentage of phase 2 encoding size.   
+	 */
+	private static final double RLE_THRESHOLD_PHASE_2_TO_PHASE_3 = 0.8;
+
 	public static class WordInfo {
 		int count;
 		List<Integer> posInEncodedRLE;
@@ -44,7 +69,7 @@ public class RLEWCompressor {
 
 		// TODO use pattern matching on the binId to extract next value from the ExtProperties class.
 		// this is the width in words of the data region containing valid data (not the extended width in the case of a map).
-		final int wordsPerRow = 34; // up to 63 because we use 6 bits for the length
+		final int wordsPerRow = Math.min(34, RLE_MAX_RUN_LENGTH); // up to RLE_MAX_RUN_LENGTH because we use 6 bits for the length
 
 		byte[] packed = methodA(data, wordsPerRow);
 
@@ -72,7 +97,7 @@ public class RLEWCompressor {
 
 		// TODO use pattern matching on the binId to extract next value from the ExtProperties class.
 		// this is the width in words of the data region containing valid data (not the extended width in the case of a map).
-		final int wordsPerRow = 34; // up to 63 because we use 6 bits for the length
+		final int wordsPerRow = Math.min(34, RLE_MAX_RUN_LENGTH); // up to RLE_MAX_RUN_LENGTH because we use 6 bits for the length
 
 		byte[] packed = methodB(data, wordsPerRow);
 
@@ -128,31 +153,6 @@ public class RLEWCompressor {
 		}
 		return result;
 	}
-
-	/**
-	 * Only 6 bits used for the length (in words), hence (2^6)-1=63.
-	 */
-	private static final int RLE_MAX_RUN_LENGTH = 63;
-	/**
-	 * Value must be >= 2</br>
-	 * Play with this value to see how much the size of the encoded output changes.</br>
-	 * This has an impact in the unpack algorithm time. SMALLER values produce slightly faster decompression 
-	 * because the copy of words is straight forward avoiding intermediate checks for descriptors and lengths.
-	 */
-	private static final int RLE_MIN_SEQUENCE_OF_LENGTH_1_OCCURRENCE = 2;
-	/**
-	 * Value must be >= 2.</br>
-	 * Play with this value to see how much the size of the encoded output changes.</br>
-	 * This has an impact in the unpacker algorithm time. BIGGER values produce slightly faster decompression 
-	 * because the preparation of the high common byte into a word consumes time, plus the additional checks for 
-	 * descriptors and lengths in case the sequences are short.
-	 */
-	private static final int RLE_MIN_COMMON_HIGH_BYTE_SEQUENCE = 2;
-	/**
-	 * Maximum ratio of reduction between phase 2 and phase 3. Put in other words, it says that phase 3 
-	 * encoding size must be <= than the N percentage of phase 2 encoding size.   
-	 */
-	private static final double RLE_THRESHOLD_PHASE_2_TO_PHASE_3 = 0.8;
 	
 	/**
 	 * Compress an array of words using RLE for 16 bits words. Only up to {@link RLEWCompressor#RLE_MAX_RUN_LENGTH} words per row.
@@ -453,7 +453,7 @@ public class RLEWCompressor {
 				byte newDescriptor = (byte) (0b11000000 | (sequenceLength & 0b00111111));
 				tempCollectorListPass1.add(newDescriptor);
 				tempCollectorListPass1.add(currentHighByte);
-				// Add the low byte of every collected word
+				// Add every low byte
 				for (int j = 0; j < sequenceLength; j++)
 					tempCollectorListPass1.add(rleArrayPhase2[sequenceStart + 1 + 2*j]); // word's low byte
 			}
@@ -627,6 +627,13 @@ public class RLEWCompressor {
 			}
 			// descriptor MSB == 1 and next bit for common high byte is 1, then is a stream with a common high byte
 			else {
+				// if descriptor was at even position then we'll add before him the parity byte
+				if ((((index - 1) + offsetAccum) % 2) == 0) {
+					list.remove(list.size() - 1); // remove descriptor
+					list.add((byte) 0b01000000); // add the parity byte
+					list.add(descriptor); // now add the descriptor
+					++offsetAccum;
+				}
 				list.add(rleData[index++]); // common high byte
 				int length = (descriptor & 0x3F); // length is first 6 bits
 				// copy the bytes

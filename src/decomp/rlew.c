@@ -38,10 +38,18 @@
 
 #define GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, vword, out)\
     ASM_STATEMENT __volatile__ (\
-        "    move.b  (%0)+, %1\n" /* byte goes to low half of destination leaving high half as it is */ \
         "    move.w  %1, (%2)+\n"\
+        "    move.b  (%0)+, %1\n" /* byte goes to low half of destination leaving high half as it is */ \
         : "+a" (in), "+d" (vword), "=a" (out)\
         :\
+        :\
+    )\
+
+#define COPY_WORD_INTO_OUT(vword, out)\
+    ASM_STATEMENT __volatile__ (\
+        "    move.w  %1, (%0)+\n"\
+        : "=a" (out)\
+        : "d" (vword)\
         :\
     )\
 
@@ -243,9 +251,9 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
         }
         // descriptor's MSB == 1 (stream) and next bit for common high byte is 1, then is a stream with a common high byte
         else {
-            // read common byte into high half of word and advance
-            u16 value_w = 0;
-            GET_BYTE_AS_HIGH_INTO_WORD(in, value_w);
+            // read word with common byte in high half and valid first byte in lower half
+            u16 value_w = *(u16*) in; // read word
+            in += 2;
             u8 length = rleDescriptor & 0b00111111;
             switch (length) { // we know length >= 2
                 case 40: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
@@ -287,9 +295,9 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
                 case  4: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
                 case  3: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
                 case  2: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); // fall through
-                case  1: GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, value_w, out); break;
                 default: break;
             }
+            COPY_WORD_INTO_OUT(value_w, out);
         }
     }
 }
