@@ -29,15 +29,15 @@
 
 #include "asm_mac.i"
 
-#define RLEW_WIDTH_IN_TILES 40  // up to 63
-#define RLEW_APPLY_GAP 1
+#define RLEW_WIDTH_IN_WORDS 40  // up to 63
+#define RLEW_ADD_GAP_ON_TARGET 1
 
 ;// ||||||||||||||| S U B R O U T I N E |||||||||||||||||||||||||||||||||||||||
 ;// ---------------------------------------------------------------------------
 ;// C prototype: extern void rlew_decomp_B_asm (const u8 jumpGap, u8* src, u8* dest);
 func rlew_decomp_B_asm
 	movem.l     4(sp), d0/a0-a1     ;// copy parameters into registers d0/a0-a1
-	movem.l     d2-d7/a2-a3, -(sp)  ;// save registers (except the scratch pad)
+	movem.l     d2-d7/a2-a4, -(sp)  ;// save registers (except the scratch pad)
 
     ;// using registers instead of immediate values in some instructions take less cycles
     move.w      d0, a2              ;// a2: jump gap
@@ -46,24 +46,24 @@ func rlew_decomp_B_asm
     move.w      #0x80,d5            ;// 0b10000000 to test if descriptor is a stream
     move.w      #0xC0,d6            ;// 0b11000000 to test if descriptor is a stream of common high byte
     moveq       #0x3F,d7            ;// 0b00111111 mask for length
+    lea         .b_rlew_get_desc(pc), a4    ;// compared to a bra, jmp (aN) saves 2 cycles
 
     moveq       #0, d1              ;// clean higher byte of register before any assignment
     move.b      (a0)+, d1           ;// d1: rows       
     subq.b      #1, d1              ;// decrement rows here because we use dbra/dbf for the big loop
-
-    bra         .b_rlew_get_desc
+    jmp         (a4)                ;// starts decompression
 
 .b_rlew_end_row:
-#if RLEW_APPLY_GAP
+#if RLEW_ADD_GAP_ON_TARGET
     adda.w      a2, a1              ;// jumps the gap used as expanded width in the map
 #endif
     dbra        d1, .b_rlew_get_desc    ;// dbra/dbf: decrement rows, test if rows >= 0 then branch back. When rows = -1 then no branch
     ;// no more rows then quit
-    movem.l     (sp)+, d2-d7/a2-a3      ;// restore registers (except the scratch pad)
+    movem.l     (sp)+, d2-d7/a2-a4      ;// restore registers (except the scratch pad)
     rts
 
 ;// Operations for a Stream with High Common Byte
-.rept (RLEW_WIDTH_IN_TILES-1)
+.rept (RLEW_WIDTH_IN_WORDS-1)
     move.w      d3, (a1)+
     move.b      (a0)+, d3           ;// byte goes to lower half of destination leaving the common byte in higher half
 .endr
@@ -71,7 +71,7 @@ func rlew_decomp_B_asm
     nop
 .b_jmp_stream_cb:
     ;// Next instruction commented because now the execution just falls down and get new descriptor
-    ;//bra         .b_rlew_get_desc    ;// jump to get next descriptor
+    ;//jmp         (a4)                ;// jump to get next descriptor
 
 .b_rlew_get_desc:
     move.b      (a0)+, d2           ;// d2: rleDescriptor
@@ -99,11 +99,11 @@ func rlew_decomp_B_asm
     jmp         .b_jmp_stream_cb(pc,d2.w)
 
 ;// Operations for a Stream of Words
-.rept (RLEW_WIDTH_IN_TILES/2)       ;// for RLEWXMAP_WIDTH_IN_TILES being odd we already covered that case above
+.rept (RLEW_WIDTH_IN_WORDS/2)       ;// for RLEWXMAP_WIDTH_IN_TILES being odd we already covered that case above
     move.l	    (a0)+, (a1)+
 .endr
 .b_jmp_stream_w:
-    bra         .b_rlew_get_desc    ;// jump to get next descriptor
+    jmp         (a4)                ;// jump to get next descriptor
 
 ;// Stream of Words
 .b_rlew_stream_w:
@@ -121,11 +121,11 @@ func rlew_decomp_B_asm
     jmp         .b_jmp_stream_w(pc,d2.w)
 
 ;// Operations for a Simple RLE
-.rept (RLEW_WIDTH_IN_TILES/2)       ;// for RLEWXMAP_WIDTH_IN_TILES being odd we already covered that case above
+.rept (RLEW_WIDTH_IN_WORDS/2)       ;// for RLEWXMAP_WIDTH_IN_TILES being odd we already covered that case above
     move.l	    d3, (a1)+
 .endr
 .b_jmp_rle:
-    bra         .b_rlew_get_desc    ;// jump to get next descriptor
+    jmp         (a4)                ;// jump to get next descriptor
 
 ;// Simple RLE
 .b_rlew_rle:
