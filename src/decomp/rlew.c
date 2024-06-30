@@ -252,7 +252,7 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
         // descriptor's MSB == 1 (stream) and next bit for common high byte is 1, then is a stream with a common high byte
         else {
             // read word with common byte in high half and valid first byte in lower half
-            u16 value_w = *(u16*) in;
+            u16 value_w = *(u16*) in; // read word
             in += 2;
             u8 length = rleDescriptor & 0b00111111;
             switch (length) { // we know length >= 2

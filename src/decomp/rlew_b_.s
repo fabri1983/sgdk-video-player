@@ -33,18 +33,13 @@
 #define RLEW_WIDTH_IN_WORDS_DIV_2       RLEW_WIDTH_IN_WORDS/2
 #define RLEW_WIDTH_IN_WORDS_MINUS_1     RLEW_WIDTH_IN_WORDS-1
 #define RLEW_ADD_GAP_ON_TARGET          1
-#define USE_JMP_TABLE_STREAM_CB         0   // Using a jump table is 2 cycles faster per loop at the expense of extra space
 
 ;// ||||||||||||||| S U B R O U T I N E |||||||||||||||||||||||||||||||||||||||
 ;// ---------------------------------------------------------------------------
 ;// C prototype: extern void rlew_decomp_B_asm (const u8 jumpGap, u8* src, u8* dest);
 func rlew_decomp_B_asm
 	movem.l     4(sp), d0/a0-a1     ;// copy parameters into registers d0/a0-a1
-.if USE_JMP_TABLE_STREAM_CB
-	movem.l     d2-d7/a2-a6, -(sp)  ;// save registers (except the scratch pad)
-.else
     movem.l     d2-d7/a2-a4, -(sp)  ;// save registers (except the scratch pad)
-.endif
 
     ;// using registers instead of immediate values in some instructions take less cycles
     move.w      d0, a2              ;// a2: jump gap
@@ -54,10 +49,6 @@ func rlew_decomp_B_asm
     move.w      #0xC0,d6            ;// 0b11000000 to test if descriptor is a stream of common high byte
     moveq       #0x3F,d7            ;// 0b00111111 mask for length
     lea         .b_rlew_get_desc(pc), a4    ;// compared to a bra, jmp (aN) saves 2 cycles
-.if USE_JMP_TABLE_STREAM_CB
-    lea         .b_rlew_jmp_table(pc), a5
-    movea       #0, a6
-.endif
     moveq       #0, d1              ;// clean higher byte of register before any assignment
     move.b      (a0)+, d1           ;// d1: rows       
     subq.b      #1, d1              ;// decrement rows here because we use dbra/dbf for the big loop
@@ -69,33 +60,16 @@ func rlew_decomp_B_asm
 .endif
     dbra        d1, .b_rlew_get_desc    ;// dbra/dbf: decrement rows, test if rows >= 0 then branch back. When rows = -1 then no branch
     ;// no more rows => quit
-.if USE_JMP_TABLE_STREAM_CB
-    movem.l     (sp)+, d2-d7/a2-a6      ;// restore registers (except the scratch pad)
-.else
     movem.l     (sp)+, d2-d7/a2-a4      ;// restore registers (except the scratch pad)
-.endif
     rts
-
-* IMPORTANT: this jump table has every entry sized in word (2 bytes), hoping this .s script is addressed in 0x0000...0xFFFF
-* If not, then you must set USE_JMP_TABLE_STREAM_CB 0
-.if USE_JMP_TABLE_STREAM_CB
-.b_rlew_jmp_table:
-    .word       0x0
-    .word       0x0
-    .set blockSizeAccum, 4
-    .rept RLEW_WIDTH_IN_WORDS_MINUS_1
-    .word       .b_jmp_stream_cb - blockSizeAccum
-    .set blockSizeAccum, blockSizeAccum + 4
-    .endr
-.endif
 
 ;// Operations for a Stream with High Common Byte
 .rept RLEW_WIDTH_IN_WORDS_MINUS_1
-    move.w      d3, (a1)+
+    move.w      d3, (a1)+           ;// write the word set in previous step
     move.b      (a0)+, d3           ;// byte goes to lower half of destination leaving the common byte in higher half
 .endr
 .b_jmp_stream_cb:
-    move.w      d3, (a1)+
+    move.w      d3, (a1)+           ;// write the word set in previous step
     ;// execution just falls to get new descriptor
 
 .b_rlew_get_desc:
@@ -119,17 +93,10 @@ func rlew_decomp_B_asm
     and.w       d7, d2              ;// d2: length = rleDescriptor & 0b00111111. Here we know length >= 2
     move.w      (a0)+, d3           ;// d3: higher byte is the common byte, lower byte is a valid one
     ;// prepare jump offset
-.if USE_JMP_TABLE_STREAM_CB
-    add.w       d2, d2              ;// d2: length * 2 because every entry in jump table sizes 2 bytes
-    lea         (a5,d2.w), a6
-    jmp         (a6)
-    *jmp         .b_jmp_stream_cb(pc,d2.w)   jumps to a table of bra.s instructions
-.else
     add.w       d2, d2
     add.w       d2, d2              ;// d2: length * 4 because every target instruction set takes 4 bytes
     neg.w       d2                  ;// -d2 in 2's Complement so we can jump back
     jmp         .b_jmp_stream_cb_plus_4b(pc,d2.w)
-.endif
 
 ;// Operations for a Stream of Words
 .rept RLEW_WIDTH_IN_WORDS_DIV_2
