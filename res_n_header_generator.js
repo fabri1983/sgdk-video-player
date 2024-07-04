@@ -117,7 +117,7 @@ const toggleMapTileBaseIndexFlag = parseInt(matchFirstFrame[1]) % 2 == 0 ? "EVEN
 // Resource plugin: extends map width to N tiles. Values: 0 (disabled), 32, 64, 128.
 // videoPlayer.c: buffer allocation and copy algorithm.
 // NOTE: changing any of the values here demands you to review/update enqueueTilemapData() in videoPlayer.c.
-const mapExtendedWidth_forResource = 64; // If using RLEW compression then it has no effect on generated data
+const mapExtendedWidth_forResource = 64; // If using RLEW compression this width is internally changed to the real width of the tilemap
 const widthTilesExt_forVideoPlayer = 64;
 
 if (!fs.existsSync(GEN_INC_DIR)) {

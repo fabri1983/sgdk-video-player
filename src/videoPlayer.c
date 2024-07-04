@@ -437,9 +437,9 @@ void playMovie () {
 		// XGM_setLoopNumber(0);
 
 		SYS_disableInts();
-		#ifdef DEBUG_FIXED_FRAME
-		u16 vFrame = DEBUG_FIXED_FRAME;
-		vtimer = ((IS_PAL_SYSTEM ? 50 : 60) / MOVIE_FRAME_RATE) * DEBUG_FIXED_FRAME;
+		#ifdef DEBUG_FIXED_VFRAME
+		u16 vFrame = DEBUG_FIXED_VFRAME;
+		vtimer = ((IS_PAL_SYSTEM ? 50 : 60) / MOVIE_FRAME_RATE) * DEBUG_FIXED_VFRAME;
 		#else
 		// NOTE: somehow the content of VRAM is erased when vFrame is 0 thus removing the cached tiles, so use next even number.
 		u16 vFrame = 2;
@@ -494,7 +494,7 @@ void playMovie () {
 			// NOTE: first 2 strips' palettes (previously unpacked) will be enqueued in waitVInt_AND_flushDMA()
 			// NOTE2: not true until TODO PALS_1 is done
 
-			#ifndef DEBUG_FIXED_FRAME
+			#ifndef DEBUG_FIXED_VFRAME
 			u16 prevFrame = vFrame;
 			#endif
 			u16 hwFrameCntr = (u16)vtimer;
@@ -512,8 +512,8 @@ void playMovie () {
 			setMoviePalsPointer(unpackedPalsRender);
 			waitVInt_AND_flushDMA();
 
-			#ifdef DEBUG_FIXED_FRAME
-			vFrame = DEBUG_FIXED_FRAME;
+			#ifdef DEBUG_FIXED_VFRAME
+			vFrame = DEBUG_FIXED_VFRAME;
 			#else
 			#if FORCE_NO_MISSING_FRAMES
 			// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) active display periods (for MOVIE_FRAME_RATE = 15)

@@ -16,7 +16,7 @@
         "    move.l  %1, (%0)+\n"\
         : "=a" (out)\
         : "d" (vlong)\
-        :\
+        : "memory"\
     )\
 
 #define GET_LONG_AND_COPY_INTO_OUT(in, out)\
@@ -24,25 +24,16 @@
         "    move.l  (%0)+, (%1)+\n"\
         : "+a" (in), "=a" (out)\
         :\
-        :\
-    )\
-
-#define GET_BYTE_AS_HIGH_INTO_WORD(in, vword)\
-    ASM_STATEMENT __volatile__ (\
-        "    move.b  (%0)+, -(%%sp)\n" /* byte goes to high half of new word on stack */ \
-        "    move.w  (%%sp)+, %1\n"    /* pop the word into dx. Lower byte is garbage (whatever was in the stack) */ \
-        : "+a" (in), "=d" (vword)\
-        :\
-        :\
+        : "memory"\
     )\
 
 #define GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, vword, out)\
     ASM_STATEMENT __volatile__ (\
-        "    move.w  %1, (%2)+\n"\
+        "    move.w  %1, (%2)+\n" /* copy word into out buffer */\
         "    move.b  (%0)+, %1\n" /* byte goes to low half of destination leaving high half as it is */ \
-        : "+a" (in), "+d" (vword), "=a" (out)\
+        : "+a" (in), "=d" (vword), "=a" (out)\
         :\
-        :\
+        : "memory"\
     )\
 
 #define COPY_WORD_INTO_OUT(vword, out)\
@@ -50,7 +41,7 @@
         "    move.w  %1, (%0)+\n"\
         : "=a" (out)\
         : "d" (vword)\
-        :\
+        : "memory"\
     )\
 
 void NO_INLINE rlew_decomp_A (const u8 jumpGap, u8* in, u8* out) {
@@ -59,17 +50,16 @@ void NO_INLINE rlew_decomp_A (const u8 jumpGap, u8* in, u8* out) {
         u8 rleDescriptor = *in++; // read RLE descriptor byte and advance
 
         // is descriptor the parity byte?
-        if (rleDescriptor == 0b01000000) {
-            rleDescriptor = *in++; // read RLE descriptor byte and advance
-        }
+        if (rleDescriptor == 0)
+            rleDescriptor = *in++; // read new RLE descriptor byte and advance
 
-        // if rleDescriptor != 0 then it's a simple RLE: just copy a word value N times
-        if (rleDescriptor != 0) {
+        // if 2nd MSB == 0 then it's a basic RLE: just copy a word value N times
+        if ((rleDescriptor & 0b01000000) == 0) {
             u16 value_w = *(u16*) in; // read word
             in += 2;
-            u8 length = rleDescriptor & 0b00111111; // we know for sure length >= 1
+            u8 length = rleDescriptor & 0b00111111;
             // length is odd? then copy first word
-            if ((length & 1) != 0) {
+            if ((length & 1) != 0) { // we know length >= 1
                 *(u16*) out = value_w;
                 out += 2;
                 --length;
@@ -79,42 +69,36 @@ void NO_INLINE rlew_decomp_A (const u8 jumpGap, u8* in, u8* out) {
                 u32 value_l = 0;
                 DUPLICATE_WORD_INTO_LONG(value_w, value_l);
                 // copy the long value N/2 times
+                u32* out_l = (u32*) out;
                 switch (length) {
-                    case 40: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 38: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 36: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 34: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 32: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 30: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 28: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 26: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 24: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 22: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 20: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 18: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 16: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 14: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 12: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case 10: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case  8: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case  6: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case  4: COPY_LONG_INTO_OUT(value_l, out); // fall through
-                    case  2: COPY_LONG_INTO_OUT(value_l, out); // fall through
+                    case 40: *out_l++ = value_l; // fall through
+                    case 38: *out_l++ = value_l; // fall through
+                    case 36: *out_l++ = value_l; // fall through
+                    case 34: *out_l++ = value_l; // fall through
+                    case 32: *out_l++ = value_l; // fall through
+                    case 30: *out_l++ = value_l; // fall through
+                    case 28: *out_l++ = value_l; // fall through
+                    case 26: *out_l++ = value_l; // fall through
+                    case 24: *out_l++ = value_l; // fall through
+                    case 22: *out_l++ = value_l; // fall through
+                    case 20: *out_l++ = value_l; // fall through
+                    case 18: *out_l++ = value_l; // fall through
+                    case 16: *out_l++ = value_l; // fall through
+                    case 14: *out_l++ = value_l; // fall through
+                    case 12: *out_l++ = value_l; // fall through
+                    case 10: *out_l++ = value_l; // fall through
+                    case  8: *out_l++ = value_l; // fall through
+                    case  6: *out_l++ = value_l; // fall through
+                    case  4: *out_l++ = value_l; // fall through
+                    case  2: *out_l++ = value_l; // fall through
                     default: break;
                 }
-            }
-
-            // is end of row bit set?
-            if ((rleDescriptor & 0b10000000) != 0) {
-                // makes the out buffer pointer jump over the region used as expanded width of the map
-                out += jumpGap;
-                --rows;
+                out = (u8*) out_l;
             }
         }
-        // rleDescriptor == 0 then we're going to copy a stream of words
+        // 2nd MSB == 1 then we're going to copy a stream of words
         else {
-            u8 newRleDescriptor = *in++; // read new RLE descriptor byte and advance
-            u8 length = newRleDescriptor & 0b00111111; // we know for sure length >= 2
+            u8 length = rleDescriptor & 0b00111111;
             // length is odd? then copy first word
             if ((length & 1) != 0) { // we know length >= 2
                 *(u16*) out = *(u16*) in; // copy a word
@@ -123,36 +107,40 @@ void NO_INLINE rlew_decomp_A (const u8 jumpGap, u8* in, u8* out) {
                 --length;
             }
             // copy remaining even number of words as pairs, ie copying 2 words (1 long) at a time
+            u32* in_l = (u32*) in;
+            u32* out_l = (u32*) out;
             switch (length) {
-                case 40: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 38: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 36: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 34: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 32: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 30: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 28: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 26: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 24: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 22: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 20: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 18: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 16: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 14: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 12: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case 10: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case  8: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case  6: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case  4: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
-                case  2: GET_LONG_AND_COPY_INTO_OUT(in, out); // fall through
+                case 40: *out_l++ = *in_l++; // fall through
+                case 38: *out_l++ = *in_l++; // fall through
+                case 36: *out_l++ = *in_l++; // fall through
+                case 34: *out_l++ = *in_l++; // fall through
+                case 32: *out_l++ = *in_l++; // fall through
+                case 30: *out_l++ = *in_l++; // fall through
+                case 28: *out_l++ = *in_l++; // fall through
+                case 26: *out_l++ = *in_l++; // fall through
+                case 24: *out_l++ = *in_l++; // fall through
+                case 22: *out_l++ = *in_l++; // fall through
+                case 20: *out_l++ = *in_l++; // fall through
+                case 18: *out_l++ = *in_l++; // fall through
+                case 16: *out_l++ = *in_l++; // fall through
+                case 14: *out_l++ = *in_l++; // fall through
+                case 12: *out_l++ = *in_l++; // fall through
+                case 10: *out_l++ = *in_l++; // fall through
+                case  8: *out_l++ = *in_l++; // fall through
+                case  6: *out_l++ = *in_l++; // fall through
+                case  4: *out_l++ = *in_l++; // fall through
+                case  2: *out_l++ = *in_l++; // fall through
                 default: break;
             }
+            in = (u8*) in_l;
+            out = (u8*) out_l;
+        }
 
-            // is end of row bit set?
-            if ((newRleDescriptor & 0b10000000) != 0) {
-                // makes the out buffer pointer jump over the region used as expanded width of the map
-                out += jumpGap;
-                --rows;
-            }
+        // is end of row bit set?
+        if (rleDescriptor > 0b10000000) {
+            // makes the out buffer pointer jump over the region used as expanded width of the map
+            out += jumpGap;
+            --rows;
         }
     }
 }
@@ -173,7 +161,7 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
             out += jumpGap;
             --rows;
         }
-        // if descriptor's MSB == 0 (simple RLE) then just copy a word value N times
+        // if descriptor's MSB == 0 (basic RLE) then just copy a word value N times
         else if (rleDescriptor < 0b10000000) {
             u16 value_w = *(u16*) in; // read word
             in += 2;
