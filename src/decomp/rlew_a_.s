@@ -43,9 +43,9 @@ func rlew_decomp_A_asm
     ;// using registers instead of immediate values in some instructions take less cycles
     move.l      d0, a2              ;// a2: jump gap
     moveq       #0, d0              ;// 0 used with cmp and btst instructions, is also the parity byte
-    move.b      #0x80,d4            ;// 0b10000000 to test end of row bit
-    moveq       #0x3F,d5            ;// 0b00111111 mask for length
-    moveq       #6,d6               ;// 7th bit to test for basic RLE mark
+    move.b      #0x80, d4           ;// 0b10000000 to test end of row bit
+    moveq       #0x3F, d5           ;// 0b00111111 mask for length
+    moveq       #6, d6              ;// 7th bit to test for basic RLE mark
     moveq       #0, d7              ;// clean higher byte of register before any assignment
     moveq       #0, d1              ;// clean higher byte of register before any assignment
 

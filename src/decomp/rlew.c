@@ -161,8 +161,8 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
             out += jumpGap;
             --rows;
         }
-        // if descriptor's MSB == 0 (basic RLE) then just copy a word value N times
-        else if (rleDescriptor < 0b10000000) {
+        // if descriptor's mask matches 0b00...... then is a basic RLE: copy a word N times
+        else if (rleDescriptor < 0b01000000) {
             u16 value_w = *(u16*) in; // read word
             in += 2;
             u8 length = rleDescriptor & 0b00111111;
@@ -202,7 +202,11 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
                 default: break;
             }
         }
-        // descriptor's MSB == 1 (stream) and if next bit for common high byte is 0, then is a stream of words
+        // if descriptor's mask matches 0b01...... then we have an incremental RLE segment
+        else if (rleDescriptor < 0b10000000) {
+            
+        }
+        // if descriptor's mask matches 0b1...... then is a stream of words
         else if (rleDescriptor < 0b11000000) {
             u8 length = rleDescriptor & 0b00111111;
             // length is odd? then copy first word
@@ -237,7 +241,7 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
                 default: break;
             }
         }
-        // descriptor's MSB == 1 (stream) and next bit for common high byte is 1, then is a stream with a common high byte
+        // descriptor's mask matches 0b11...... then is a stream with a common high byte
         else {
             // read word with common byte in high half and valid first byte in lower half
             u16 value_w = *(u16*) in; // read word

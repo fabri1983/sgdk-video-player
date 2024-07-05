@@ -221,7 +221,7 @@ public class RLEWCompressor {
 			// Segment's length > 1
 			else {
 				// Copy the segment as is
-				rleArrayPhase2List.add(rleArrayPhase1[i]); // RLE descriptor
+				rleArrayPhase2List.add(rleDescriptor); // RLE descriptor
 				rleArrayPhase2List.add(rleArrayPhase1[i + 1]); // word high byte
 				rleArrayPhase2List.add(rleArrayPhase1[i + 2]); // word low byte
 				i += 3;
@@ -319,74 +319,98 @@ public class RLEWCompressor {
 				outputStream.write(buffer.array(), 0, 3);
 		}
 
-		byte[] rleArrayPhase1 = outputStream.toByteArray();
+		byte[] rlePhase1Array = outputStream.toByteArray();
 
 		// PHASE 2:
+
+
+		// PHASE 3:
 		// Now transform consecutive words having RLE byte descriptor with length 1 into one stream of at least N words.
 		// The new RLE byte descriptor for such streams has 1 as its MSB and the length in the 6 LSBs.
 		// The rest of the encoded RLE stays the same if the stream criteria is not met.
 
-		List<Byte> rleArrayPhase2List = new ArrayList<>();
+		List<Byte> rlePhase3List = new ArrayList<>();
 
-		for (int i = 0; i < rleArrayPhase1.length;) {
+		for (int i = 0; i < rlePhase1Array.length;) {
 
-			byte rleDescriptor = rleArrayPhase1[i];
+			byte rleDescriptor = rlePhase1Array[i];
 
 			// If the descriptor is the end of row mark then collect it and continue
 			if (rleDescriptor == 0) {
-				rleArrayPhase2List.add(rleDescriptor);
+				rlePhase3List.add(rleDescriptor);
 				++i;
 			}
 			// Check if the length is 1 (single word repeat)
 			else if ((rleDescriptor & 0b00111111) == 1) {
-				i = collectWordsIntoStream_B(rleArrayPhase1, rleArrayPhase2List, i);
+				i = collectWordsIntoStream_B(rlePhase1Array, rlePhase3List, i);
 			}
 			// Segment's length > 1
 			else {
-				// Copy the segment as is
-				rleArrayPhase2List.add(rleArrayPhase1[i]); // RLE descriptor
-				rleArrayPhase2List.add(rleArrayPhase1[i + 1]); // word high byte
-				rleArrayPhase2List.add(rleArrayPhase1[i + 2]); // word low byte
-				i += 3;
+				// If descriptor's mask matches 0b01...... then we have an incremental RLE segment
+				if ((rleDescriptor & 0b11000000) == 0b01000000) {
+					rlePhase3List.add(rleDescriptor); // RLE descriptor
+					rlePhase3List.add(rlePhase1Array[i + 1]); // operand
+					rlePhase3List.add(rlePhase1Array[i + 2]); // word high byte
+					rlePhase3List.add(rlePhase1Array[i + 3]); // word low byte
+					i += 4;
+				}
+				// Others
+				else {
+					rlePhase3List.add(rleDescriptor); // RLE descriptor
+					rlePhase3List.add(rlePhase1Array[i + 1]); // word high byte
+					rlePhase3List.add(rlePhase1Array[i + 2]); // word low byte
+					i += 3;
+				}
 			}
 		}
 
-		// Convert List<Byte> to byte[]
-		byte[] rleArrayPhase2 = convertToByteArray(rleArrayPhase2List);
+		byte[] rlePhase3Array = convertToByteArray(rlePhase3List);
 
-		// PHASE 3:
+		// PHASE 4:
 		// Process the streams of words and extract at least N consecutive words having the same high byte. 
 		// This way the common high byte can be included once at the beginning of the stream and then continue 
 		// with the low byte of every remaining word in the stream. This saves up to <50% in the best case.
 
-		List<Byte> rleArrayPhase3List = new ArrayList<>();
+		List<Byte> rlePhase4List = new ArrayList<>();
 
-		for (int i = 0; i < rleArrayPhase2.length; ) {
+		for (int i = 0; i < rlePhase3Array.length; ) {
 
-			byte rleDescriptor = rleArrayPhase2[i];
+			byte rleDescriptor = rlePhase3Array[i];
 
 			// If the descriptor is the end of row mark then collect it and continue
 			if (rleDescriptor == 0) {
-				rleArrayPhase3List.add(rleDescriptor);
+				rlePhase4List.add(rleDescriptor);
 				++i;
+				continue;
 			}
+
 			// If descriptor has the stream bit set then we're going to analyze the stream
-			else if ((rleDescriptor & 0b10000000) != 0) {
-				i = compressStreamCommonHighBytes_B(rleArrayPhase2, rleArrayPhase3List, i);
+			if ((rleDescriptor & 0b10000000) != 0) {
+				i = compressStreamCommonHighBytes_B(rlePhase3Array, rlePhase4List, i);
 			}
-			// It's a normal RLE segment
+			// Others
 			else {
-				// Copy the segment as is
-				rleArrayPhase3List.add(rleDescriptor); // RLE descriptor
-				rleArrayPhase3List.add(rleArrayPhase2[i + 1]); // word high byte
-				rleArrayPhase3List.add(rleArrayPhase2[i + 2]); // word low byte
-				i += 3;
+				// If descriptor's mask matches 0b01...... then we have an incremental RLE segment
+				if ((rleDescriptor & 0b11000000) == 0b01000000) {
+					rlePhase4List.add(rleDescriptor); // RLE descriptor
+					rlePhase4List.add(rlePhase3Array[i + 1]); // operand
+					rlePhase4List.add(rlePhase3Array[i + 2]); // word high byte
+					rlePhase4List.add(rlePhase3Array[i + 3]); // word low byte
+					i += 4;
+				}
+				// Others
+				else {
+					rlePhase4List.add(rleDescriptor); // RLE descriptor
+					rlePhase4List.add(rlePhase3Array[i + 1]); // word high byte
+					rlePhase4List.add(rlePhase3Array[i + 2]); // word low byte
+					i += 3;
+				}
 			}
 		}
 
 		// Convert List<Byte> to byte[]
-		byte[] rleArrayPhase3 = convertToByteArray(rleArrayPhase3List);
-		return rleArrayPhase3;
+		byte[] rlePhase4Array = convertToByteArray(rlePhase4List);
+		return rlePhase4Array;
 	}
 
 	private static int collectWordsIntoStream_B (byte[] source, List<Byte> target, int i) {
@@ -477,11 +501,11 @@ public class RLEWCompressor {
 
 			// If the descriptor is a RLE of length 1 (previously set on purpose) then we're going to process this and 
 			// and consecutive words trying to collect them into a stream
-			if (descriptor == (byte) 0b00000001) {
+			if (descriptor == 0b00000001) {
 				j = collectWordsIntoStream_B(tempCollectorArrayPass1, tempCollectorListPass2, j);
 			}
 			// If the descriptor is the one marking a high common byte, then we just collect the sequence
-			else if ((byte)(descriptor & 0b11000000) == (byte)0b11000000) {
+			else if ((descriptor & 0b11000000) == 0b11000000) {
 				tempCollectorListPass2.add(descriptor);
 				j++; // move to the high common byte
 				tempCollectorListPass2.add(tempCollectorArrayPass1[j++]); // collect the high common byte and move forward
@@ -583,8 +607,9 @@ public class RLEWCompressor {
 			if (descriptor == 0) {
 				continue;
 			}
-			// test if descriptor MSB == 0 then we have basic RLE entry
-			else if ((descriptor & 0b10000000) == 0) {
+
+			// test if descriptor's mask matches 0b00...... then we have basic RLE segment
+			if ((descriptor & 0b11000000) == 0b00000000) {
 				// if descriptor was at even position then we'll add before him the parity byte
 				if (isEven(index - 1, offsetAccum)) {
 					list.remove(list.size() - 1); // remove descriptor
@@ -596,8 +621,23 @@ public class RLEWCompressor {
 				list.add(rleData[index++]);
 				list.add(rleData[index++]);
 			}
-			// descriptor MSB == 1, test if next bit for common high byte is 0, then is a stream of words
-			else if ((descriptor & 0b01000000) == 0) {
+			// test if descriptor's mask matches 0b01...... then we have an incremental RLE segment
+			else if ((descriptor & 0b11000000) == 0b01000000) {
+				// if descriptor was at even position then we'll add before him the parity byte
+				if (isOdd(index - 1, offsetAccum)) {
+					list.remove(list.size() - 1); // remove descriptor
+					list.add((byte) 0b01000000); // add the parity byte
+					list.add(descriptor); // now add the descriptor
+					++offsetAccum;
+				}
+				// copy the operand
+				list.add(rleData[index++]);
+				// copy the word
+				list.add(rleData[index++]);
+				list.add(rleData[index++]);
+			}
+			// test if descriptor's mask matches 0b10...... then is a stream of words
+			else if ((descriptor & 0b11000000) == 0b10000000) {
 				// if descriptor was at even position then we'll add before him the parity byte
 				if (isEven(index - 1, offsetAccum)) {
 					list.remove(list.size() - 1); // remove descriptor
@@ -612,7 +652,7 @@ public class RLEWCompressor {
 					list.add(rleData[index++]);
 				}
 			}
-			// descriptor MSB == 1 and next bit for common high byte is 1, then is a stream with a common high byte
+			// descriptor's mask matches 0b11...... then is a stream with a common high byte
 			else {
 				// if descriptor was at even position then we'll add before him the parity byte
 				if (isEven(index - 1, offsetAccum)) {
@@ -634,6 +674,10 @@ public class RLEWCompressor {
 
 	private static boolean isEven(int i, int offset) {
 		return ((i + offset) % 2) == 0;
+	}
+
+	private static boolean isOdd(int i, int offset) {
+		return ((i + offset) % 2) == 1;
 	}
 
 	private static void checkCorrectRowLength_A(byte[] rleData, int wordsPerRow) {
@@ -684,23 +728,26 @@ public class RLEWCompressor {
 				rowLengthAccum = 0;
 				continue;
 			}
-			// test if descriptor MSB == 0 then we have basic RLE entry
-			else if ((descriptor & 0b10000000) == 0) {
-				int length = descriptor & 0x3F; // First 6 bits for length
-				rowLengthAccum += length;
+
+			int length = descriptor & 0x3F; // First 6 bits for length
+			rowLengthAccum += length;
+
+			// test if descriptor's mask matches 0b00...... then we have basic RLE segment
+			if ((descriptor & 0b11000000) == 0b00000000) {
 				index += 2; // consume the word
 			}
-			// descriptor MSB == 1, test if next bit for common high byte is 0, then is a stream of words
-			else if ((descriptor & 0b01000000) == 0) {
-				int length = descriptor & 0x3F; // First 6 bits for length
-				rowLengthAccum += length;
+			// test if descriptor's mask matches 0b01...... then we have an incremental RLE segment
+			else if ((descriptor & 0b11000000) == 0b01000000) {
+				index++; // consume operand
+				index += 2; // consume the word
+			}
+			// test if descriptor's mask matches 0b10...... then is a stream of words
+			else if ((descriptor & 0b11000000) == 0b10000000) {
 				index += 2 * length; // consume all the words
 			}
-			// descriptor MSB == 1 and next bit for common high byte is 1, then is a stream with a common high byte
+			// descriptor's mask matches 0b11...... then is a stream with a common high byte
 			else {
-				int length = descriptor & 0x3F; // First 6 bits for length
 				index++; // consume common high byte
-				rowLengthAccum += length;
 				index += length; // consume all the lower bytes
 			}
 		}
@@ -760,13 +807,24 @@ public class RLEWCompressor {
 			if (descriptor == 0) {
 				continue;
 			}
-			// test if descriptor MSB == 0 then we have basic RLE entry
-			else if ((descriptor & 0b10000000) == 0) {
+			
+			// test if descriptor's mask matches 0b00...... then we have basic RLE segment
+			if ((descriptor & 0b11000000) == 0b00000000) {
 				int word = ((rleData[index++] & 0xFF) << 8) | (rleData[index++] & 0xFF);
 				updateWordInfo(wordInfoMap, word, currentDescriptorPos);
 			}
-			// descriptor MSB == 1, test if next bit for common high byte is 0, then is a stream of words
-			else if ((descriptor & 0b01000000) == 0) {
+			// test if descriptor's mask matches 0b01...... then we have an incremental RLE segment
+			else if ((descriptor & 0b11000000) == 0b01000000) {
+				int length = descriptor & 0x3F; // First 6 bits for length
+				byte operand = rleData[index++]; // operand
+				int word = (rleData[index++] << 8) | (rleData[index++] & 0xFF);
+				for (int i = 0; i < length-1; i++) {
+					updateWordInfo(wordInfoMap, word, currentDescriptorPos + 1 + i);
+					word = word + operand;
+				}
+			}
+			// test if descriptor's mask matches 0b10...... then is a stream of words
+			else if ((descriptor & 0b11000000) == 0b10000000) {
 				int length = descriptor & 0x3F; // First 6 bits for length
 				// track position and occurrences of every word in the stream
 				for (int i = 0; i < length; i++) {
@@ -774,7 +832,7 @@ public class RLEWCompressor {
 					updateWordInfo(wordInfoMap, word, currentDescriptorPos + i);
 				}
 			}
-			// descriptor MSB == 1 and next bit for common high byte is 1, then is a stream with a common high byte
+			// descriptor's mask matches 0b11...... then is a stream with a common high byte
 			else {
 				int length = descriptor & 0x3F; // First 6 bits for length
 				byte commonHighByte = rleData[index++];

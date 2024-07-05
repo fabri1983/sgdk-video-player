@@ -39,17 +39,18 @@
 ;// C prototype: extern void rlew_decomp_B_asm (const u8 jumpGap, u8* src, u8* dest);
 func rlew_decomp_B_asm
 	movem.l     4(sp), d0/a0-a1     ;// copy parameters into registers d0/a0-a1
-    movem.l     d2-d7/a2-a4, -(sp)  ;// save registers (except the scratch pad)
+    movem.l     d2-d7/a2-a5, -(sp)  ;// save registers (except the scratch pad)
 
     ;// using registers instead of immediate values in some instructions take less cycles
     move.l      d0, a2              ;// a2: jump gap
     moveq       #0, d0              ;// 0 used with cmp and btst instructions
-    moveq       #0x40,d4            ;// 0b01000000 parity byte
-    move.w      #0x80,d5            ;// 0b10000000 to test if descriptor is a stream
-    move.w      #0xC0,d6            ;// 0b11000000 to test if descriptor is a stream of common high byte
-    moveq       #0x3F,d7            ;// 0b00111111 mask for length
+    moveq       #0x40, d4           ;// 0b01000000 parity byte and to test if descriptor is a simple RLE
+    move.w      #0x80, d5           ;// 0b10000000 to test if descriptor is an incremental RLE
+    move.w      #0xC0, d6           ;// 0b11000000 to test if descriptor is a stream of words
+    moveq       #0x3F, d7           ;// 0b00111111 mask for length
     lea         .b_rlew_get_desc(pc), a3    ;// compared to a bra, jmp (aN) saves 2 cycles
     moveq       #0, d1              ;// clean higher byte of register before any assignment
+    move.w      #0, a5              ;// clean higher byte of register before any assignment
 
     move.b      (a0)+, d1           ;// d1: rows
     subq.b      #1, d1              ;// decrement rows here because we use dbra/dbf for the big loop
@@ -61,7 +62,7 @@ func rlew_decomp_B_asm
     .endif
     dbra        d1, .b_rlew_get_desc    ;// dbra/dbf: decrement rows, test if rows >= 0 then branch back. When rows = -1 then no branch
     ;// no more rows => quit
-    movem.l     (sp)+, d2-d7/a2-a4      ;// restore registers (except the scratch pad)
+    movem.l     (sp)+, d2-d7/a2-a5      ;// restore registers (except the scratch pad)
     rts
 
 ;// Operations for a Stream with High Common Byte
@@ -81,9 +82,10 @@ func rlew_decomp_B_asm
     bne.s       2f                  ;// not a parity byte? then branch continue with the new segment
     move.b      (a0)+, d2           ;// d2: rleDescriptor
 2:
-    ;// descriptor != 0 then we continue with a new segment
-    cmp.b       d5, d2              ;// test rleDescriptor (d2) against 0b10000000 (d5) => bit 8 set and 7 not set
-    bcs         .b_rlew_rle         ;// if (rleDescriptor < 0b10000000) then is a basic RLE
+    cmp.b       d4, d2              ;// test rleDescriptor (d2) against 0b01000000 (d4)
+    bcs         .b_rlew_rle         ;// if (rleDescriptor < 0b01000000) then is a basic RLE
+    cmp.b       d5, d2              ;// test rleDescriptor (d2) against 0b10000000 (d5)
+    bcs         .b_rlew_inc_rle     ;// if (rleDescriptor < 0b10000000) then is an incremental RLE
     cmp.b       d6, d2              ;// test rleDescriptor (d2) against 0b11000000 (d6) => bit 8 and 7 set
     ;// At this point MSB == 1 so its a stream. Then check if it's a stream of words or bytes
     bcs         .b_rlew_stream_w    ;// if (rleDescriptor < 0b11000000) then is a stream of words
@@ -120,6 +122,18 @@ func rlew_decomp_B_asm
     neg.w       d2                  ;// -d2 in 2's Complement so we can jump back
                                     ;// every target instruction takes 2 bytes but we have *2 inherently in d2
     jmp         .b_jmp_stream_w(pc,d2.w)
+
+;// Operations for an incremental RLE
+    .rept RLEW_WIDTH_IN_WORDS
+    move.w	    d3, (a1)+
+    add.w       a5, d3
+    .endr
+.b_jmp_inc_rle:
+    jmp         (a3)                ;// jump to get next descriptor
+
+;// incremental RLE
+.b_rlew_inc_rle:
+
 
 ;// Operations for a basic RLE
     .rept RLEW_WIDTH_IN_WORDS_DIV_2

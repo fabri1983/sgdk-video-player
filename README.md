@@ -73,8 +73,8 @@ format for the SGDK rescomp tool.
 ### TODO
 - FAR_SAFE() takes 150~153 cycles. Create dynamically a lookup table by frame (and chunk for tilesets) to provide the final location address.
 - Try Enigma on tilemaps and check if decompression time is same or lower than LZ4.
-- Pre load frame 0 before starting music and see how does result with sound timing and the deleted cache tiles issue.
-- Tileset decompression worst case takes 249052 cycles (~519 scanlines) including all the delays added by VInt and Hint callbacks. Maybe develop custom compressor/decompressor?
+- Pre load frame 0 before starting music and see how does result with sound timing.
+- Tileset decompression worst case takes 249052 cycles (~519 scanlines) including all the delays added by VInt and Hint callbacks.
 - If the use of any of the alternative compression/decompression methods is better than Stef's LZ4W then:
 	- use new video from VirtualDub2 project. Better definition and right width and height.
 	- new dims are 272 width x 200 height (34 * 25 tiles).
