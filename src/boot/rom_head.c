@@ -15,9 +15,9 @@ const ROMHeader rom_header = {
 #else
     "SEGA MEGA DRIVE ",
 #endif
-    "(C)SGDK 2024    ",
-    "SAMPLE PROGRAM                                  ",
-    "SAMPLE PROGRAM                                  ",
+    "(C)SGDK 2024 JUL",
+    "VIDEO PLAYER v1.0 - by fabri1983                ",
+    "VIDEO PLAYER v1.0 - by fabri1983                ",
     "GM 00000000-00",
     0x000,
     "JD              ",

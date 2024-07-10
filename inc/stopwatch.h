@@ -104,9 +104,9 @@ const unsigned char mod_10[262] = {
 /// HOWEVER VInt is executed at scanline 224 according to Shannon Birt. So a healthy limit for cpu utilizaiton is up to 223.
 /// Alternative way by ctr001: how I do profiling: change the background color by using VDP register $87
 #define STOPWATCH_START(n) \
-	u8 lineStart_##n = GET_VCOUNTER;
+	u8 lineStart_##n = VDP_getAdjustedVCounter();
 #define STOPWATCH_STOP(n) \
-	u8 lineEnd_##n = GET_VCOUNTER;\
+	u8 lineEnd_##n = VDP_getAdjustedVCounter();\
 	u8 frameTime_##n;\
 	char str_##n[] = "ft__"STRINGIFY(n)"     ";\
 	if (lineEnd_##n < lineStart_##n) {\
