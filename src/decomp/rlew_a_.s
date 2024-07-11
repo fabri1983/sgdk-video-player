@@ -42,7 +42,7 @@ func rlew_decomp_A_asm
 
     ;// using registers instead of immediate values in some instructions take less cycles
     move.l      d0, a2              ;// a2: jump gap
-    moveq       #0, d0              ;// 0 used with cmp and btst instructions, is also the parity byte
+    moveq       #0, d0              ;// 0 used with cmp and btst instructions
     move.b      #0x80, d4           ;// 0b10000000 to test end of row bit
     moveq       #0x3F, d5           ;// 0b00111111 mask for length
     moveq       #6, d6              ;// 7th bit to test for basic RLE mark
@@ -51,7 +51,7 @@ func rlew_decomp_A_asm
 
     move.b      (a0)+, d1           ;// d1: rows
     subq.b      #1, d1              ;// decrement rows here because we use dbra/dbf for the big loop
-    jmp         .a_rlew_get_desc(pc)    ;// starts decompression
+    jmp         .a_rlew_get_desc_run_1(pc)  ;// starts decompression with first run
 
 ;// Operations for a Stream of Words
     .rept RLEW_WIDTH_IN_WORDS_DIV_2
@@ -68,11 +68,15 @@ func rlew_decomp_A_asm
     movem.l     (sp)+, d2-d7/a2-a3      ;// restore registers (except the scratch pad)
     rts
 
-.a_rlew_get_desc:
+.a_rlew_get_desc_run_1:
     move.b      (a0)+, d2           ;// d2: rleDescriptor
-    bne.s       2f                  ;// if rleDescriptor != 0 (not a parity byte) => branch and continue with the new segment
-    move.b      (a0)+, d2           ;// d2: rleDescriptor => new descriptor value
-2:
+    btst        d6, d2              ;// test rleDescriptor bit 7th
+    beq         .a_rlew_rle         ;// if bit 7th not set => is a basic RLE
+    bra.s       .a_rlew_stream_w    ;// bit 7th set => it's a Stream of Words
+
+.a_rlew_get_desc:
+    addq.w      #1, a0              ;// skip parity byte
+    move.b      (a0)+, d2           ;// d2: rleDescriptor
     btst        d6, d2              ;// test rleDescriptor bit 7th
     beq         .a_rlew_rle         ;// if bit 7th not set => is a basic RLE
     ;// rleDescriptor has bit 7th set => it's a Stream of Words

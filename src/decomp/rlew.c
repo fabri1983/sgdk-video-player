@@ -46,12 +46,106 @@
 
 void NO_INLINE rlew_decomp_A (const u8 jumpGap, u8* in, u8* out) {
     u8 rows = *in++; // get map rows
-    while (rows) {
+
+    // FIRST RUN: #rows acts a parity byte so descriptor is at odd position
+    {
         u8 rleDescriptor = *in++; // read RLE descriptor byte and advance
 
-        // is descriptor the parity byte?
-        if (rleDescriptor == 0)
-            rleDescriptor = *in++; // read new RLE descriptor byte and advance
+        // if 2nd MSB == 0 then it's a basic RLE: just copy a word value N times
+        if ((rleDescriptor & 0b01000000) == 0) {
+            u16 value_w = *(u16*) in; // read word
+            in += 2;
+            u8 length = rleDescriptor & 0b00111111;
+            // length is odd? then copy first word
+            if ((length & 1) != 0) { // we know length >= 1
+                *(u16*) out = value_w;
+                out += 2;
+                --length;
+            }
+            if (length != 0) {
+                // duplicate the word value into a long value
+                u32 value_l = 0;
+                DUPLICATE_WORD_INTO_LONG(value_w, value_l);
+                // copy the long value N/2 times
+                u32* out_l = (u32*) out;
+                switch (length) {
+                    case 40: *out_l++ = value_l; // fall through
+                    case 38: *out_l++ = value_l; // fall through
+                    case 36: *out_l++ = value_l; // fall through
+                    case 34: *out_l++ = value_l; // fall through
+                    case 32: *out_l++ = value_l; // fall through
+                    case 30: *out_l++ = value_l; // fall through
+                    case 28: *out_l++ = value_l; // fall through
+                    case 26: *out_l++ = value_l; // fall through
+                    case 24: *out_l++ = value_l; // fall through
+                    case 22: *out_l++ = value_l; // fall through
+                    case 20: *out_l++ = value_l; // fall through
+                    case 18: *out_l++ = value_l; // fall through
+                    case 16: *out_l++ = value_l; // fall through
+                    case 14: *out_l++ = value_l; // fall through
+                    case 12: *out_l++ = value_l; // fall through
+                    case 10: *out_l++ = value_l; // fall through
+                    case  8: *out_l++ = value_l; // fall through
+                    case  6: *out_l++ = value_l; // fall through
+                    case  4: *out_l++ = value_l; // fall through
+                    case  2: *out_l++ = value_l; // fall through
+                    default: break;
+                }
+                out = (u8*) out_l;
+            }
+        }
+        // 2nd MSB == 1 then we're going to copy a stream of words
+        else {
+            u8 length = rleDescriptor & 0b00111111;
+            // length is odd? then copy first word
+            if ((length & 1) != 0) { // we know length >= 2
+                *(u16*) out = *(u16*) in; // copy a word
+                in += 2;
+                out += 2;
+                --length;
+            }
+            // copy remaining even number of words as pairs, ie copying 2 words (1 long) at a time
+            u32* in_l = (u32*) in;
+            u32* out_l = (u32*) out;
+            switch (length) {
+                case 40: *out_l++ = *in_l++; // fall through
+                case 38: *out_l++ = *in_l++; // fall through
+                case 36: *out_l++ = *in_l++; // fall through
+                case 34: *out_l++ = *in_l++; // fall through
+                case 32: *out_l++ = *in_l++; // fall through
+                case 30: *out_l++ = *in_l++; // fall through
+                case 28: *out_l++ = *in_l++; // fall through
+                case 26: *out_l++ = *in_l++; // fall through
+                case 24: *out_l++ = *in_l++; // fall through
+                case 22: *out_l++ = *in_l++; // fall through
+                case 20: *out_l++ = *in_l++; // fall through
+                case 18: *out_l++ = *in_l++; // fall through
+                case 16: *out_l++ = *in_l++; // fall through
+                case 14: *out_l++ = *in_l++; // fall through
+                case 12: *out_l++ = *in_l++; // fall through
+                case 10: *out_l++ = *in_l++; // fall through
+                case  8: *out_l++ = *in_l++; // fall through
+                case  6: *out_l++ = *in_l++; // fall through
+                case  4: *out_l++ = *in_l++; // fall through
+                case  2: *out_l++ = *in_l++; // fall through
+                default: break;
+            }
+            in = (u8*) in_l;
+            out = (u8*) out_l;
+        }
+
+        // is end of row bit set?
+        if (rleDescriptor > 0b10000000) {
+            // makes the out buffer pointer jump over the region used as expanded width of the map
+            out += jumpGap;
+            --rows;
+        }
+    }
+
+    // REMAINING RUNS: from now on we skip parity byte before accessing any descriptor
+    while (rows) {
+        ++in; // skip parity byte
+        u8 rleDescriptor = *in++; // read RLE descriptor byte and advance
 
         // if 2nd MSB == 0 then it's a basic RLE: just copy a word value N times
         if ((rleDescriptor & 0b01000000) == 0) {
