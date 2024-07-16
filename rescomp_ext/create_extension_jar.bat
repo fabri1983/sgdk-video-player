@@ -1,5 +1,5 @@
 :: Locate this script at %GDK_WIN%\tools\rescomp
-:: Before run it, make sure you compile your Java classes so bin folder is generated.
+:: Before you run this script make sure you have compiled your Java classes so bin folder is generated.
 @ECHO OFF
 
 IF "%~dp0" == "%GDK_WIN%\tools\rescomp\" (

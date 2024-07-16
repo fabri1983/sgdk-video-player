@@ -66,8 +66,8 @@ Run it once to catch rescomp output to know tileset stats (resource TILESET_STAT
 ### NOTES
 - I recommend to use a video resize and filter program like *VirtualDub 2*, which allows you to keep image crisp when resizing, 
 uses custom ratio with black regions when resizing, lets you crop the video, and also comes with all kind of useful filters. 
-That way the extract.bat script which calls ffmpeg will only extract the frames without resizing and extract the audio in correct 
-format for the SGDK rescomp tool.
+That way the `extract.bat` script, which calls ffmpeg, will only extract the frames without any resizing, and then extract the audio 
+in correct format for the SGDK rescomp tool.
 
 
 ### TODO

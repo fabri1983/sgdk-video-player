@@ -46,8 +46,8 @@ func rlew_decomp_A_asm
     move.b      #0x80, d4           ;// 0b10000000 to test end of row bit
     moveq       #0x3F, d5           ;// 0b00111111 mask for length
     moveq       #6, d6              ;// 7th bit to test for basic RLE mark
-    moveq       #0, d7              ;// clean higher byte of register before any assignment
-    moveq       #0, d1              ;// clean higher byte of register before any assignment
+    moveq       #0, d7              ;// clean long word of register before any assignment
+    moveq       #0, d1              ;// clean long word byte of register before any assignment
 
     move.b      (a0)+, d1           ;// d1: rows
     subq.b      #1, d1              ;// decrement rows here because we use dbra/dbf for the big loop

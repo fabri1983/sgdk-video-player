@@ -297,9 +297,57 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
             }
         }
         // if descriptor's mask matches 0b01...... then we have an incremental RLE segment
-        else if (rleDescriptor < 0b10000000) {
-            
-        }
+        /*else if (rleDescriptor < 0b10000000) {
+            s8 operator = *in++;
+            s16 value_w = *(u16*) in; // read word
+            in += 2;
+            u16* out_w = (u16*) out;
+            u8 length = rleDescriptor & 0b00111111;
+            switch (length) { // we know length >= 2
+                case 40: *out_w++ = value_w; value_w += operator; // fall through
+                case 39: *out_w++ = value_w; value_w += operator; // fall through
+                case 38: *out_w++ = value_w; value_w += operator; // fall through
+                case 37: *out_w++ = value_w; value_w += operator; // fall through
+                case 36: *out_w++ = value_w; value_w += operator; // fall through
+                case 35: *out_w++ = value_w; value_w += operator; // fall through
+                case 34: *out_w++ = value_w; value_w += operator; // fall through
+                case 33: *out_w++ = value_w; value_w += operator; // fall through
+                case 32: *out_w++ = value_w; value_w += operator; // fall through
+                case 31: *out_w++ = value_w; value_w += operator; // fall through
+                case 30: *out_w++ = value_w; value_w += operator; // fall through
+                case 29: *out_w++ = value_w; value_w += operator; // fall through
+                case 28: *out_w++ = value_w; value_w += operator; // fall through
+                case 27: *out_w++ = value_w; value_w += operator; // fall through
+                case 26: *out_w++ = value_w; value_w += operator; // fall through
+                case 25: *out_w++ = value_w; value_w += operator; // fall through
+                case 24: *out_w++ = value_w; value_w += operator; // fall through
+                case 23: *out_w++ = value_w; value_w += operator; // fall through
+                case 22: *out_w++ = value_w; value_w += operator; // fall through
+                case 21: *out_w++ = value_w; value_w += operator; // fall through
+                case 20: *out_w++ = value_w; value_w += operator; // fall through
+                case 19: *out_w++ = value_w; value_w += operator; // fall through
+                case 18: *out_w++ = value_w; value_w += operator; // fall through
+                case 17: *out_w++ = value_w; value_w += operator; // fall through
+                case 16: *out_w++ = value_w; value_w += operator; // fall through
+                case 15: *out_w++ = value_w; value_w += operator; // fall through
+                case 14: *out_w++ = value_w; value_w += operator; // fall through
+                case 13: *out_w++ = value_w; value_w += operator; // fall through
+                case 12: *out_w++ = value_w; value_w += operator; // fall through
+                case 11: *out_w++ = value_w; value_w += operator; // fall through
+                case 10: *out_w++ = value_w; value_w += operator; // fall through
+                case  9: *out_w++ = value_w; value_w += operator; // fall through
+                case  8: *out_w++ = value_w; value_w += operator; // fall through
+                case  7: *out_w++ = value_w; value_w += operator; // fall through
+                case  6: *out_w++ = value_w; value_w += operator; // fall through
+                case  5: *out_w++ = value_w; value_w += operator; // fall through
+                case  4: *out_w++ = value_w; value_w += operator; // fall through
+                case  3: *out_w++ = value_w; value_w += operator; // fall through
+                case  2: *out_w++ = value_w; value_w += operator; // fall through
+                default: break;
+            }
+            *out_w++ = value_w;
+            out = (u8*) out_w;
+        }*/
         // if descriptor's mask matches 0b1...... then is a stream of words
         else if (rleDescriptor < 0b11000000) {
             u8 length = rleDescriptor & 0b00111111;

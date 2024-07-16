@@ -39,7 +39,7 @@
 ;// C prototype: extern void rlew_decomp_B_asm (const u8 jumpGap, u8* src, u8* dest);
 func rlew_decomp_B_asm
 	movem.l     4(sp), d0/a0-a1     ;// copy parameters into registers d0/a0-a1
-    movem.l     d2-d7/a2-a5, -(sp)  ;// save registers (except the scratch pad)
+    movem.l     d2-d7/a2-a4, -(sp)  ;// save registers (except the scratch pad)
 
     ;// using registers instead of immediate values in some instructions take less cycles
     move.l      d0, a2              ;// a2: jump gap
@@ -47,10 +47,9 @@ func rlew_decomp_B_asm
     moveq       #0x40, d4           ;// 0b01000000 parity byte and to test if descriptor is a simple RLE
     move.w      #0x80, d5           ;// 0b10000000 to test if descriptor is an incremental RLE
     move.w      #0xC0, d6           ;// 0b11000000 to test if descriptor is a stream of words
-    moveq       #0x3F, d7           ;// 0b00111111 mask for length
+    moveq       #0x3F, d7           ;// 0b00111111 mask for length. NOTE: important to leave higher bytes as 0s
     lea         .b_rlew_get_desc(pc), a3    ;// compared to a bra, jmp (aN) saves 2 cycles
-    moveq       #0, d1              ;// clean higher byte of register before any assignment
-    move.w      #0, a5              ;// clean higher byte of register before any assignment
+    moveq       #0, d1              ;// clean long word of register before any assignment
 
     move.b      (a0)+, d1           ;// d1: rows
     subq.b      #1, d1              ;// decrement rows here because we use dbra/dbf for the big loop
@@ -62,7 +61,7 @@ func rlew_decomp_B_asm
     .endif
     dbra        d1, .b_rlew_get_desc    ;// dbra/dbf: decrement rows, test if rows >= 0 then branch back. When rows = -1 then no branch
     ;// no more rows => quit
-    movem.l     (sp)+, d2-d7/a2-a5      ;// restore registers (except the scratch pad)
+    movem.l     (sp)+, d2-d7/a2-a4      ;// restore registers (except the scratch pad)
     rts
 
 ;// Operations for a Stream with High Common Byte
@@ -84,10 +83,9 @@ func rlew_decomp_B_asm
 2:
     cmp.b       d4, d2              ;// test rleDescriptor (d2) against 0b01000000 (d4)
     bcs         .b_rlew_rle         ;// if (rleDescriptor < 0b01000000) then is a basic RLE
-    cmp.b       d5, d2              ;// test rleDescriptor (d2) against 0b10000000 (d5)
-    bcs         .b_rlew_inc_rle     ;// if (rleDescriptor < 0b10000000) then is an incremental RLE
-    cmp.b       d6, d2              ;// test rleDescriptor (d2) against 0b11000000 (d6) => bit 8 and 7 set
-    ;// At this point MSB == 1 so its a stream. Then check if it's a stream of words or bytes
+    *cmp.b       d5, d2              ;// test rleDescriptor (d2) against 0b10000000 (d5)
+    *bcs         .b_rlew_inc_rle     ;// if (rleDescriptor < 0b10000000) then is an incremental RLE
+    cmp.b       d6, d2              ;// test rleDescriptor (d2) against 0b11000000 (d6)
     bcs         .b_rlew_stream_w    ;// if (rleDescriptor < 0b11000000) then is a stream of words
     ;// it's a stream of a common high byte followed by lower bytes
 
@@ -124,16 +122,26 @@ func rlew_decomp_B_asm
     jmp         .b_jmp_stream_w(pc,d2.w)
 
 ;// Operations for an incremental RLE
-    .rept RLEW_WIDTH_IN_WORDS
-    move.w	    d3, (a1)+
-    add.w       a5, d3
+    .rept RLEW_WIDTH_IN_WORDS_MINUS_1
+    move.w	    d3, (a1)+           ;// write the word set in previous step
+    add.w       d7, d3              ;// increment the word
     .endr
 .b_jmp_inc_rle:
+    move.w	    d3, (a1)+           ;// write the word set in previous step
+    moveq       #0x3F, d7           ;// restore d7: 0b00111111 mask for length
+.b_jmp_inc_rle_plus_4b:             ;// this label put here so jump back calculation fits ok
     jmp         (a3)                ;// jump to get next descriptor
 
 ;// incremental RLE
 .b_rlew_inc_rle:
-
+    and.w       d7, d2              ;// d2: length = rleDescriptor & 0b00111111. Here we know length >= 2
+    move.b      (a0)+, d7           ;// d7: operator. We will restore it later on.
+    move.w      (a0)+, d3           ;// d3: initial value for incremental value copy into output
+    ;// prepare jump offset
+    add.w       d2, d2
+    add.w       d2, d2              ;// d2: length * 4 because every target instruction set takes 4 bytes
+    neg.w       d2                  ;// -d2 in 2's Complement so we can jump back
+    jmp         .b_jmp_inc_rle_plus_4b(pc,d2.w)
 
 ;// Operations for a basic RLE
     .rept RLEW_WIDTH_IN_WORDS_DIV_2
