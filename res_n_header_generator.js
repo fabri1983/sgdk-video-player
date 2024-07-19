@@ -193,11 +193,11 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data.h`,
 #include "movie_sound.h"
 #include "generated/movie_data_consts.h"
 
-const ${type_ImageNoPals}* data[${sortedFileNamesEveryFirstStrip.length}] = {
+const ${type_ImageNoPals}* data[MOVIE_FRAME_COUNT] = {
 	${sortedFileNamesEveryFirstStrip.map(s => `&mv_${removeExtension(s)}`).join(',\n	')}
 };
 
-const ${type_Palette32AllStrips}* pals_data[${sortedFileNamesEveryFirstStrip.length}] = {
+const ${type_Palette32AllStrips}* pals_data[MOVIE_FRAME_COUNT] = {
 	${sortedFileNamesEveryFirstStrip.map(s => `&pal_${removeExtension(s)}`).join(',\n	')}
 };
 
