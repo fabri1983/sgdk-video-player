@@ -398,7 +398,7 @@ void playMovie () {
     Z80_loadDriver(Z80_DRIVER_XGM2, TRUE);
 	// Z80_loadDriver(Z80_DRIVER_XGM, TRUE);
 
-	// KLog_U1("Free Mem: ", MEM_getFree()); // 33568 bytes (40976 if dmaQueues iscleaned)
+	// KLog_U1("Free Mem: ", MEM_getFree()); // 33568 bytes (40976 if dmaQueues is cleaned)
 
     // Loop the entire video
 	for (;;) // Better than while (TRUE) for infinite loops
@@ -499,14 +499,14 @@ void playMovie () {
 			u16 prevFrame = vFrame;
 			#endif
 			u16 hwFrameCntr = (u16)vtimer;
-			#if VIDEO_FRAME_ADVANCE_STRATEGY == 1 /* Takes 202~235 cycles with a peak of 657. HInt disabled. */
+			#if VIDEO_FRAME_ADVANCE_STRATEGY == 1 /* Takes 202~235 cycles with a peak of 657 (?). HInt disabled. */
 			vFrame = divu(hwFrameCntr * MOVIE_FRAME_RATE, sysFrameRate);
-			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 2 /* Takes 370~406 cycles with a peak of 865. HInt disabled. */
+			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 2 /* Takes 370~406 cycles with a peak of 865 (?). HInt disabled. */
 			vFrame = (hwFrameCntr * sysFrameRateReciprocal) >> 16;
-			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 3 /* Takes 204~235 cycles with a peak of 687. HInt disabled. */
+			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 3 /* Takes 204~235 cycles with a peak of 687 (?). HInt disabled. */
 			u16 deltaFrames = isPal ? divu(hwFrameCntr, 50/MOVIE_FRAME_RATE) : divu(hwFrameCntr, 60/MOVIE_FRAME_RATE);
 			vFrame += deltaFrames - vFrame;
-			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 4 /* Takes 71~93 cycles with a peak of 534. HInt disabled. */
+			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 4 /* Takes 71~93 cycles with a peak of 534 (?). HInt disabled. */
 			vFrame = framerateDivLUT[hwFrameCntr];
 			#endif
 

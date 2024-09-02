@@ -1,3 +1,21 @@
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Builds
+out/
+build/
+
+
 /node_modules
 /out
 /res/rgb

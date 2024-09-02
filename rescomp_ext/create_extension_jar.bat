@@ -32,6 +32,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/processor/HeaderAppenderCompressionCustomProcessor.class ^
 	./sgdk/rescomp/processor/HeaderAppenderCompressionCustomTrackerProcessor.class ^
 	./sgdk/rescomp/processor/HeaderAppenderProcessor.class ^
+	./sgdk/rescomp/processor/ImageNoPalsProcessor.class ^
 	./sgdk/rescomp/processor/ImageStripsNoPalsProcessor.class ^
 	./sgdk/rescomp/processor/Palette16AllStripsProcessor.class ^
 	./sgdk/rescomp/processor/Palette16Processor.class ^
@@ -48,6 +49,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/HeaderAppenderAllCustomResource.class ^
 	./sgdk/rescomp/resource/HeaderAppenderCompressionCustom.class ^
 	./sgdk/rescomp/resource/HeaderAppenderCompressionCustomTracker.class ^
+	./sgdk/rescomp/resource/ImageNoPals.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPals.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPalsSplit2.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPalsSplit3.class ^

@@ -119,7 +119,7 @@ public class BinCustom extends Bin
                     break;
 
                 case APLIB:
-                	CompressionCustomUsageTracker.markUsed(CompressionCustom.AUTO);
+                	CompressionCustomUsageTracker.markUsed(CompressionCustom.APLIB);
                     System.out.print("packed with APLIB, ");
                     break;
 

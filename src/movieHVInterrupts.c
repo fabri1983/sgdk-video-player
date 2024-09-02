@@ -113,7 +113,7 @@ static FORCE_INLINE void swapPalettes_CPU () {
     u32 cmdAddress;
 	u32 colors2_A, colors2_B, colors2_C, colors2_D;
 
-	// Value under current conditions is always 116
+	// Value under current conditions is always 0x74
     //u8 reg01 = VDP_getReg(0x01); // Holds current VDP register 1 value (it holds other bits than VDP ON/OFF status)
     // NOTE: here is OK to call VDP_getReg(0x01) only if we didn't previously change the the VDP's reg 1 using direct access without VDP_setReg()
 
@@ -123,13 +123,13 @@ static FORCE_INLINE void swapPalettes_CPU () {
 	colors2_D = *((u32*) (palInFramePtr + 6)); // next 2 colors
 	cmdAddress = (palCmdAddrrToggle == 0) ? 0xC0000000 : 0xC0400000;
 	waitHCounter(145);
-	turnOffVDP(116);
+	turnOffVDP(0x74);
 	*((vu32*) VDP_CTRL_PORT) = cmdAddress;
 	*((vu32*) VDP_DATA_PORT) = colors2_A;
 	*((vu32*) VDP_DATA_PORT) = colors2_B;
 	*((vu32*) VDP_DATA_PORT) = colors2_C;
 	*((vu32*) VDP_DATA_PORT) = colors2_D;
-	turnOnVDP(116);
+	turnOnVDP(0x74);
 
 	colors2_A = *((u32*) (palInFramePtr +  8)); // 2 colors
 	colors2_B = *((u32*) (palInFramePtr + 10)); // next 2 colors
@@ -137,13 +137,13 @@ static FORCE_INLINE void swapPalettes_CPU () {
 	colors2_D = *((u32*) (palInFramePtr + 14)); // next 2 colors
 	cmdAddress = (palCmdAddrrToggle == 0) ? 0xC0100000 : 0xC0500000;
 	waitHCounter(145);
-	turnOffVDP(116);
+	turnOffVDP(0x74);
 	*((vu32*) VDP_CTRL_PORT) = cmdAddress;
 	*((vu32*) VDP_DATA_PORT) = colors2_A;
 	*((vu32*) VDP_DATA_PORT) = colors2_B;
 	*((vu32*) VDP_DATA_PORT) = colors2_C;
 	*((vu32*) VDP_DATA_PORT) = colors2_D;
-	turnOnVDP(116);
+	turnOnVDP(0x74);
 
 	colors2_A = *((u32*) (palInFramePtr + 16)); // 2 colors
 	colors2_B = *((u32*) (palInFramePtr + 18)); // next 2 colors
@@ -151,13 +151,13 @@ static FORCE_INLINE void swapPalettes_CPU () {
 	colors2_D = *((u32*) (palInFramePtr + 22)); // next 2 colors
 	cmdAddress = (palCmdAddrrToggle == 0) ? 0xC0200000 : 0xC0600000;
 	waitHCounter(145);
-	turnOffVDP(116);
+	turnOffVDP(0x74);
 	*((vu32*) VDP_CTRL_PORT) = cmdAddress;
 	*((vu32*) VDP_DATA_PORT) = colors2_A;
 	*((vu32*) VDP_DATA_PORT) = colors2_B;
 	*((vu32*) VDP_DATA_PORT) = colors2_C;
 	*((vu32*) VDP_DATA_PORT) = colors2_D;
-	turnOnVDP(116);
+	turnOnVDP(0x74);
 
 	colors2_A = *((u32*) (palInFramePtr + 24)); // 2 colors
 	colors2_B = *((u32*) (palInFramePtr + 26)); // next 2 colors
@@ -165,13 +165,13 @@ static FORCE_INLINE void swapPalettes_CPU () {
 	colors2_D = *((u32*) (palInFramePtr + 30)); // next 2 colors
 	cmdAddress = (palCmdAddrrToggle == 0) ? 0xC0300000 : 0xC0700000;
 	waitHCounter(145);
-	turnOffVDP(116);
+	turnOffVDP(0x74);
 	*((vu32*) VDP_CTRL_PORT) = cmdAddress;
 	*((vu32*) VDP_DATA_PORT) = colors2_A;
 	*((vu32*) VDP_DATA_PORT) = colors2_B;
 	*((vu32*) VDP_DATA_PORT) = colors2_C;
 	*((vu32*) VDP_DATA_PORT) = colors2_D;
-	turnOnVDP(116);
+	turnOnVDP(0x74);
 
     vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
 	palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP; // advance to next strip's palettes (if pointer wasn't incremented previously)
@@ -220,7 +220,7 @@ static FORCE_INLINE void swapPalettes_DMA () {
     u32 palCmdForDMA;
     u32 fromAddrForDMA;
 
-	// Value under current conditions is always 116
+	// Value under current conditions is always 0x74
     //u8 reg01 = VDP_getReg(0x01); // Holds current VDP register 1 value (it holds other bits than VDP ON/OFF status)
     // NOTE: here is OK to call VDP_getReg(0x01) only if we didn't previously change the the VDP's reg 1 using direct access without VDP_setReg()
 
@@ -239,9 +239,9 @@ MEMORY_BARRIER();
     *((vu16*) VDP_CTRL_PORT) = 0x9700 | ((fromAddrForDMA >> 16) & 0x7f);
 
     waitHCounter(152);
-    turnOffVDP(116);
+    turnOffVDP(0x74);
     *((vu32*) VDP_CTRL_PORT) = palCmdForDMA; // trigger DMA transfer
-    turnOnVDP(116);
+    turnOnVDP(0x74);
 
     fromAddrForDMA = (u32) palInFramePtr >> 1;
     palInFramePtr += 12;
@@ -258,9 +258,9 @@ MEMORY_BARRIER();
     *((vu16*) VDP_CTRL_PORT) = 0x9700 | ((fromAddrForDMA >> 16) & 0x7f);
 
     waitHCounter(152);
-    turnOffVDP(116);
+    turnOffVDP(0x74);
     *((vu32*) VDP_CTRL_PORT) = palCmdForDMA; // trigger DMA transfer
-    turnOnVDP(116);
+    turnOnVDP(0x74);
 
     fromAddrForDMA = (u32) palInFramePtr >> 1;
     palInFramePtr += 12;
@@ -277,9 +277,9 @@ MEMORY_BARRIER();
     *((vu16*) VDP_CTRL_PORT) = 0x9700 | ((fromAddrForDMA >> 16) & 0x7f);
 
     waitHCounter(152);
-    turnOffVDP(116);
+    turnOffVDP(0x74);
     *((vu32*) VDP_CTRL_PORT) = palCmdForDMA; // trigger DMA transfer
-    turnOnVDP(116);
+    turnOnVDP(0x74);
 
     vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
 	//palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP; // advance to next strip's palettes (if pointer wasn't incremented previously)
