@@ -157,7 +157,7 @@ static void loadTilesCache () {
 
 		// By loading the cached tiles we can see in the VRAM Debugger the tiles with more details.
 		VDP_loadTileSet((TileSet* const) &tilesCache_movie1, MOVIE_TILES_CACHE_START_INDEX, DMA);
-		VDP_waitDMACompletion();
+
 		// Set palette buffer with white color 0xEEE only for strips using PAL0
 		u16* rendPtr = unpackedPalsRender;
 		for (u16 i=0; i < MOVIE_FRAME_STRIPS; ++i) {
@@ -169,7 +169,6 @@ static void loadTilesCache () {
 #else
 	if (tilesCache_movie1.numTile > 0) {
 		VDP_loadTileSet((TileSet* const) &tilesCache_movie1, MOVIE_TILES_CACHE_START_INDEX, DMA);
-		VDP_waitDMACompletion();
 	}
 #endif
 }
@@ -293,9 +292,9 @@ static FORCE_INLINE void enqueueTilesetData (u16 startTileIndex, u16 length) {
 static FORCE_INLINE void enqueueTilemapData (u16 tilemapAddrInPlane) {
 	const u16 len = MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES;
 	// This was the previous way which benefits from tilemap width being 64 tiles
-	// VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0, len, 2, DMA_QUEUE);
+	// VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0 & TILE_INDEX_MASK, len, 2, DMA_QUEUE);
 	// Now we use custom DMA_queueDmaFast() because the data is in RAM, so no 128KB bank boundary check is needed
-	enqueueDMA_1elem((void*) unpackedTilemap, tilemapAddrInPlane + (0 * 2), len);
+	enqueueDMA_1elem((void*) unpackedTilemap, tilemapAddrInPlane + ((0 & TILE_INDEX_MASK) * 2), len);
 }
 
 #if VIDEO_FRAME_ADVANCE_STRATEGY == 4
@@ -357,7 +356,6 @@ void playMovie () {
 
 	// Blacks out everything in screen while first frame is being loaded
 	PAL_setColors(0, palette_black, 64, DMA);
-	VDP_waitDMACompletion();
 
 	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 
@@ -391,7 +389,7 @@ void playMovie () {
 	// dmaQueues = MEM_alloc(1 * sizeof(DMAOpInfo));
 	// MEM_pack();
 
-	u16 tilemapAddrInPlane = calculatePlaneAddress();
+	const u16 tilemapAddrInPlane = calculatePlaneAddress();
 
 	// Load the appropriate driver
 	// Z80_loadDriver(Z80_DRIVER_PCM, TRUE);
