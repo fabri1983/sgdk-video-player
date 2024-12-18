@@ -38,7 +38,9 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/processor/Palette16Processor.class ^
 	./sgdk/rescomp/processor/Palette32AllStripsProcessor.class ^
 	./sgdk/rescomp/processor/Palette32Processor.class ^
+	./sgdk/rescomp/processor/SpriteMultiPalNoPalProcessor.class ^
 	./sgdk/rescomp/processor/SpriteMultiPalProcessor.class ^
+	./sgdk/rescomp/processor/SpriteNoPalProcessor.class ^
 	./sgdk/rescomp/processor/TilesCacheLoaderProcessor.class ^
 	./sgdk/rescomp/processor/TilesCacheStatsEnablerProcessor.class ^
 	./sgdk/rescomp/processor/TilesCacheStatsPrinterProcessor.class ^
@@ -62,18 +64,25 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/Palette32AllStripsSplit2.class ^
 	./sgdk/rescomp/resource/Palette32AllStripsSplit3.class ^
 	./sgdk/rescomp/resource/SpriteMultiPal.class ^
+	./sgdk/rescomp/resource/SpriteMultiPalNoPal.class ^
+	./sgdk/rescomp/resource/SpriteNoPal.class ^
 	./sgdk/rescomp/resource/TilemapCustom.class ^
 	./sgdk/rescomp/resource/TilemapOriginalCustom.class ^
 	./sgdk/rescomp/resource/TilesCacheLoader.class ^
 	./sgdk/rescomp/resource/TilesCacheStatsEnabler.class ^
 	./sgdk/rescomp/resource/TilesCacheStatsPrinter.class ^
+	./sgdk/rescomp/resource/TilesetForSpriteMultiPal.class ^
 	./sgdk/rescomp/resource/TilesetOriginalCustom.class ^
 	./sgdk/rescomp/resource/TilesetStatsCollectorPrinter.class ^
 	./sgdk/rescomp/resource/ext.resource.properties ^
+	./sgdk/rescomp/resource/internal/SpriteAnimationMultiPal.class ^
+	./sgdk/rescomp/resource/internal/SpriteFrameMultiPal.class ^
+	./sgdk/rescomp/resource/internal/VDPSpriteMultiPal.class ^
 	./sgdk/rescomp/tool/CompressionCustomUsageTracker.class ^
 	./sgdk/rescomp/tool/ExtProperties.class ^
 	./sgdk/rescomp/tool/MdComp.class ^
 	./sgdk/rescomp/tool/RLEWCompressor.class ^
+	./sgdk/rescomp/tool/SpriteBoundariesPalettes.class ^
 	./sgdk/rescomp/tool/TilemapCustomTools.class ^
 	./sgdk/rescomp/tool/TilesCacheManager.class ^
 	./sgdk/rescomp/tool/TilesetStatsCollector.class ^

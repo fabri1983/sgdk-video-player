@@ -2,7 +2,7 @@
 #include "compatibilities.h"
 
 #define DUPLICATE_WORD_INTO_LONG(vword, vlong)\
-    ASM_STATEMENT __volatile__ (\
+    __asm __volatile__ (\
         "    move.w  %0, %1\n"\
         "    swap    %1\n"\
         "    move.w  %0, %1\n"\
@@ -12,7 +12,7 @@
     )\
 
 #define COPY_LONG_INTO_OUT(vlong, out)\
-    ASM_STATEMENT __volatile__ (\
+    __asm __volatile__ (\
         "    move.l  %1, (%0)+\n"\
         : "=a" (out)\
         : "d" (vlong)\
@@ -20,7 +20,7 @@
     )\
 
 #define GET_LONG_AND_COPY_INTO_OUT(in, out)\
-    ASM_STATEMENT __volatile__ (\
+    __asm __volatile__ (\
         "    move.l  (%0)+, (%1)+\n"\
         : "+a" (in), "=a" (out)\
         :\
@@ -28,7 +28,7 @@
     )\
 
 #define GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, vword, out)\
-    ASM_STATEMENT __volatile__ (\
+    __asm __volatile__ (\
         "    move.w  %1, (%2)+\n" /* copy word into out buffer */\
         "    move.b  (%0)+, %1\n" /* byte goes to low half of destination leaving high half as it is */ \
         : "+a" (in), "=d" (vword), "=a" (out)\
@@ -37,7 +37,7 @@
     )\
 
 #define COPY_WORD_INTO_OUT(vword, out)\
-    ASM_STATEMENT __volatile__ (\
+    __asm __volatile__ (\
         "    move.w  %1, (%0)+\n"\
         : "=a" (out)\
         : "d" (vword)\

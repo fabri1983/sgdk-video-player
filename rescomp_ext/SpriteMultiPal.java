@@ -11,9 +11,10 @@ import java.util.List;
 import java.util.Set;
 
 import sgdk.rescomp.Resource;
-import sgdk.rescomp.resource.internal.SpriteAnimation;
-import sgdk.rescomp.resource.internal.SpriteFrame;
-import sgdk.rescomp.resource.internal.VDPSprite;
+import sgdk.rescomp.resource.internal.SpriteAnimationMultiPal;
+import sgdk.rescomp.resource.internal.SpriteFrameMultiPal;
+import sgdk.rescomp.resource.internal.VDPSpriteMultiPal;
+import sgdk.rescomp.tool.SpriteBoundariesPalettes;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.CollisionType;
 import sgdk.rescomp.type.Basics.Compression;
@@ -29,7 +30,7 @@ public class SpriteMultiPal extends Resource
 {
     public final int wf; // width of frame cell in tile
     public final int hf; // height of frame cell in tile
-    public final List<SpriteAnimation> animations;
+    public final List<SpriteAnimationMultiPal> animations;
     public int maxNumTile;
     public int maxNumSprite;
 
@@ -37,8 +38,8 @@ public class SpriteMultiPal extends Resource
 
     public final Palette palette;
 
-    public SpriteMultiPal(String id, String imgFile, int wf, int hf, Compression compression, int time, CollisionType collision, OptimizationType optType,
-            OptimizationLevel optLevel, boolean showCut, boolean optDuplicate) throws Exception
+    public SpriteMultiPal(String id, String imgFile, int wf, int hf, Compression compression, int[][] time, CollisionType collision, OptimizationType optType,
+            OptimizationLevel optLevel, boolean showCut, boolean optDuplicate, SpriteBoundariesPalettes spriteBoundariesPals) throws Exception
     {
         super(id);
 
@@ -75,6 +76,7 @@ public class SpriteMultiPal extends Resource
         // we determine 'h' from data length and 'w' as we can crop image vertically to remove palette data
         final int h = image.length / w;
 
+        // fabri1983
         final int palIndex = getSpriteFirstUsedPaletteIndex(image, w, h);
         final int palsUsed = getSpriteUsedPals(image, w, h);
 
@@ -103,20 +105,21 @@ public class SpriteMultiPal extends Resource
         for (int i = 0; i < numAnim; i++)
         {
             // build sprite animation
-            SpriteAnimation animation = new SpriteAnimation(id + "_animation" + i, image, wt, ht, i, wf, hf, time, collision, compression, optType, optLevel, optDuplicate);
+            SpriteAnimationMultiPal animation = new SpriteAnimationMultiPal(id + "_animation" + i, image, wt, ht, i, wf, hf, time[Math.min(time.length - 1, i)], 
+            		collision, compression, optType, optLevel, optDuplicate, spriteBoundariesPals);
 
             // check if empty
             if (!animation.isEmpty())
             {
                 // add as internal resource (get duplicate if exist)
-                animation = (SpriteAnimation) addInternalResource(animation);
+                animation = (SpriteAnimationMultiPal) addInternalResource(animation);
 
                 if (showCut)
                 {
                     int xOff = 0;
-                    for (SpriteFrame frame : animation.frames)
+                    for (SpriteFrameMultiPal frame : animation.frames)
                     {
-                        for (VDPSprite spr : frame.vdpSprites)
+                        for (VDPSpriteMultiPal spr : frame.vdpSprites)
                             g2.drawRect(xOff + spr.offsetX, yOff + spr.offsetY, spr.wt * 8, spr.ht * 8);
 
                         // for debug purpose
@@ -146,6 +149,9 @@ public class SpriteMultiPal extends Resource
         hc = (wf << 0) ^ (hf << 8) ^ (maxNumTile << 16) ^ (maxNumSprite << 24) ^ animations.hashCode() ^ palette.hashCode();
     }
 
+    /**
+	 * fabri1983
+	 */
 	private int getSpriteFirstUsedPaletteIndex(byte[] image8bpp, int imgW, int imgH) {
         int srcOff = 0;
         for (int y = 0; y < imgH; y++)
@@ -169,7 +175,10 @@ public class SpriteMultiPal extends Resource
         return 0;
 	}
 
-    private int getSpriteUsedPals(byte[] image8bpp, int imgW, int imgH) {
+	/**
+	 * fabri1983
+	 */
+	private int getSpriteUsedPals(byte[] image8bpp, int imgW, int imgH) {
     	Set<Integer> uniquePals = new HashSet<>();
         int srcOff = 0;
         for (int y = 0; y < imgH; y++)
@@ -233,7 +242,7 @@ public class SpriteMultiPal extends Resource
     {
         int result = 0;
 
-        for (SpriteAnimation animation : animations)
+        for (SpriteAnimationMultiPal animation : animations)
             result += animation.totalSize();
 
         return result + palette.totalSize() + shallowSize();
@@ -247,7 +256,7 @@ public class SpriteMultiPal extends Resource
 
         // animations pointer table
         Util.decl(outS, outH, null, id + "_animations", 2, false);
-        for (SpriteAnimation animation : animations)
+        for (SpriteAnimationMultiPal animation : animations)
             outS.append("    dc.l    " + animation.id + "\n");
 
         outS.append("\n");

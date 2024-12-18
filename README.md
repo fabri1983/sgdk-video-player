@@ -71,7 +71,8 @@ in correct format for the SGDK rescomp tool.
 
 
 ### TODO
-- Try Enigma on tilemaps and check if decompression time is same or lower than LZ4.
+- Update joy like in raycasting project.
+- Try Enigma on tilemaps and check if the optimized decompressor is faster than LZ4.
 - Pre load frame 0 before starting music and see how does result with sound timing.
 - Tileset decompression worst case takes 249052 cycles (~519 scanlines) including all the delays added by VInt and Hint callbacks.
 - If the use of any of the alternative compression/decompression methods is better than Stef's LZ4W then:

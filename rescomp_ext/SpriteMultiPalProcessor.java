@@ -4,6 +4,7 @@ import sgdk.rescomp.Compiler;
 import sgdk.rescomp.Processor;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.resource.SpriteMultiPal;
+import sgdk.rescomp.tool.SpriteBoundariesPalettes;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.CollisionType;
 import sgdk.rescomp.type.Basics.Compression;
@@ -27,7 +28,9 @@ public class SpriteMultiPalProcessor implements Processor
     {
         if (fields.length < 5)
         {
-            System.out.println("Wrong " + resId + " definition");
+            System.out.println("Wrong " + resId + " definition.");
+            System.out.println("NOTE: This version allows the use of multi palettes. SGDK supports 1 pal per Sprite, so a modified version of its SPR_update() is needed.");
+            System.out.println("NOTE: It searchs locally a file with same name than input file with the addition of '_boundaries_pals.txt'.");
             System.out.println(resId + " name \"file\" width height [compression [time [collision [opt_type [opt_level [opt_duplicate]]]]]]");
             System.out.println("  name          Sprite variable name");
             System.out.println("  file          the image file to convert to SpriteDefinition structure (BMP or PNG image)");
@@ -39,6 +42,11 @@ public class SpriteMultiPalProcessor implements Processor
             System.out.println("                    1 / APLIB       = aplib library (good compression ratio but slow)");
             System.out.println("                    2 / FAST / LZ4W = custom lz4 compression (average compression ratio but fast)");
             System.out.println("  time          display frame time in 1/60 of second (time between each animation frame)");
+            System.out.println("                    If this value is set to 0 (default) then auto animation is disabled");
+            System.out.println("                    It can be set globally (single value) or independently for each frame of each animation");
+            System.out.println("                    Example for a sprite sheet of 3 animations x 5 frames:");
+            System.out.println("                    [[3,3,3,4,4][4,5,5][2,3,3,4]]");
+            System.out.println("                    As you can see you can have empty value for empty frame");
             System.out.println("  collision     collision type: CIRCLE, BOX or NONE (BOX by default)");
             System.out.println("  opt_type      sprite cutting optimization strategy, accepted values:");
             System.out.println("                    0 / BALANCED  = balance between used tiles and hardware sprites (default)");
@@ -67,9 +75,12 @@ public class SpriteMultiPalProcessor implements Processor
         final int wf = StringUtil.parseInt(fields[3], 0);
         final int hf = StringUtil.parseInt(fields[4], 0);
 
+        String boundariesFile = FileUtil.getFileName(fileIn, false) + "_boundaries_pals.txt";
+        SpriteBoundariesPalettes spriteBoundariesPals = SpriteBoundariesPalettes.from(boundariesFile);
+
         if ((wf < 1) || (hf < 1)) {
-            System.out.println("Wrong SPRITE definition");
-            System.out.println("SPRITE name \"file\" width height [compression [time [collision [opt_type [opt_level]]]]]");
+            System.out.println("Wrong " + resId + " definition");
+            System.out.println(resId + " name \"file\" width height [compression [time [collision [opt_type [opt_level]]]]]");
             System.out.println("  width and height (size of sprite frame) should be > 0");
 
             return null;
@@ -77,8 +88,8 @@ public class SpriteMultiPalProcessor implements Processor
 
         // frame size over limit (we need VDP sprite offset to fit into u8 type)
         if ((wf >= 32) || (hf >= 32)) {
-            System.out.println("Wrong SPRITE definition");
-            System.out.println("SPRITE name \"file\" width height [compression [time [collision [opt_type [opt_level]]]]]");
+            System.out.println("Wrong " + resId + " definition");
+            System.out.println(resId + " name \"file\" width height [compression [time [collision [opt_type [opt_level]]]]]");
             System.out.println("  width and height (size of sprite frame) should be < 32");
 
             return null;
@@ -89,9 +100,9 @@ public class SpriteMultiPalProcessor implements Processor
         if (fields.length >= 6)
             compression = Util.getCompression(fields[5]);
         // get frame time
-        int time = 0;
+        int[][] time = new int[][] {{ 0 }};
         if (fields.length >= 7)
-            time = StringUtil.parseInt(fields[6], 0);
+            time = StringUtil.parseIntArray2D(fields[6], new int[][] {{ 0 }});
         // get collision value
         CollisionType collision = CollisionType.NONE;
         if (fields.length >= 8)
@@ -114,6 +125,6 @@ public class SpriteMultiPalProcessor implements Processor
         // add resource file (used for deps generation)
         Compiler.addResourceFile(fileIn);
 
-        return new SpriteMultiPal(id, fileIn, wf, hf, compression, time, collision, opt, optLevel, showCut, optDuplicate);
+        return new SpriteMultiPal(id, fileIn, wf, hf, compression, time, collision, opt, optLevel, showCut, optDuplicate, spriteBoundariesPals);
     }
 }

@@ -32,16 +32,15 @@ FORCE_INLINE void flushDMA_1elem () {
     // Stef's dma_a.s: 244 cycles.
     //-------------------------------------------------------
     DMAOpInfo* elemPtr = &elem;
-    u32* ax = 0;
-	ASM_STATEMENT __volatile__ (
-		"move.l   #0xC00004.l, %1\n"  // VDP_CTRL_PORT
-		"move.l   (%0)+, (%1)\n"
-		"move.l   (%0)+, (%1)\n"
-		"move.l   (%0)+, (%1)\n"
-		"move.w   (%0)+, (%1)\n"
-		"move.w   (%0)+, (%1)\n"      // Stef: important to use word write for command triggering DMA (see SEGA notes)
+    vu16* pw = (u16*) VDP_CTRL_PORT;
+	__asm volatile (
+		"move.l   (%0)+, (%1)\n\t"
+		"move.l   (%0)+, (%1)\n\t"
+		"move.l   (%0)+, (%1)\n\t"
+		"move.w   (%0)+, (%1)\n\t"
+		"move.w   (%0)+, (%1)"      // Stef: important to use word write for command triggering DMA (see SEGA notes)
 		: "+a" (elemPtr)
-		: "a" (ax)
+		: "a" (pw)
 		:
 	);
 }

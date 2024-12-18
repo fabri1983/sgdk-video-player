@@ -1,6 +1,6 @@
 #include <genesis.h>
 #include "generated/movie_data.h"
-#include "movieHVInterrupts.h"
+#include "movieHVInts.h"
 #include "videoPlayer.h"
 #include "dma_1elem.h"
 #include "compressionTypesTracker.h"
@@ -29,24 +29,20 @@ static void waitMs_ (u32 ms) {
 }
 
 /// Wait for a certain amount of subtick. ONLY values < 150.
-static void waitSubTick_ (u32 subtick) {
+static FORCE_INLINE void waitSubTick_ (u32 subtick) {
 	if (subtick == 0)
 		return;
 
-	u32 i = subtick;
-	while (i--) {
-		u32 tmp;
-		// next code seems to loops 7 times to simulate a tick
-		// TODO: use cycle accurate wait loop in asm (about 100 cycles for 1 subtick)
-		ASM_STATEMENT __volatile__ (
-			"   moveq  #7, %0\n"
-			"1:\n"
-			"   dbra   %0, 1b\n"   // dbf/dbra: test if not zero, then decrement register dN and branch back (b) to label 1
-			: "=d" (tmp)
-			:
-			: "cc"
-		);
-	}
+	u32 tmp = subtick * 7;
+    // Seems that every 7 loops it simulates a tick.
+    // TODO: use cycle accurate wait loop in asm (about 100 cycles for 1 subtick)
+    __asm volatile (
+        "1:\n\t"
+        "dbra   %0, 1b" // dbf/dbra: test if not zero, then decrement register dN and branch back (b) to label 1
+        : "+d" (tmp)
+        :
+        : "cc"
+	);
 }
 
 /// @brief See original Z80_setBusProtection() method.
@@ -77,6 +73,24 @@ static FORCE_INLINE void fast_DMA_flushQueue () {
     // VDP_setAutoInc(autoInc); // restore autoInc
 }
 
+static FORCE_INLINE void waitVInt () {
+	// Casting to u8* allows to use cmp.b instead of cmp.l, by using vtimerPtr+3 which is the first byte of vtimer
+    const u8* vtimerPtr = (u8*)&vtimer + 3;
+    // Loops while vtimer keeps unchanged. Exits loop when it changes, meaning we are in VBlank.
+    u8 currVal;
+	__asm volatile (
+        "move.b  (%1), %0\n\t"
+        "1:\n\t"
+        "cmp.b   (%1), %0\n\t" // cmp: %0 - (%1) => dN - (aN)
+        "beq.s   1b"           // loop back if equal
+        : "=d" (currVal)
+        : "a" (vtimerPtr)
+        : "cc"
+    );
+
+	// AT THIS POINT THE _VInt INTERRUPT CALLBACK HAS BEEN CALLED. Check sega.s to see when vtimer is updated and what other callbacks are called.
+}
+
 static void NO_INLINE waitVInt_AND_flushDMA () {
 	// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
 	// We have to enqueue the first 2 strips' pals on every active display period so when on Blank period the data is DMAed into CRAM
@@ -90,21 +104,11 @@ static void NO_INLINE waitVInt_AND_flushDMA () {
 	//       Better to use the V counter to re-enable display at a fixed line (otherwise it may vary depending the DMA load)
 	//       You can even use the h-int to re-enable display without a passive wait.
 
-	// casting to u8* allows us to use cmp.b instead of cmp.l, by using vtimerPtr+3 which is the first byte of vtimer
-	u8* vtimerPtr = (u8*)&vtimer + 3;
-	ASM_STATEMENT __volatile__ (
-        "1:\n"
-        "    cmp.b   (%1), %0\n"    // cmp: %0 - (%1) => dN - (aN)
-        "    beq.s   1b\n"          // loop back if equal
-        :
-        : "d" (*vtimerPtr), "a" (vtimerPtr)
-        : "cc"
-    );
+	waitVInt();
 
-	// AT THIS POINT THE VInt callback WAS ALREADY CALLED. Check sega.s to see when vtimer is updated and what other callbacks are called.
+	// AT THIS POINT THE _VInt INTERRUPT CALLBACK HAS BEEN CALLED. Check sega.s to see when vtimer is updated and what other callbacks are called.
 
-	//VDP_setEnable(FALSE);
-	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 & ~0x40);
+    turnOffVDP(0x74);
 
 	setBusProtection_Z80(TRUE);
 	waitSubTick_(10); // Z80 delay --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
@@ -116,27 +120,13 @@ static void NO_INLINE waitVInt_AND_flushDMA () {
 	// This needed for DMA setup used in HInt, and likely needed for the CPU HInt too.
 	// *((vu16*) VDP_CTRL_PORT) = 0x8F00 | 2; // instead of VDP_setAutoInc(2) due to additionals read and write from/to internal regValues[]
 
-	//VDP_setEnable(TRUE);
-	*(vu16*) VDP_CTRL_PORT = 0x8100 | (116 | 0x40);
+	turnOnVDP(0x74);
 
-	// We can perform the previous two operations in one call to VDP control port using sending u32 data
+	// We can perform previous two operations in one call to VDP control port by sending u32 data
 	// u32 twoWrites = (0x8F00 | 2) | ((0x8100 | (116 | 0x40)) << 16);
 	// *(vu32*) VDP_CTRL_PORT = twoWrites;
-}
 
-static FORCE_INLINE void waitVInt () {
-	// casting to u8* allows us to use cmp.b instead of cmp.l, by using vtimerPtr+3 which is the first byte of vtimer
-	u8* vtimerPtr = (u8*)&vtimer + 3;
-	ASM_STATEMENT __volatile__ (
-        "1:\n"
-        "    cmp.b   (%1), %0\n"    // cmp: %0 - (%1) => dN - (aN)
-        "    beq.s   1b\n"          // loop back if equal
-        :
-        : "d" (*vtimerPtr), "a" (vtimerPtr)
-        : "cc"
-    );
-
-	// AT THIS POINT THE VInt callback WAS ALREADY CALLED. Check sega.s to see when vtimer is updated and what other callbacks are called.
+    // TODO: update joy here like in raycasting project
 }
 
 static void loadTilesCache () {
@@ -179,6 +169,7 @@ static void allocateTilesetBuffer () {
 }
 
 static FORCE_INLINE void unpackFrameTileset (TileSet* src) {
+    // We need to check due to empty tilesets
 	if (src->numTile == 0)
 		return;
 	const u16 size = src->numTile * 32;
@@ -281,6 +272,7 @@ static void freePalettesBuffer () {
 }
 
 static FORCE_INLINE void enqueueTilesetData (u16 startTileIndex, u16 length) {
+    // We need to check due to empty tilesets
 	if (length == 0)
 		return;
 	// This was the previous way
@@ -350,14 +342,38 @@ static void fadeToBlack () {
 	}
 }
 
+static void unloadSoundDriver () {
+    Z80_unloadDriver();
+}
+
+static void loadSoundDriver () {
+	// Z80_loadDriver(Z80_DRIVER_PCM, TRUE);
+	// Z80_loadDriver(Z80_DRIVER_XGM, TRUE);
+    Z80_loadDriver(Z80_DRIVER_XGM2, TRUE);
+}
+
+static void playSound () {
+    // SND_PCM_startPlay(sound_wav, sizeof(sound_wav), SOUND_PCM_RATE_22050, SOUND_PAN_CENTER, FALSE);
+    // XGM_setPCM(1, sound_wav, sizeof(sound_wav));
+    // XGM_startPlayPCM(1, 1, SOUND_PCM_CH_AUTO);
+    // XGM_setLoopNumber(0);
+    XGM2_playPCMEx(sound_wav, sizeof(sound_wav), SOUND_PCM_CH_AUTO, 1, FALSE, FALSE);
+}
+
+static void stopSound () {
+    // SND_PCM_stopPlay();
+    // XGM_stopPlayPCM(SOUND_PCM_CH1);
+    XGM2_stopPCM(SOUND_PCM_CH1);
+}
+
 void playMovie () {
 
 	VDP_resetScreen();
 
 	// Blacks out everything in screen while first frame is being loaded
-	PAL_setColors(0, palette_black, 64, DMA);
+	PAL_setColors(0, palette_black, 64, CPU);
 
-	if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
+	//if (IS_PAL_SYSTEM) VDP_setScreenHeight240();
 
 	// Only Plane size 64x32 due to internal VRAM setup made by SGDK and the use of fixed tilemap width of 64 tiles by the custom rescomp_ext plugin.
     VDP_setPlaneSize(64, 32, TRUE);
@@ -368,6 +384,7 @@ void playMovie () {
 	// - Move BG_B and Window planes addresses into BG_A plane address, achieving up to 1791 tiles.
 	VDP_setBGBAddress(VDP_getBGAAddress());
     VDP_setWindowAddress(VDP_getBGAAddress());
+    // Do these also need to be set? VDP_setSpriteListAddress() and VDP_setHScrollTableAddress()
 
 	// Clear all tileset VRAM until BG_B plane address (we can use the address as a counter because VRAM tileset starts at address 0)
 	u16 numToClear = VDP_getBGBAddress();
@@ -392,9 +409,7 @@ void playMovie () {
 	const u16 tilemapAddrInPlane = calculatePlaneAddress();
 
 	// Load the appropriate driver
-	// Z80_loadDriver(Z80_DRIVER_PCM, TRUE);
-    Z80_loadDriver(Z80_DRIVER_XGM2, TRUE);
-	// Z80_loadDriver(Z80_DRIVER_XGM, TRUE);
+    loadSoundDriver();
 
 	// KLog_U1("Free Mem: ", MEM_getFree()); // 33568 bytes (40976 if dmaQueues is cleaned)
 
@@ -413,7 +428,6 @@ void playMovie () {
 		setMoviePalsPointerBeforeInterrupts(unpackedPalsRender); // Palettes are all black at this point
 
 		SYS_disableInts();
-			// SYS_setVIntCallback(VIntPlayerCallback);
 			SYS_setVIntCallback(VIntMovieCallback);
 			VDP_setHIntCounter(HINT_COUNTER_FOR_COLORS_UPDATE - 1);
 			VDP_setHInterrupt(TRUE);
@@ -430,11 +444,7 @@ void playMovie () {
 		waitVInt();
 
 		// Start sound
-		// SND_PCM_startPlay(sound_wav, sizeof(sound_wav), SOUND_PCM_RATE_22050, SOUND_PAN_CENTER, FALSE);
-		XGM2_playPCMEx(sound_wav, sizeof(sound_wav), SOUND_PCM_CH_AUTO, 1, FALSE, FALSE);
-		// XGM_setPCM(1, sound_wav, sizeof(sound_wav));
-		// XGM_startPlayPCM(1, 1, SOUND_PCM_CH_AUTO);
-		// XGM_setLoopNumber(0);
+        playSound();
 
 		SYS_disableInts();
 		#ifdef DEBUG_FIXED_VFRAME
@@ -509,6 +519,7 @@ void playMovie () {
 			#endif
 
 			setMoviePalsPointer(unpackedPalsRender);
+
 			waitVInt_AND_flushDMA();
 
 			#ifdef DEBUG_FIXED_VFRAME
@@ -542,19 +553,15 @@ void playMovie () {
 		// Fade out to black last frame's palettes. Only if we deliberatly wanted to exit from the video
 		if (exitPlayer) {
 			// Stop sound only if we are more than N (duration of the fade effect) frames before the last frame
-			if (vFrame >= MOVIE_FRAME_COUNT - (FADE_TO_BLACK_STEPS * FADE_TO_BLACK_STEP_FREQ)) {
-				// SND_PCM_stopPlay();
-				XGM2_stopPCM(SOUND_PCM_CH1);
-				// XGM_stopPlayPCM(SOUND_PCM_CH1);
+			if (vFrame >= (MOVIE_FRAME_COUNT - (FADE_TO_BLACK_STEPS * FADE_TO_BLACK_STEP_FREQ))) {
+                stopSound();
 			}
 			// Fading effect
 			fadeToBlack();
 		}
 
 		// Stop sound
-		// SND_PCM_stopPlay();
-		XGM2_stopPCM(SOUND_PCM_CH1);
-		// XGM_stopPlayPCM(SOUND_PCM_CH1);
+        stopSound();
 
 		SYS_disableInts();
 			SYS_setVIntCallback(NULL);
@@ -562,11 +569,12 @@ void playMovie () {
 			SYS_setHIntCallback(NULL);
 		SYS_enableInts();
 
-		// Stop the video
-		if (exitPlayer)
+		// Stop the video?
+		if (exitPlayer) {
 			break;
+		}
 		// Loop the video
-		else {
+        else {
 			// Clears all tilemap VRAM region for BG_A
 			VDP_clearTileMap(VDP_BG_B, 0, 1 << (planeWidthSft + planeHeightSft), TRUE); // See VDP_clearPlane() for details
 			waitMs_(1000);
@@ -577,11 +585,11 @@ void playMovie () {
 	freeTilemapBuffer();
 	freePalettesBuffer();
 	#if VIDEO_FRAME_ADVANCE_STRATEGY == 4
-	MEM_free((void*) framerateDivLUT);
+	MEM_free(framerateDivLUT);
 	#endif
 
 	VDP_resetScreen();
 	VDP_setPlaneSize(64, 32, TRUE);
 
-	Z80_unloadDriver();
+    unloadSoundDriver();
 }

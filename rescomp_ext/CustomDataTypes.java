@@ -36,7 +36,7 @@ public enum CustomDataTypes {
 	Palette32AllStripsCompField("Palette32AllStripsCompField"),
 	Palette32AllStripsSplit2CompField("Palette32AllStripsSplit2CompField"),
 	Palette32AllStripsSplit3CompField("Palette32AllStripsSplit3CompField");
-
+	
 	private final String value;
 
 	CustomDataTypes (String value) {
