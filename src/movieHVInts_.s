@@ -13,7 +13,7 @@
     move.w      #0x8134,d4            ;// d4: VDP's register with display OFF value: (0x8100 | (0x74 & ~0x40)) = 0x8134
     move.w      #0x8174,d5            ;// d5: VDP's register with display ON value: (0x8100 | (0x74 | 0x40)) = 0x8174
     move.b      #156,d7               ;// d7: HCounter limit
-    movea.l     #0x100000,a4          ;// a4: 0x100000 is the size of 4 colors sent to the VDP, used as: cmdAddress += 0x100000
+    movea.l     #0x100000,a4          ;// a4: 0x100000 is the command offset for 8 colors sent to the VDP, used as: cmdAddress += 0x100000
 
 ;// color_batch_1_cmd
     ;// cmdAddress = palIdx == 0 ? 0xC0000000 : 0xC0400000;
