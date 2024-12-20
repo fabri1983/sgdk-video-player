@@ -10,8 +10,8 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 
 ### Features
 - Supports up to 256 colors per frame.
-- Supports both NTSC and PAL console systems.
-- Currently running at 10~15 FPS in NTSC and 10~12 FPS in PAL, with a frame size of 272x176 pixels.
+- Supports both NTSC and PAL systems.
+- Currently running at 10~15 FPS in NTSC and 10~12 FPS in PAL, with a frame size of 272x192 pixels.
 - Uses custom extensions for the [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
 - Uses custom `sega.s` *_VINT* which directly calls user's VInt Callback and saves some cycles by discarding User tasks, Bitmap tasks, and XGM tasks. Although it works with stock _VINT.
 
@@ -26,32 +26,36 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 1) `env.bat`
 Set NodeJs env var.
 
-2) By default we use resolution 272x176 pixels for the video processing and displaying.
+2) By default we use resolution 272x192 pixels for the video processing and displaying.
 If you change that resolution you need to update the `tilemapAddrInPlane` calculation in `videoPlayer.c`, as well as next steps.
 
-3) `extract.bat video.mp4 tmpmv 272 176 8 15 n`
+3) `extract.bat video.mp4 tmpmv 272 192 8 15 n`
 tmpmv: output folder
 272: frame width (multiple of 8)
-176: frame height(multiple of 8)
+192: frame height (multiple of 8)
 8: rows per strip
 15: frame rate
 n: color reduction (optional parameter). Max value 256 (for PNGs).
 
-4) Use nodejs custom app tiledpalettequant (this isn't public yet) to generate all RGB images with palettes data.
+4) Use nodejs custom app `tiledpalettequant` (this isn't public yet) to generate all RGB images with palettes data.
 Once rgb images with palettes were generated and before saving them ensure the next config:
 - in _SGDK settings_ section:
 	- check _Switch 2 Palettes positions_
 	- check _Start at [PAL0,PAL1] first_
-	- enter 22 (strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
+	- enter 24 (192/8=24 strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
 - Download the images and move them at res\rgb folder.
 
-5) `node res_n_header_generator.js 272 176 8 15`
+5) Edit cache tiles configuration to analyze new tiles
+Open file `res_n_header_generator.js` and edit variables `enableTilesCacheStats` and `loadTilesCache` accordingly.
+Read the comments to get an idea of how they work.
+
+6) `node res_n_header_generator.js 272 192 8 15`
 frame width: 272 (multiple of 8)
-frame height: 176 (multiple of 8)
+frame height: 192 (multiple of 8)
 rows per strip: 8
 frame rate: 15
 
-6) `compile_n_run.bat release`
+7) `compile_n_run.bat release`
 Run it once to catch rescomp output to know tileset stats (resource TILESET_STATS_COLLECTOR). Then:
 - edit `res/ext.resource.properties` and update next constants:
 	- MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_<split> (with suffix SPLIT2 or SPLIT3 accordingly to your case)
@@ -64,7 +68,7 @@ Run it once to catch rescomp output to know tileset stats (resource TILESET_STAT
 
 
 ### NOTES
-- I recommend to use a video resize and filter program like *VirtualDub 2*, which allows you to keep image crisp when resizing, 
+- I recommend to use a video resize and filter program like *VirtualDub 2*, which allows you to keep a crips image when resizing, 
 uses custom ratio with black regions when resizing, lets you crop the video, and also comes with all kind of useful filters. 
 That way the `extract.bat` script, which calls ffmpeg, will only extract the frames without any resizing, and then extract the audio 
 in correct format for the SGDK rescomp tool.
@@ -75,10 +79,7 @@ in correct format for the SGDK rescomp tool.
 - Try Enigma on tilemaps and check if the optimized decompressor is faster than LZ4.
 - Pre load frame 0 before starting music and see how does result with sound timing.
 - Tileset decompression worst case takes 249052 cycles (~519 scanlines) including all the delays added by VInt and Hint callbacks.
-- If the use of any of the alternative compression/decompression methods is better than Stef's LZ4W then:
-	- use new video from VirtualDub2 project. Better definition and right width and height.
-	- new dims are 272 width x 200 height (34 * 25 tiles).
-	- update README.md steps 2 and 4.
+- Try new video from VirtualDub2 project. Better definition and correct dimensions. Frame size: 272 x 200 px (34 x 25 tiles).
 - Idea to avoid sending the first 2 strips'pals (64 colors) and send only first strip's pals (32 colors):
 	- DMA_QUEUE the first 2 pals (32 colors) at VInt.
 	- Use flushQueue from Stef's: flushQueue(DMA_getQueueSize())

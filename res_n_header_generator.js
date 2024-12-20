@@ -2,7 +2,7 @@
  * Usage:
  *   node res_n_header_generator.js <frame Width in px> <frame Height in px> <strip Height in px> <frame rate>
  * Eg:
- *   node res_n_header_generator.js 264 168 8 15
+ *   node res_n_header_generator.js 272 192 8 15
 */
 
 const fs = require('fs');
@@ -223,7 +223,7 @@ const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${
 const imageResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `IMAGE_STRIPS_NO_PALS  mv_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${tilesetStatsId}`
 			+ `  ${tilesCacheId}  ${tilesetSplit}  ${tilemapSplit}`
-            + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth_forResource}  NONE  FAST  RLEW_B`
+            + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth_forResource}  NONE  FAST  RLEW_A`
 			+ `  ` + (imageAddCompressionField ? 'TRUE' : 'FALSE')
 			+ `  ALL`)
 	.join('\n') + '\n\n';

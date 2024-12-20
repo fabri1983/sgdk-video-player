@@ -10,9 +10,10 @@
 
 #define HINT_COUNTER_FOR_COLORS_UPDATE 8 // add -1 when set on VDP_setHIntCounter()
 
-#define MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER 3 // 0 based (starts at the top of the screen)
+#define MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER 2 // 0 based (starts at the top of the screen). Update calculatePlaneAddress().
 
-// For NTSC systems: ONLY VALID IF STRIP HEIGHT IS ALWAYS 8
+// For NTSC systems: ONLY VALID IF STRIP HEIGHT IS 8
+// Example for a frame 22 tiles height:
 //   Screen has 224/8=28 tiles height, and the video is 22 tiles height centered in Y axis.
 //   So starts at (28-22)/2=3rd tile row. But we start loading pals 1 strip earlier. So -1 strip => starts at 2th row of tiles => 2*8=16th scanline.
 //   And ends at 28-3=25th tile row: 25*8=200th scanline. -2*8 since we load the last palette one additional strip before the last strip.
@@ -27,7 +28,8 @@
 #define MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC \
     (28 - ((28 - MOVIE_FRAME_STRIPS) / 2) + TILES_HEIGHT_OFFSET_DUE_TO_MIN_TILE_Y_POS_NTSC) * 8 - 2*8 - 1
 
-// For PAL systems: ONLY VALID IF STRIP HEIGHT IS ALWAYS 8
+// For PAL systems: ONLY VALID IF STRIP HEIGHT IS 8
+// Example for a frame 22 tiles height:
 //   Screen has 240/8=30 tiles height, and the video is 22 tiles height centered in Y axis.
 //   So starts at (30-22)/2=4th tile row. But we start loading pals 1 strip earlier. So -1 strip => starts at 3th row of tiles => 3*8=24th scanline.
 //   And ends at 30-4=26th tile row: 26*8=208th scanline. -2*8 since we load the last palette one additional strip before the last strip.

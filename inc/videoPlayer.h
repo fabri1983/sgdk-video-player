@@ -26,7 +26,7 @@
 #define HINT_USE_DMA TRUE
 
 /// If you are 100% sure ALL the tilemaps were compressed by rescomp tool (see console output) then set it TRUE
-#define ALL_TILEMAPS_COMPRESSED TRUE
+#define ALL_TILEMAPS_COMPRESSED FALSE
 /// If you are 100% sure ALL the tilemaps were NOT compressed by rescomp tool (see console output) then set it TRUE
 #define ALL_TILEMAPS_NOT_COMPRESSED FALSE
 
@@ -38,6 +38,7 @@
 #define VIDEO_FRAME_PALS_CHUNK_SIZE_LAST ((VIDEO_FRAME_PALS_NUM / 3) + (VIDEO_FRAME_PALS_NUM % 3))
 
 /// NOT USED ANYMORE! We now have splitted every frame's tileset in 3 chunks and using VIDEO_FRAME_TILESET_CHUNK_SIZE instead.
+/// LEGACY.
 /// Number of Tiles to be transferred by DMA_flushQueue() with mandatory off/on VDP setting to speed up the transfer (otherwise it glitches up).
 /// NOTE: this has to be enough to support VIDEO_FRAME_TILESET_TOTAL_SIZE / 3 which is the buffer size that holds the unpack of half a tileset.
 /// 320 tiles * 32 bytes = 10240 as maxTransferPerFrame. 
