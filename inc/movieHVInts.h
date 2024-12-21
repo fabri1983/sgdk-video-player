@@ -10,7 +10,7 @@
 
 #define HINT_COUNTER_FOR_COLORS_UPDATE 8 // add -1 when set on VDP_setHIntCounter()
 
-#define MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER 2 // 0 based (starts at the top of the screen). Update calculatePlaneAddress().
+#define MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER 3 // 0 based (starts at the top of the screen). Update calculatePlaneAddress().
 
 // For NTSC systems: ONLY VALID IF STRIP HEIGHT IS 8
 // Example for a frame 22 tiles height:

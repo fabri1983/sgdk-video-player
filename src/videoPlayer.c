@@ -332,9 +332,7 @@ static u16 calculatePlaneAddress () {
 	// yp = max(yp, MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER); // offsets the Y axis plane position to avoid the flickering due to DMA transfer leaking into active display area
 	// u16 tilemapAddrInPlane = VDP_getPlaneAddress(BG_B, xp, yp);
 	// return tilemapAddrInPlane;
-	// For a frame size of 34x22 tiles the plane address for BG_B is 0xE186
-    // For a frame size of 34x24 tiles the plane address for BG_B is 0xE106
-	return 0xE106;
+	return 0xE186;
 }
 
 static void fadeToBlack () {
