@@ -48,25 +48,61 @@ public class TilesCacheManager {
 
 	private static Map<String, Integer> minTilesetSizeForStatsByCacheId = new HashMap<>();
 
-	private static Map<String, Integer> cacheStartIndexInVRAMById = new HashMap<>();
+	private static Map<String, Integer> cacheStartIndexInVRAM_var_ById = new HashMap<>();
+	private static Map<String, Integer> cacheVarTilesNum_ById = new HashMap<>();
+	private static Map<String, Integer> cacheStartIndexInVRAM_fixed_ById = new HashMap<>();
+	private static Map<String, Integer> cacheFixedTilesNum_ById = new HashMap<>();
 
-	public static void setMinTilesetSizeForStatsFor(String cacheId, int minTilesetSize) {
+	public static void setMinTilesetSizeForStatsFor (String cacheId, int minTilesetSize) {
 		minTilesetSizeForStatsByCacheId.put(cacheId, Integer.valueOf(minTilesetSize));
 	}
 
-	public static int getMinTilesetSizeForStatsFor(String cacheId) {
+	public static int getMinTilesetSizeForStatsFor (String cacheId) {
 		Integer value = minTilesetSizeForStatsByCacheId.get(cacheId);
 		if (value == null)
 			return 0;
 		return value.intValue();
 	}
 
-	public static void setStartIndexInVRAM(String cacheId, int cacheStartIndexInVRAM) {
-		cacheStartIndexInVRAMById.put(cacheId, Integer.valueOf(cacheStartIndexInVRAM));
+	public static void setStartIndexInVRAM_var (String cacheId, int cacheStartIndexInVRAM_1) {
+		cacheStartIndexInVRAM_var_ById.put(cacheId, Integer.valueOf(cacheStartIndexInVRAM_1));
+	}
+	
+	public static void setCacheVarTilesNum (String cacheId, int cacheVarTilesNum) {
+		cacheVarTilesNum_ById.put(cacheId, Integer.valueOf(cacheVarTilesNum));
 	}
 
-	public static int getStartIndexInVRAM(String cacheId) {
-		Integer value = cacheStartIndexInVRAMById.get(cacheId);
+	public static void setStartIndexInVRAM_fixed (String cacheId, int cacheStartIndexInVRAM_2) {
+		cacheStartIndexInVRAM_fixed_ById.put(cacheId, Integer.valueOf(cacheStartIndexInVRAM_2));
+	}
+
+	public static void setCacheFixedTilesNum (String cacheId, int cacheFixedTilesNum) {
+		cacheFixedTilesNum_ById.put(cacheId, Integer.valueOf(cacheFixedTilesNum));
+	}
+
+	public static int getStartIndexInVRAM_var (String cacheId) {
+		Integer value = cacheStartIndexInVRAM_var_ById.get(cacheId);
+		if (value == null)
+			return 0;
+		return value.intValue();
+	}
+
+	public static int getCacheVarTilesNum (String cacheId) {
+		Integer value = cacheVarTilesNum_ById.get(cacheId);
+		if (value == null)
+			return 0;
+		return value.intValue();
+	}
+
+	public static int getStartIndexInVRAM_fixed (String cacheId) {
+		Integer value = cacheStartIndexInVRAM_fixed_ById.get(cacheId);
+		if (value == null)
+			return 0;
+		return value.intValue();
+	}
+
+	public static int getCacheFixedTilesNum (String cacheId) {
+		Integer value = cacheFixedTilesNum_ById.get(cacheId);
 		if (value == null)
 			return 0;
 		return value.intValue();
@@ -120,28 +156,46 @@ public class TilesCacheManager {
 	/**
 	 * Check if the parameter tile exist in the cache. The search uses TileEquality to consider H/V flip cases.
 	 */
-	public static TileCacheMatch getCachedTile(String cacheId, Tile tile) {
+	public static TileCacheMatch getCachedTile (String cacheId, Tile tile) {
 		if (!cachedTilesByCacheId.containsKey(cacheId))
 			return null;
 
 		List<Tile> tiles = cachedTilesByCacheId.get(cacheId);
-		if (tiles == null)
+		if (tiles == null || tiles.isEmpty())
 			return null;
 
+		final int startIndexInVRAM_var = getStartIndexInVRAM_var(cacheId);
+		final int cacheVarTilesNum = getCacheVarTilesNum(cacheId);
+		final int startIndexInVRAM_fixed = getStartIndexInVRAM_fixed(cacheId);
+		final int cacheFixedTilesNum = getCacheFixedTilesNum(cacheId);
+		final int endIndexInVRAM_var = startIndexInVRAM_var + cacheVarTilesNum - 1;
+		final int endIndexInVRAM_fixed = startIndexInVRAM_fixed + cacheFixedTilesNum - 1;
+		
+		// Start assigning an index at the the beginning of fixed VRAM: startIndexInVRAM_fixed
 		Tile tileFound = null;
-		int startIndexInVRAM = getStartIndexInVRAM(cacheId);
-		int indexInCache = startIndexInVRAM;
+		int indexInCache = startIndexInVRAM_fixed;
 		// we have to search over all entries since the tile might be flipped.
 		for (Tile t : tiles) {
 			if (tile.getEquality(t) != TileEquality.NONE) {
 				tileFound = t;
 				break;
 			}
-			++indexInCache;
+			++indexInCache; // stepping forward in VRAM
 		}
 
 		if (tileFound == null)
 			return null;
+
+		// If indexInCache exceeds endIndexInVRAM_fixed it means we exhausted the fixed VRAM, 
+		// then we need to set indexInCache at variable VRAM: startIndexInVRAM_var.
+		if (indexInCache > endIndexInVRAM_fixed) {
+			final int exceeded = indexInCache - endIndexInVRAM_fixed;
+			indexInCache = startIndexInVRAM_var + exceeded - 1;
+			// check indexInCache doesn't exceed variable VRAM
+			if (indexInCache > endIndexInVRAM_var)
+				throw new RuntimeException("indexInCache > endIndexInVRAM_var: " + indexInCache + " > " + endIndexInVRAM_var);
+		}
+	
 		return new TileCacheMatch(tileFound, indexInCache);
 	}
 
@@ -155,7 +209,7 @@ public class TilesCacheManager {
 		return statsEnabledById.get(cacheId) == Boolean.TRUE;
 	}
 
-	public static void createCacheIfNotExist(String cacheId) {
+	public static void createCacheIfNotExist (String cacheId) {
 		if (!statsCacheTotalOccurrsByCacheId.containsKey(cacheId)) {
 			Map<Integer, AtomicInteger> occurrencesPerTile = new HashMap<>((int)(2048 / 0.75) + 1);
 			statsCacheTotalOccurrsByCacheId.put(cacheId, occurrencesPerTile);
@@ -172,7 +226,7 @@ public class TilesCacheManager {
 	 * @param cacheId
 	 * @param tiles
 	 */
-	public static void countResourcesPerTile(String cacheId, List<Tile> tiles) {
+	public static void countResourcesPerTile (String cacheId, List<Tile> tiles) {
 		if (cacheId == null)
 			return;
 		if (!statsCacheResourcesPerTileByCacheId.containsKey(cacheId))
@@ -205,11 +259,11 @@ public class TilesCacheManager {
 	}
 
 	/**
-	 * This counts the toal times a tile appears in the passes tiles list.
+	 * This counts the toal times a tile appears in the list of passes by tile.
 	 * @param cacheId
 	 * @param tiles
 	 */
-	public static void countTotalTiles(String cacheId, List<Tile> tiles) {
+	public static void countTotalTiles (String cacheId, List<Tile> tiles) {
 		if (cacheId == null)
 			return;
 		if (!statsCacheTotalOccurrsByCacheId.containsKey(cacheId))
@@ -223,7 +277,7 @@ public class TilesCacheManager {
 
 		Map<Integer, AtomicInteger> occurrencesPerTile = statsCacheTotalOccurrsByCacheId.get(cacheId);
 		for (Tile tile : tiles) {
-			// we don't process the tile that is black because that's the first SGDK tile reserved in VRAM at address 0
+			// we don't process the tile that is black because that's the first tile SGDK reserves in VRAM at address 0
 			if (tile.getPlainValue() == 0)
 				continue;
 			int key = tile.hashCode();//Arrays.hashCode(tile.data);
@@ -237,7 +291,7 @@ public class TilesCacheManager {
 		}
 	}
 
-	public static String getStats(String cacheId) {
+	public static String getStats (String cacheId) {
 		if (!statsCacheResourcesPerTileByCacheId.containsKey(cacheId) && !statsCacheTotalOccurrsByCacheId.containsKey(cacheId))
 			return "WARNING! Stats Cache for id " + cacheId + " don't exist.";
 
@@ -245,7 +299,7 @@ public class TilesCacheManager {
 		Map<Integer, AtomicInteger> occurrencesPerTile = statsCacheTotalOccurrsByCacheId.get(cacheId);
 		Map<Integer, Tile> tileByHashCode = tileByHashCodeByCacheId.get(cacheId);
 
-		StringBuilder sb = new StringBuilder(42000); // 42k chars (bytes)
+		StringBuilder sb = new StringBuilder(50000); // 50k chars (bytes)
 		int topNusedTiles = ExtProperties.getInt(ExtProperties.TOP_N_USED_TILES);
 
 		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
@@ -313,13 +367,14 @@ public class TilesCacheManager {
 		try {
 			writeBytesToFile(stats.getBytes(), fileDest);
 			return fileDest;
-		} catch (IOException e) {
+		}
+		catch (IOException e) {
 			System.out.println("ERROR! Couldn't save file " + fileDest + ". " + e.getMessage());
 			return null;
 		}
 	}
 
-	private static void writeBytesToFile(byte[] data, String fileName) throws IOException {
+	private static void writeBytesToFile (byte[] data, String fileName) throws IOException {
 		try (FileOutputStream fos = new FileOutputStream(fileName)) {
 			fos.write(data);
 			fos.flush();
@@ -331,8 +386,8 @@ public class TilesCacheManager {
 		try {
 			Path path = Paths.get(fileName);
 			Files.deleteIfExists(path);
-		} catch (IOException e) {
 		}
+		catch (IOException e) {}
 	}
 
 }

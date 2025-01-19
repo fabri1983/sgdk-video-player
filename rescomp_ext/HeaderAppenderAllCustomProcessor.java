@@ -22,7 +22,7 @@ public class HeaderAppenderAllCustomProcessor implements Processor
         {
             System.out.println("Wrong " + resId + " definition.");
             System.out.println("This processor adds to the generated C header file all or selected data types used by the custom plugin classes.");
-            System.out.println(resId + " name [\"list\"]");
+            System.out.println(resId + " name [\"comma sep list\"]");
             System.out.println("  name        Just an internal name for this chunk of the header. Eg: header_customDataTypeStructs");
             System.out.println("  list        If empty then it means all the custom types. Otherwise: comma separated list of next possible custom types:");
             for (CustomDataTypes cdt : CustomDataTypes.values())

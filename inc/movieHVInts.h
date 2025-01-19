@@ -4,13 +4,13 @@
 #include <types.h>
 #include <sys.h>
 #include "generated/movie_data_consts.h"
-#include "compatibilities.h"
+#include "utils.h"
 
 #define HINT_PALS_CMD_ADDR_RESET_VALUE 0 // 0 if HInt starts swap for [PAL0,PAL1]. MOVIE_DATA_COLORS_PER_STRIP if HInt starts swap for [PAL2,PAL3].
 
 #define HINT_COUNTER_FOR_COLORS_UPDATE 8 // add -1 when set on VDP_setHIntCounter()
 
-#define MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER 3 // 0 based (starts at the top of the screen). Update calculatePlaneAddress().
+#define MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER 3 // 0 based (starts at the top of the screen). Update calculatePlaneAddress() and cacheStartIndexInVRAM at res_n_header_generator.js
 
 // For NTSC systems: ONLY VALID IF STRIP HEIGHT IS 8
 // Example for a frame 22 tiles height:
@@ -48,6 +48,19 @@
 void turnOffVDP (u8 reg01);
 
 void turnOnVDP (u8 reg01);
+
+/**
+ * Wait until VCounter 0xC00008 reaches nth scanline position. Parameter n is loaded into a register.
+ * The docs straight up say to not trust the value of the V counter during vblank, in that case use VDP_getAdjustedVCounter().
+*/
+void waitVCounterReg (u16 n);
+
+/**
+ * \brief Writes into VDP_CTRL_PORT (0xC00004) the setup for DMA (length and source address).
+ * \param len How many colors to move.
+ * \param fromAddr Must come >> 1 (shifted to right) already.
+*/
+void setupDMAForPals (u16 len, u32 fromAddr);
 
 void setMoviePalsPointerBeforeInterrupts (u16* rootPalsPtr);
 

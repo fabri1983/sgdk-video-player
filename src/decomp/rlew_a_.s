@@ -94,7 +94,7 @@ func rlew_decomp_A_asm
     ;// length is even => copy 2 words (1 long) at a time
     ;// prepare jump offset
     neg.w       d2                  ;// -d2 in 2's Complement so we can jump back
-                                    ;// every target instruction takes 2 bytes but we have *2 inherently in d2
+                                    ;// every target instruction takes 2 bytes, though d2 comes inherently *2
     jmp         .a_jmp_stream_w(pc,d2.w)
 
 ;// Operations for a basic RLE
@@ -130,7 +130,7 @@ func rlew_decomp_A_asm
     move.w      a3, d3              ;// d3: u32 value_l = (value_w << 16) | value_w;
     ;// prepare jump offset
     neg.w       d2                  ;// -d2 in 2's Complement so we can jump back
-                                    ;// every target instruction takes 2 bytes but we have *2 inherently in d2
+                                    ;// every target instruction takes 2 bytes, though d2 comes inherently *2
     jmp         .a_jmp_rle(pc,d2.w)
 
 #undef RLEW_WIDTH_IN_WORDS

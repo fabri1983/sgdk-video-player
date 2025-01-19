@@ -24,17 +24,20 @@ public class TilesCacheLoaderProcessor implements Processor
         if (fields.length < 5)
         {
             System.out.println("Wrong " + resId + " definition");
-            System.out.println(resId + " tilesCacheId enable cacheStartIndexInVRAM filename compression compressionCustom");
-            System.out.println("  tilesCacheId            The same id you used in other resources to match this cache.");
-            System.out.println("  enable                  TRUE or FALSE.");
-            System.out.println("  cacheStartIndexInVRAM   Starting index of the tiles cache in VRAM. SGDK places tiles from VRAM address 0.");
-            System.out.println("  filename                File containing the definition for cached tiles. Relative to res folder.");
-			System.out.println("  compression             Compression type. Accepted values:");
-			System.out.println("                           -1 / BEST / AUTO = use best compression");
-			System.out.println("                            0 / NONE        = no compression (default)");
-			System.out.println("                            1 / APLIB       = aplib library (good compression ratio but slow)");
-			System.out.println("                            2 / FAST / LZ4W = custom lz4 compression (average compression ratio but fast)");
-			System.out.println("  compressionCustom       Overrides the compression parameter. Accepted values:");
+            System.out.println(resId + " tilesCacheId enable cacheStartIndexInVRAM_var cacheVarTilesNum cacheStartIndexInVRAM_fixed cacheFixedTilesNum filename compression compressionCustom");
+            System.out.println("  tilesCacheId                 The same id you used in other resources to match this cache.");
+            System.out.println("  enable                       TRUE or FALSE.");
+            System.out.println("  cacheStartIndexInVRAM_var    Starting index of the tiles cache in VRAM part 1.");
+            System.out.println("  cacheVarTilesNum             Var number of tiles that goes into cacheStartIndexInVRAM_var.");
+            System.out.println("  cacheStartIndexInVRAM_fixed  Starting index of the tiles cache in VRAM part 2 (fixed tiles).");
+            System.out.println("  cacheFixedTilesNum           Fixed number of tiles that goes into cacheStartIndexInVRAM_fixed.");
+            System.out.println("  filename                     File containing the definition for cached tiles. Relative to res folder.");
+			System.out.println("  compression                  Compression type. Accepted values:");
+			System.out.println("                                -1 / BEST / AUTO = use best compression");
+			System.out.println("                                 0 / NONE        = no compression (default)");
+			System.out.println("                                 1 / APLIB       = aplib library (good compression ratio but slow)");
+			System.out.println("                                 2 / FAST / LZ4W = custom lz4 compression (average compression ratio but fast)");
+			System.out.println("  compressionCustom            Overrides the compression parameter. Accepted values:");
 			for (CompressionCustom cc : CompressionCustom.values())
 				System.out.println("                            " + cc.getValue());
             return null;
@@ -48,31 +51,35 @@ public class TilesCacheLoaderProcessor implements Processor
 
 		boolean enable = "TRUE".equals(fields[2].toUpperCase());
 
-		int cacheStartIndexInVRAM = StringUtil.parseInt(fields[3], 1);
+		int cacheStartIndexInVRAM_var = StringUtil.parseInt(fields[3], 1);
+		int cacheVarTilesNum = StringUtil.parseInt(fields[4], 0);
+		int cacheStartIndexInVRAM_fixed = StringUtil.parseInt(fields[5], 1);
+		int cacheFixedTilesNum = StringUtil.parseInt(fields[6], 0);
 
-		String filename = fields[4];
+		String filename = fields[7];
 
         // get packed value
         Compression compression = Compression.NONE;
-        if (fields.length >= 6)
-            compression = Util.getCompression(fields[5]);
+        if (fields.length >= 9)
+            compression = Util.getCompression(fields[8]);
 
         // get custom compression value
         CompressionCustom compressionCustom = CompressionCustom.NONE;
-        if (fields.length >= 7)
-        	compressionCustom = CompressionCustom.from(fields[6]);
+        if (fields.length >= 10)
+        	compressionCustom = CompressionCustom.from(fields[9]);
 
-		return new TilesCacheLoader(tilesCacheId, originalCacheId_keepCase, cacheStartIndexInVRAM, filename, enable, 
-				compression, compressionCustom);
+		return new TilesCacheLoader(tilesCacheId, originalCacheId_keepCase, cacheStartIndexInVRAM_var, cacheVarTilesNum, cacheStartIndexInVRAM_fixed, cacheFixedTilesNum, 
+				filename, enable, compression, compressionCustom);
     }
 
 //    public static void main(String[] args) throws Exception {
 //    	TilesCacheLoaderProcessor p = new TilesCacheLoaderProcessor();
+//    	String cacheStartIndexInVRAM_var = String.valueOf(1792-216);
+//    	String cacheStartIndexInVRAM_fixed = String.valueOf(0xF020/32);
 //		String[] fields_test_movie = {
-//				resId, "tilesCache_movie1", "TRUE", "1648", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\tilesCache_movie1.txt", 
-//				"FAST", "NONE" 
+//				resId, "tilesCache_movie1", "TRUE", cacheStartIndexInVRAM_var, "216", cacheStartIndexInVRAM_fixed, "127", 
+//				"C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\tilesCache_movie1.txt",	"APLIB", "NONE" 
 //			};
-//		
 //		p.execute(fields_test_movie);
 //    }
 }

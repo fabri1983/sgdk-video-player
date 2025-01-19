@@ -50,13 +50,19 @@ const tilesetStatsId = "tilesetStats_1"
 const enableTilesCacheStats = false;
 const loadTilesCache = true;
 const tilesCacheId = "tilesCache_movie1"; // this is also the name of the variable contaning the Tileset with the cached tiles (it keeps the case)
-// 1792 is the max amount of tiles we allow with the plane size of 64x32 and custom config of BG_B (and the window) and BG_A starting at address 0xE000.
-// If we have a cache of 216 elemens then 1792-216=1576 is our cache starting index. 
-// You can set whatever other index, although you need to know where your game tiles will be placed to avoid overwriting the cache.
+// 1792 (which is BG_A address 0xE000/32) is the max amount of tiles we allow with the plane size of 64x32 and custom config of BG_B 
+// (Window plane too) and BG_A. Additionally, by moving the SAT into the HScroll address we have 127 free tiles between 0xF020 and 0xFFFF.
+// So if we have a cache of 216+127=343 elements, then 1792-163=1576 is our cache starting index for 216 tiles, and remaining 127 tiles 
+// locate starting at address 0xF020.
 const tilesCacheFile_countLines = countTilesCacheLines("res/" + tilesCacheId + ".txt");
-const cacheStartIndexInVRAM = 1792 - tilesCacheFile_countLines;
+const cacheFixedTilesNum = 127;
+const cacheVarTilesNum = (tilesCacheFile_countLines - cacheFixedTilesNum);
+const cacheStartIndexInVRAM_var = 1792 - cacheVarTilesNum;
+const cacheStartIndexInVRAM_fixed = 0xF020/32;
+const cacheStartIndexInVRAM_fixed_str = "0xF020/32"
 
-checkCacheStartIndexAfterTilesets(loadTilesCache, cacheStartIndexInVRAM, resPropertiesMap);
+// Ensure no override happens between frame tiles and cache tiles
+checkCacheStartIndexAfterTilesets(loadTilesCache, cacheStartIndexInVRAM_var, resPropertiesMap);
 
 // split tileset in N chunks. Current valid values are [1, 2, 3]
 const tilesetSplit = 3;
@@ -65,6 +71,7 @@ const tilemapSplit = 1;
 // add compression field if you know some tilesets and tilemaps are not compressed (by rescomp rules) or if you plan to test different compression algorithms
 const imageAddCompressionField = true;
 
+// Next data got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
 var videoFrameTilesetChunkSize = resPropertiesMap.get('MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX');
 var videoFrameTilesetTotalSize = resPropertiesMap.get('MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX');
 
@@ -124,6 +131,7 @@ if (!fs.existsSync(GEN_INC_DIR)) {
 	fs.mkdirSync(GEN_INC_DIR, { recursive: true });
 }
 
+// Next data got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
 const tileUserIndexCustom = resPropertiesMap.get('STARTING_TILESET_ON_SGDK');
 var tilesetMaxChunk1Size = resPropertiesMap.get('MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX');
 var tilesetMaxChunk2Size = 0;
@@ -165,13 +173,16 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 /// Remaining 15 tiles are OK to override for re use. So we can start using tiles at index 1.
 #define TILE_USER_INDEX_CUSTOM ${tileUserIndexCustom}
 
-#define VIDEO_FRAME_TILESET_CHUNK_SIZE ${videoFrameTilesetChunkSize} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
-#define VIDEO_FRAME_TILESET_TOTAL_SIZE ${videoFrameTilesetTotalSize} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
-#define VIDEO_FRAME_TILESET_MAX_CHUNK_1_SIZE ${tilesetMaxChunk1Size} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
-#define VIDEO_FRAME_TILESET_MAX_CHUNK_2_SIZE ${tilesetMaxChunk2Size} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
-#define VIDEO_FRAME_TILESET_MAX_CHUNK_3_SIZE ${tilesetMaxChunk3Size} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
+#define VIDEO_FRAME_TILESET_CHUNK_SIZE ${videoFrameTilesetChunkSize}
+#define VIDEO_FRAME_TILESET_TOTAL_SIZE ${videoFrameTilesetTotalSize}
+#define VIDEO_FRAME_TILESET_MAX_CHUNK_1_SIZE ${tilesetMaxChunk1Size}
+#define VIDEO_FRAME_TILESET_MAX_CHUNK_2_SIZE ${tilesetMaxChunk2Size}
+#define VIDEO_FRAME_TILESET_MAX_CHUNK_3_SIZE ${tilesetMaxChunk3Size}
 
-#define MOVIE_TILES_CACHE_START_INDEX ${cacheStartIndexInVRAM} // Got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
+#define MOVIE_TILES_CACHE_START_INDEX_VAR ${cacheStartIndexInVRAM_var}
+#define MOVIE_TILES_CACHE_TILES_NUM_VAR ${cacheVarTilesNum}
+#define MOVIE_TILES_CACHE_START_INDEX_FIXED ${cacheStartIndexInVRAM_fixed} // ${cacheStartIndexInVRAM_fixed_str}
+#define MOVIE_TILES_CACHE_TILES_NUM_FIXED ${cacheFixedTilesNum}
 
 #endif // _MOVIE_DATA_CONSTS_H
 `);
@@ -206,19 +217,23 @@ const ${type_Palette32AllStrips}* pals_data[MOVIE_FRAME_COUNT] = {
 
 // --------- Generate .res file
 
+// HEADER_APPENDER_ALL_CUSTOM name ["comma sep list"]
 // You can provide a "comma separated list" of the types you want to include in the header file
 // Eg: "TileMapCustom, ImageNoPalsSplit31, Palette32AllStripsSplit3"
 const headerAppenderAllCustom = `HEADER_APPENDER_ALL_CUSTOM  headerAllCustomTypes` + '\n\n';
 
-// Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1648  movieFrames_cache.txt APLIB NONE
+// TILES_CACHE_LOADER tilesCacheId enable cacheStartIndexInVRAM_var cacheVarTilesNum cacheStartIndexInVRAM_fixed cacheFixedTilesNum filename compression compressionCustom
+// Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1576  216  1921  127  movieFrames_cache.txt  APLIB  NONE
 // Flag 'enable' possible values: FALSE, TRUE
 const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache?"TRUE":"FALSE"}`
-		+ `  ${cacheStartIndexInVRAM}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
+		+ `  ${cacheStartIndexInVRAM_var}  ${cacheVarTilesNum}  ${cacheStartIndexInVRAM_fixed}  ${cacheFixedTilesNum}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
 
-// Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  600
+// TILES_CACHE_STATS_ENABLER tilesCacheId enable minTilesetSize
+// Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  500
 // Flag 'enable' possible values: FALSE, TRUE
-const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${enableTilesCacheStats?"TRUE":"FALSE"}  600` + '\n\n';
+const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${enableTilesCacheStats?"TRUE":"FALSE"}  500` + '\n\n';
 
+// IMAGE_STRIPS_NO_PALS name "baseFile" strips tilesetStatsCollectorId [tilesCacheId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]
 // Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesetStats1  tilesCache_movie1  3  1  ODD  64  FAST  NONE  NONE  TRUE  ALL
 const imageResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `IMAGE_STRIPS_NO_PALS  mv_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${tilesetStatsId}`
@@ -228,6 +243,7 @@ const imageResListStr = sortedFileNamesEveryFirstStrip
 			+ `  ALL`)
 	.join('\n') + '\n\n';
 
+// PALETTE_32_COLORS_ALL_STRIPS name baseFile strips palsPosition palsPosition addCompressionField compression compressionCustom addCompressionField
 // Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  PAL0PAL1  TRUE  FAST  NONE  FALSE
 const paletteResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `PALETTE_32_COLORS_ALL_STRIPS  pal_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${palette32Split}`
@@ -298,5 +314,5 @@ function checkCacheStartIndexAfterTilesets (loadTilesCache, cacheStartIndexInVRA
 	const startingTilesetIndex = resPropertiesMap.get('STARTING_TILESET_ON_SGDK');
 	const finalTilesetIndex = startingTilesetIndex + (2 * maxTilesetNum);
 	if (cacheStartIndexInVRAM <= finalTilesetIndex)
-		throw new Error("Starting Tiles Cache Index overlaps the last movie tileset location. Try to reduce the number of loaded cache tiles.");
+		throw new Error("Starting Tiles Cache Index in VRAM overlaps the last movie tileset location. Try to reduce the number of cache tiles.");
 }

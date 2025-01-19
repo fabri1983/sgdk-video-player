@@ -1,11 +1,11 @@
 #include "decomp/rlew.h"
-#include "compatibilities.h"
+#include "utils.h"
 
 #define DUPLICATE_WORD_INTO_LONG(vword, vlong)\
     __asm __volatile__ (\
-        "    move.w  %0, %1\n"\
-        "    swap    %1\n"\
-        "    move.w  %0, %1\n"\
+        "move.w  %0, %1\n\t"\
+        "swap    %1\n\t"\
+        "move.w  %0, %1"\
         : "+d" (vword), "=d" (vlong)\
         :\
         :\
@@ -13,7 +13,7 @@
 
 #define COPY_LONG_INTO_OUT(vlong, out)\
     __asm __volatile__ (\
-        "    move.l  %1, (%0)+\n"\
+        "move.l  %1, (%0)+"\
         : "=a" (out)\
         : "d" (vlong)\
         : "memory"\
@@ -21,7 +21,7 @@
 
 #define GET_LONG_AND_COPY_INTO_OUT(in, out)\
     __asm __volatile__ (\
-        "    move.l  (%0)+, (%1)+\n"\
+        "move.l  (%0)+, (%1)+"\
         : "+a" (in), "=a" (out)\
         :\
         : "memory"\
@@ -29,8 +29,8 @@
 
 #define GET_BYTE_AS_LOW_INTO_WORD_AND_COPY_INTO_OUT(in, vword, out)\
     __asm __volatile__ (\
-        "    move.w  %1, (%2)+\n" /* copy word into out buffer */\
-        "    move.b  (%0)+, %1\n" /* byte goes to low half of destination leaving high half as it is */ \
+        "move.w  %1, (%2)+\n\t" /* copy word into out buffer */\
+        "move.b  (%0)+, %1" /* byte goes to low half of destination leaving high half as it is */ \
         : "+a" (in), "=d" (vword), "=a" (out)\
         :\
         : "memory"\
@@ -38,7 +38,7 @@
 
 #define COPY_WORD_INTO_OUT(vword, out)\
     __asm __volatile__ (\
-        "    move.w  %1, (%0)+\n"\
+        "move.w  %1, (%0)+"\
         : "=a" (out)\
         : "d" (vword)\
         : "memory"\

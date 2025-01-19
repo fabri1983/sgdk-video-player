@@ -6,6 +6,7 @@
 #include "compressionTypesTracker.h"
 #include "decomp/rlew.h"
 #include "stopwatch.h"
+#include "utils.h"
 
 static u32* unpackedTilesetChunk = NULL;
 static u16* unpackedTilemap = NULL;
@@ -28,39 +29,6 @@ static FORCE_INLINE void memcpy_asm (u16 lenBytes, u8* from, u8* to) {
         : "a" (from), "a" (to), "d" (lenBytes)
         : "cc","memory"
     );
-}
-
-/// @brief Waits for a certain amount of millisecond (~3.33 ms based timer when wait is >= 100ms). 
-/// Lightweight implementation without calling SYS_doVBlankProcess().
-/// This method CAN NOT be called from V-Int callback or when V-Int is disabled.
-/// @param ms >= 100ms, otherwise use waitMs() from timer.h
-static void waitMs_ (u32 ms) {
-    u32 tick = (ms * TICKPERSECOND) / 1000;
-    u32 start = getTick();
-    u32 max = start + tick;
-
-    // need to check for overflow
-    if (max < start) max = 0xFFFFFFFF;
-
-    // wait until we reached subtick
-    while (getTick() < max) {;}
-}
-
-/// Wait for a certain amount of subtick. ONLY values < 150.
-static FORCE_INLINE void waitSubTick_ (u32 subtick) {
-	if (subtick == 0)
-		return;
-
-	u32 tmp = subtick * 7;
-    // Seems that every 7 loops it simulates a tick.
-    // TODO: use cycle accurate wait loop in asm (about 100 cycles for 1 subtick)
-    __asm volatile (
-        "1:\n\t"
-        "dbra   %0, 1b" // dbf/dbra: test if not zero, then decrement register dN and branch back (b) to label 1
-        : "+d" (tmp)
-        :
-        : "cc"
-	);
 }
 
 /// @brief See original Z80_setBusProtection() method.
@@ -122,6 +90,13 @@ static FORCE_INLINE void waitVInt_AND_flushDMA () {
 	//       Better to use the V counter to re-enable display at a fixed line (otherwise it may vary depending the DMA load)
 	//       You can even use the h-int to re-enable display without a passive wait.
 
+    // if (IS_PAL_SYSTEM)
+    //     waitVCounterReg(MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL + 2*HINT_COUNTER_FOR_COLORS_UPDATE);
+    // else
+    //     waitVCounterReg(MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + 2*HINT_COUNTER_FOR_COLORS_UPDATE);
+    // // Turn off display here in case this code reaches before VInt is triggered, it will be turned on in HInt
+    // turnOffVDP(0x74);
+
 	waitVInt();
 
 	// AT THIS POINT THE _VInt INTERRUPT CALLBACK HAS BEEN CALLED. Check sega.s to see when vtimer is updated and what other callbacks are called.
@@ -148,9 +123,9 @@ static FORCE_INLINE void waitVInt_AND_flushDMA () {
 }
 
 static void loadTilesCache () {
-#ifdef DEBUG_TILES_CACHE
-	//KLog_U1("tilesCache_movie1.numTile ", tilesCache_movie1.numTile);
-	if (tilesCache_movie1.numTile > 0) {
+	if (tilesCache_movie1.numTile == (MOVIE_TILES_CACHE_TILES_NUM_FIXED + MOVIE_TILES_CACHE_TILES_NUM_VAR)) {
+        #ifdef DEBUG_TILES_CACHE
+        //KLog_U1("tilesCache_movie1.numTile ", tilesCache_movie1.numTile);
 		// In order to print the cache tiles values you need to set compression to NONE in the res file
 		// u32* dptr = tilesCache_movie1.tiles;
 		// for (u16 i=0; i < tilesCache_movie1.numTile; ++i) {
@@ -161,11 +136,22 @@ static void loadTilesCache () {
 		PAL_setPalette(PAL0, palette_grey, CPU);
 		// Fill all VRAM targeted for cached tiles with 0x66, which points to the 7th color for whatever palette is loaded in CRAM.
 		// This way we can see in the VRAM Debugger the are occupied by the cached tiles.
-		//VDP_fillTileData(0x66, MOVIE_TILES_CACHE_START_INDEX, tilesCache_movie1.numTile, TRUE);
+		//VDP_fillTileData(0x66, MOVIE_TILES_CACHE_START_INDEX_1, tilesCache_movie1.numTile - MOVIE_TILES_CACHE_TILES_NUM_FIXED, TRUE);
+        //VDP_fillTileData(0x66, MOVIE_TILES_CACHE_START_INDEX_2, MOVIE_TILES_CACHE_TILES_NUM_FIXED, TRUE);
+        #endif
 
-		// By loading the cached tiles we can see in the VRAM Debugger the tiles with more details.
-		VDP_loadTileSet((TileSet* const) &tilesCache_movie1, MOVIE_TILES_CACHE_START_INDEX, DMA);
+		TileSet* t = unpackTileSet((TileSet* const) &tilesCache_movie1, NULL);
+        // Place first tiles at fixed VRAM location
+        const u32* cacheTiles_fixed = t->tiles;
+        VDP_loadTileData(cacheTiles_fixed, MOVIE_TILES_CACHE_START_INDEX_FIXED, MOVIE_TILES_CACHE_TILES_NUM_FIXED, DMA); // DMA or DMA_QUEUE_COPY
+        // Place remaining tiles at variable VRAM location
+        if (tilesCache_movie1.numTile > MOVIE_TILES_CACHE_TILES_NUM_FIXED && MOVIE_TILES_CACHE_TILES_NUM_VAR > 0) {
+            const u32* cacheTiles_var = t->tiles + 8*MOVIE_TILES_CACHE_TILES_NUM_FIXED;
+            VDP_loadTileData(cacheTiles_var, MOVIE_TILES_CACHE_START_INDEX_VAR, MOVIE_TILES_CACHE_TILES_NUM_VAR, DMA); // DMA or DMA_QUEUE_COPY
+        }
+        MEM_free(t);
 
+        #ifdef DEBUG_TILES_CACHE
 		// Set palette buffer with white color 0xEEE only for strips using PAL0
 		u16* rendPtr = unpackedPalsRender;
 		for (u16 i=0; i < MOVIE_FRAME_STRIPS; ++i) {
@@ -173,12 +159,8 @@ static void loadTilesCache () {
 			rendPtr += MOVIE_FRAME_COLORS_PER_STRIP;
 		}
 		//while (1) waitVInt();
+        #endif
 	}
-#else
-	if (tilesCache_movie1.numTile > 0) {
-		VDP_loadTileSet((TileSet* const) &tilesCache_movie1, MOVIE_TILES_CACHE_START_INDEX, DMA);
-	}
-#endif
 }
 
 static void allocateTilesetBuffer () {
@@ -217,7 +199,7 @@ static FORCE_INLINE void unpackFrameTilemap (TileMapCustomCompField* src) {
 	const u16 size = MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES * 2;
 	const u8 jumpGap = 2 * (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES - MOVIE_FRAME_WIDTH_IN_TILES);
 	rlew_decomp_A_asm(jumpGap, (u8*) FAR_SAFE(src->tilemap, size), (u8*) unpackedTilemap);
-#elif ALL_TILEMAPS_NOT_COMPRESSED
+#elif ALL_TILEMAPS_UNCOMPRESSED
 	// NOTE: if using extended width in the data generated by rescomp then enable next lines
 	// const u16 size = MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES * 2;
 	// //memcpy((u8*) (unpackedTilemap), FAR_SAFE(src->tilemap, size), size);
@@ -405,9 +387,13 @@ void playMovie () {
 	// and Window planes into BG_A so we can use the space otherwise used by BG_B by default. So:
 	// - 0xE000 is where BG_A plane (its tilemap) address starts.
 	// - Move BG_B and Window planes addresses into BG_A plane address, achieving up to 1791 tiles.
-	VDP_setBGBAddress(VDP_getBGAAddress());
+    // - Move the SAT (Sprite Allocation Table) where the HScroll table is located: 0xF000. This allows us to setup next thing.
+    // - Now SAT and HScroll table are at 0xF000 and it seems only first 32 bytes (0x20) have an effect in the image, 
+    //   hence we have additional free VRAM from 0xF020 to 0xFFFF -> 4064 bytes = 127 tiles.
+    VDP_setBGAAddress(VDP_getBGAAddress());
+    VDP_setBGBAddress(VDP_getBGAAddress());
     VDP_setWindowAddress(VDP_getBGAAddress());
-    // Do these also need to be set? VDP_setSpriteListAddress() and VDP_setHScrollTableAddress()
+    VDP_setSpriteListAddress(VDP_getHScrollTableAddress());
 
 	// Clear all tileset VRAM until BG_B plane address (we can use the address as a counter because VRAM tileset starts at address 0)
 	u16 numToClear = VDP_getBGBAddress();
@@ -448,33 +434,33 @@ void playMovie () {
 		// Let the HInt use the right pals before setting the VInt and HInt callbacks, otherwise it glitches out by one frame
 		setMoviePalsPointerBeforeInterrupts(unpackedPalsRender); // Palettes are all black at this point
 
+        // Start sound
+        playSound();
+
         // Wait for VInt so the logic can start at the beginning of the active display period
 		waitVInt();
 
 		SYS_disableInts();
-			SYS_setVIntCallback(VIntMovieCallback);
-			VDP_setHIntCounter(HINT_COUNTER_FOR_COLORS_UPDATE - 1);
-			VDP_setHInterrupt(TRUE);
-			#if HINT_USE_DMA
-				if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_DMA_PAL);
-				else SYS_setHIntCallback(HIntCallback_DMA_NTSC);
-			#else
-				if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_CPU_PAL);
-				else SYS_setHIntCallback(HIntCallback_CPU_NTSC);
-			#endif
-		SYS_enableInts();
 
-		// Start sound
-        playSound();
+        SYS_setVIntCallback(VIntMovieCallback);
+        VDP_setHIntCounter(HINT_COUNTER_FOR_COLORS_UPDATE - 1);
+        VDP_setHInterrupt(TRUE);
+        #if HINT_USE_DMA
+            if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_DMA_PAL);
+            else SYS_setHIntCallback(HIntCallback_DMA_NTSC);
+        #else
+            if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_CPU_PAL);
+            else SYS_setHIntCallback(HIntCallback_CPU_NTSC);
+        #endif
 
-		SYS_disableInts();
-		#ifdef DEBUG_FIXED_VFRAME
-		u16 vFrame = DEBUG_FIXED_VFRAME;
-		vtimer = ((IS_PAL_SYSTEM ? 50 : 60) / MOVIE_FRAME_RATE) * DEBUG_FIXED_VFRAME;
-		#else
-		u16 vFrame = 0;
-		vtimer = 0; // reset vtimer so we can use it as our hardware frame counter
-		#endif
+        #ifdef DEBUG_FIXED_VFRAME
+        u16 vFrame = DEBUG_FIXED_VFRAME;
+        vtimer = ((IS_PAL_SYSTEM ? 50 : 60) / MOVIE_FRAME_RATE) * DEBUG_FIXED_VFRAME;
+        #else
+        u16 vFrame = 0;
+        vtimer = 0; // reset vtimer so we can use it as our hardware frame counter
+        #endif
+
 		SYS_enableInts();
 
 		// As frames are indexed in a 0 based access layout, we know that even indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM, 

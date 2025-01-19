@@ -2,7 +2,7 @@
 #define _MOVIE_PLAYER_H
 
 #include "generated/movie_data_consts.h"
-#include "compatibilities.h"
+#include "utils.h"
 
 // #define DEBUG_VIDEO_PLAYER
 // #define DEBUG_TILES_CACHE
@@ -22,13 +22,14 @@
 // 4: Use a LUT instead of using division. Based on IMPL 1.
 #define VIDEO_FRAME_ADVANCE_STRATEGY 4
 
-// Enables HInt callback implementation using DMA (TRUE) or pure CPU (FALSE)
-#define HINT_USE_DMA TRUE
+// Enables HInt callback implementation using DMA (TRUE) or pure CPU (FALSE).
+// Using DMA adds some pressure to the Z80 due to bus contention, or something like that. But I didn't test it in real hardware.
+#define HINT_USE_DMA FALSE
 
 /// If you are 100% sure ALL the tilemaps were compressed by rescomp tool (see console output) then set it TRUE
 #define ALL_TILEMAPS_COMPRESSED FALSE
 /// If you are 100% sure ALL the tilemaps were NOT compressed by rescomp tool (see console output) then set it TRUE
-#define ALL_TILEMAPS_NOT_COMPRESSED FALSE
+#define ALL_TILEMAPS_UNCOMPRESSED FALSE
 
 /// If you are 100% sure ALL the palettes were compressed by rescomp tool (see console output) then set it TRUE
 #define ALL_PALETTES_COMPRESSED TRUE

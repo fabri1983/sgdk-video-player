@@ -2,7 +2,7 @@
 #define _DMA_ELEMS_H
 
 #include <types.h>
-#include "compatibilities.h"
+#include "utils.h"
 
 /// Sets DMAOpInfo first or second slot depending on enqueueAtSlot1. 
 /// Only for DMA_VRAM. Assumees step = 2.

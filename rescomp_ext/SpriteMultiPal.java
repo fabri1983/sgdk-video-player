@@ -50,7 +50,7 @@ public class SpriteMultiPal extends Resource
 
         // frame size over limit (we need VDP sprite offset to fit into u8 type)
         if ((wf >= 32) || (hf >= 32))
-            throw new IllegalArgumentException("SPRITE '" + id + "' has frame width or frame height >= 32 (not supported)");
+            throw new IllegalArgumentException("SPRITE '" + id + "' has frame width or frame height >= 32 tiles (not supported)");
 
         // set frame size
         this.wf = wf;
@@ -68,7 +68,7 @@ public class SpriteMultiPal extends Resource
         final int maxIndex = ArrayMath.max(image, false);
         if (maxIndex >= 64)
             throw new IllegalArgumentException("'" + imgFile
-                    + "' uses color index >= 64, SPRITE resource requires image with a maximum of 64 colors, use 4bpp image instead if you are unsure.");
+                    + "' uses color index >= 64, SPRITE resource requires image with a maximum of 64 colors, use 4bpp indexed colors image instead if you are unsure.");
 
         // retrieve basic infos about the image
         final BasicImageInfo imgInfo = ImageUtil.getBasicInfo(imgFile);
@@ -93,8 +93,9 @@ public class SpriteMultiPal extends Resource
         // build PALETTE
         palette = (Palette) addInternalResource(new Palette(id + "_palette", imgFile, palIndex * 16, palsUsed * 16, true));
 
-        // for debug purpose
-        final BufferedImage bufImg = ImageUtil.load(imgFile);
+        // for debug purpose (scale image x2 so it's easier to see bounding boxes)
+        int scaleFactorForBoundariesDebug = 1;
+        final BufferedImage bufImg = ImageUtil.scale(ImageUtil.load(imgFile), w * scaleFactorForBoundariesDebug, h * scaleFactorForBoundariesDebug, false);
         final Graphics2D g2 = bufImg.createGraphics();
         g2.setColor(Color.pink);
 
@@ -117,10 +118,13 @@ public class SpriteMultiPal extends Resource
                 if (showCut)
                 {
                     int xOff = 0;
+                    // add 32 pixels margin for RGB image (contains palette data in row 0-31)
+                    int yMargin = (imgInfo.bpp > 8) ? 32 : 0;
                     for (SpriteFrameMultiPal frame : animation.frames)
                     {
                         for (VDPSpriteMultiPal spr : frame.vdpSprites)
-                            g2.drawRect(xOff + spr.offsetX, yOff + spr.offsetY, spr.wt * 8, spr.ht * 8);
+                        	g2.drawRect((xOff + spr.offsetX) * scaleFactorForBoundariesDebug, (yMargin + yOff + spr.offsetY) * scaleFactorForBoundariesDebug, 
+                        			((spr.wt * 8) * scaleFactorForBoundariesDebug) - 1, ((spr.ht * 8) * scaleFactorForBoundariesDebug) - 1);
 
                         // for debug purpose
                         xOff += wf * 8;

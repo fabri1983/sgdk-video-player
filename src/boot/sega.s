@@ -155,21 +155,22 @@ no_xgm_task:
 
 no_bmp_task:
         move.l  vintCB, %a0                 /* load user callback */
-        jsr    (%a0)                        /* call user callback */
+        jsr     (%a0)                       /* call user callback */
         andi.w  #0xFFFE, intTrace           /* out V-Int */
         movem.l (%sp)+,%d0-%d1/%a0-%a1
         rte
 
 * Custom version of the _VINT vector which discards User tasks, Bitmap tasks, and XGM tasks, 
-* and immediately calls user's VInt callback.
+* uses usp to backup a0, and immediately calls user's VInt callback.
 _VINT_lean:
-        move.l  %a0, -(%sp)
+        * 84 cycles
+        move.l  %a0, %usp
         *ori.w   #0x0001, intTrace           /* in V-Int */
-        addq.l  #1, vtimer                  /* increment frame counter (more a vint counter) */
-        move.l  vintCB, %a0                 /* load user callback */
-        jsr    (%a0)                        /* call user callback */
+        addq.l  #1, vtimer
+        move.l  vintCB, %a0
+        jsr     (%a0)
         *andi.w  #0xFFFE, intTrace           /* out V-Int */
-        move.l  (%sp)+, %a0
+        move.l  %usp, %a0
         rte
 
 *------------------------------------------------

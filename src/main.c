@@ -1,7 +1,7 @@
 #include <types.h>
 #include <sys.h>
 #include "videoPlayer.h"
-#include "genesis.h"
+#include "teddyBearLogo.h"
 
 int main (bool hardReset)
 {
@@ -10,6 +10,9 @@ int main (bool hardReset)
 		VDP_waitDMACompletion(); // avoids some glitches as per Genesis Manual's Addendum section
 		SYS_hardReset();
 	}
+
+    displayTeddyBearLogo();
+    waitMs_(200);
 
 	playMovie();
 

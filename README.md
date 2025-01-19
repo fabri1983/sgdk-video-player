@@ -13,7 +13,8 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 - Supports both NTSC and PAL systems.
 - Currently running at 10~15 FPS in NTSC and 10~12 FPS in PAL, with a frame size of 272x192 pixels.
 - Uses custom extensions for the [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
-- Uses custom `sega.s` *_VINT* which directly calls user's VInt Callback and saves some cycles by discarding User tasks, Bitmap tasks, and XGM tasks. Although it works with stock _VINT.
+- Uses custom `sega.s` *_VINT* which immediately calls user's VInt Callback, saving some cycles by discarding User tasks, Bitmap tasks, and XGM tasks.
+
 
 ### Config theese first:
 - You need *Image Magick v7.x* tools and set in _PATH_.

@@ -21,17 +21,21 @@ public class TilesCacheLoader extends Resource
 	// binary data block (tiles)
 	public final BinCustom bin;
 
-    public TilesCacheLoader(String id, String originalCacheId_keepCase, int cacheStartIndexInVRAM, String filename, boolean enable,
-    		Compression compression, CompressionCustom compressionCustom) throws Exception
+    public TilesCacheLoader(String id, String originalCacheId_keepCase, int cacheStartIndexInVRAM_var, int cacheVarTilesNum, int cacheStartIndexInVRAM_fixed, 
+    		int cacheFixedTilesNum, String filename, boolean enable, Compression compression, CompressionCustom compressionCustom) throws Exception
     {
         super(id);
 
         this.originalCacheId_keepCase = originalCacheId_keepCase;
         
-        TilesCacheManager.setStartIndexInVRAM(id, cacheStartIndexInVRAM);
+        TilesCacheManager.setStartIndexInVRAM_var(id, cacheStartIndexInVRAM_var);
+        TilesCacheManager.setCacheVarTilesNum(id, cacheVarTilesNum);
+        TilesCacheManager.setStartIndexInVRAM_fixed(id, cacheStartIndexInVRAM_fixed);
+        TilesCacheManager.setCacheFixedTilesNum(id, cacheFixedTilesNum);
 
-        if (enable)
+        if (enable) {
         	cachedTiles = TilesCacheManager.loadCacheFromFile(id, filename);
+        }
         else
         	cachedTiles = Collections.emptyList();
 
