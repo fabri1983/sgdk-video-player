@@ -91,16 +91,44 @@ FORCE_INLINE void waitVCounterReg (u16 n)
 FORCE_INLINE void setupDMAForPals (u16 len, u32 fromAddr) {
     // Uncomment if you previously change it to 1 (CPU access to VRAM is 1 byte length, and 2 bytes length for CRAM and VSRAM)
     //VDP_setAutoInc(2);
-
-    // Setup DMA length (in long word here): low at higher word, high at lower word
-    vu32* dmaPtr_l = (vu32*) VDP_CTRL_PORT;
-    *dmaPtr_l = ((0x9300 | (u8)len) << 16) | (0x9400 | (u8)(len >> 8));
-
+/*
+    vu16* pw = (vu16*) VDP_CTRL_PORT;
+    // Setup DMA length (in word here)
+    *pw = 0x9300 + (len & 0xff);
+    *pw = 0x9400 + ((len >> 8) & 0xff);
     // Setup DMA address
-    vu16* dmaPtr_w = (vu16*) VDP_CTRL_PORT;
-    *dmaPtr_w = 0x9500 | (u8)fromAddr; // low
-    *dmaPtr_w = 0x9600 | (u8)(fromAddr >> 8); // mid
-    *dmaPtr_w = 0x9700 | ((fromAddr >> 16) & 0x7f); // high
+    // fromAddr already comes with >> 1
+    *pw = 0x9500 + (fromAddr & 0xff); // low
+    fromAddr >>= 8;
+    *pw = 0x9600 + (fromAddr & 0xff); // mid
+    fromAddr >>= 8;
+    *pw = 0x9700 + (fromAddr & 0x7f); // high
+*/
+    u32* dmaCtrl_ptr = (u32*) VDP_CTRL_PORT;
+    u32 dmaLen = ((0x9300 | (u8)len) << 16) | (0x9400 | (u8)(len >> 8));
+    u16 dn = 0x9500;
+    __asm volatile (
+        // Setup DMA length (in long word here)
+        "move.l   %[dmaLen],(%[dmaCtrl_ptr])\n\t" // *((vu32*) VDP_CTRL_PORT) = ((0x9300 | (u8)len) << 16) | (0x9400 | (u8)(len >> 8));
+        // Setup DMA address low
+        //"move.w   #0x9500,%[dn]\n\t"              // dn: 0x9500
+        "or.b     %[fromAddr],%[dn]\n\t"          // dn: 0x9500 | (u8)(fromAddr)
+        "move.w   %[dn],(%[dmaCtrl_ptr])\n\t"     // *((vu16*) VDP_CTRL_PORT) = 0x9500 | (u8)fromAddr; // low
+        // Setup DMA address mid
+        "move.w   %[fromAddr],-(%%sp)\n\t"
+        "move.w   #0x9600,%[dn]\n\t"              // dn: 0x9600
+        "or.b     (%%sp)+,%[dn]\n\t"              // dn: 0x9600 | (u8)(fromAddr >> 8)
+        "move.w   %[dn],(%[dmaCtrl_ptr])\n\t"     // *((vu16*) VDP_CTRL_PORT) = 0x9600 | (u8)(fromAddr >> 8); // mid
+        // Setup DMA address high
+        "move.l   %[fromAddr],%[dn]\n\t"          // dn: fromAddr
+        "swap     %[dn]\n\t"                      // dn: fromAddr >> 16
+        "andi.w   #0x007f,%[dn]\n\t"              // dn: (fromAddr >> 16) & 0x7f
+        "ori.w    #0x9700,%[dn]\n\t"              // dn: 0x9700 | ((fromAddr >> 16) & 0x7f)
+        "move.w   %[dn],(%[dmaCtrl_ptr])"         // *((vu16*) VDP_CTRL_PORT) = 0x9700 | ((fromAddr >> 16) & 0x7f); // high
+        : [dmaCtrl_ptr] "+a" (dmaCtrl_ptr), [dn] "+d" (dn)
+        : [fromAddr] "d" (fromAddr), [dmaLen] "id" (dmaLen)
+        : "cc"
+    );
 }
 
 static u16* palInFrameRootPtr; // points to the first pals the HInt starts to load
@@ -373,73 +401,75 @@ static FORCE_INLINE void swapPalettes_DMA_2_cmds_ASM () {
         "   movea.l     %c[palInFramePtr],%%a0\n" // a0: palInFramePtr
         "   lea         0xC00004,%%a1\n"          // a1: VDP_CTRL_PORT 0xC00004
         "   lea         5(%%a1),%%a2\n"           // a2: HCounter address 0xC00009 (VDP_HVCOUNTER_PORT + 1)
-        "   move.w      %[turnOff],%%d4\n"        // d4: VDP's register with display OFF value
-        "   move.w      %[turnOn],%%d5\n"         // d5: VDP's register with display ON value
-        "   move.b      %[hcLimit],%%d7\n"        // d7: HCounter limit
+        "   move.w      %[turnOff],%%d3\n"        // d3: VDP's register with display OFF value
+        "   move.w      %[turnOn],%%d4\n"         // d4: VDP's register with display ON value
+        "   move.b      %[hcLimit],%%d6\n"        // d6: HCounter limit
         "   movea.l     #0x200000,%%a3\n"         // a3: 0x200000 is the command offset for 16 colors (MOVIE_FRAME_COLORS_PER_STRIP/2) sent to the VDP, used as: cmdAddress += 0x200000
 
         // DMA batch 1
-        "   move.l      %%a0,%%d3\n"            // d3: palInFramePtr
+        "   move.l      %%a0,%%d2\n"            // d2: palInFramePtr
         "   lea         (%c[_MOVIE_FRAME_COLORS_PER_STRIP_DIV_2]*2,%%a0),%%a0\n"  // palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP/2;
         // palCmdForDMA = palIdx == 0 ? 0xC0000080 : 0xC0400080;
         // set base command address once and then we'll add the right offset in next sets
-		"   move.l      #0xC0000080,%%d6\n"     // d6: palCmdForDMA = 0xC0000080
+		"   move.l      #0xC0000080,%%d5\n"     // d5: palCmdForDMA = 0xC0000080
 		"   tst.b       %[palIdx]\n"            // palIdx == 0?
 		"   beq.s       0f\n"
-		"   move.l      #0xC0400080,%%d6\n"     // d6: palCmdForDMA = 0xC0400080
+		"   move.l      #0xC0400080,%%d5\n"     // d5: palCmdForDMA = 0xC0400080
         "0:\n"
         // Setup DMA command
-        "   lsr.w       #1,%%d3\n"              // d3: fromAddrForDMA = (u32) palInFramePtr >> 1;
-            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d3: fromAddrForDMA >> 16
+        "   lsr.w       #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
+            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d2: fromAddrForDMA >> 16
         "   move.w      #0x9500,%%d0\n"         // d0: 0x9500
-        "   or.b        %%d3,%%d0\n"            // d0: 0x9500 | (u8)(fromAddrForDMA)
-        "   move.w      %%d3,-(%%sp)\n"
+        "   or.b        %%d2,%%d0\n"            // d0: 0x9500 | (u8)(fromAddrForDMA)
+        "   move.w      %%d2,-(%%sp)\n"
         "   move.w      #0x9600,%%d1\n"         // d1: 0x9600
         "   or.b        (%%sp)+,%%d1\n"         // d1: 0x9600 | (u8)(fromAddrForDMA >> 8)
-        //"   swap        %%d3\n"                 // d3: fromAddrForDMA >> 16
-        //"   andi.b      #0x7f,%%d3\n"           // d3: (fromAddrForDMA >> 16) & 0x7f
-            // NOTE: previous & 0x7f operation not needed because higher bits were somehow already zeroed
-        //"   move.w      #0x9700,%%d2\n"         // d2: 0x9700
-        //"   or.b        %%d3,%%d2\n"            // d2: 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f)
+        //"   swap        %%d2\n"                 // d2: fromAddrForDMA >> 16
+        //"   andi.w      #0x007f,%%d2\n"         // d2: (fromAddrForDMA >> 16) & 0x7f
+            // NOTE: previous & 0x7f operation might be discarded if higher bits are somehow already zeroed
+        //"   ori.w       #0x9700,%%d2\n"         // d2: 0x9700 | ((fromAddrForDMA >> 16) & 0x7f)
         // Setup DMA length (in word here)
         "   move.w      %[_DMA_9300_LEN_DIV_2],(%%a1)\n"  // *((vu16*) VDP_CTRL_PORT) = 0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/2) & 0xff);
         //"   move.w      %[_DMA_9400_LEN_DIV_2],(%%a1)\n"  // *((vu16*) VDP_CTRL_PORT) = 0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/2) >> 8) & 0xff);
+        // Setup DMA length (in long word here)
+        //"   move.l      %[_DMA_9300_9400_LEN_DIV_2],(%%a1)\n"
         // Setup DMA address
         "   move.w      %%d0,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9500 | (u8)(fromAddrForDMA);
         "   move.w      %%d1,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9600 | (u8)(fromAddrForDMA >> 8);
         //"   move.w      %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
         // wait HCounter
         "1:\n"
-        "   cmp.b       (%%a2),%%d7\n"          // cmp: d7 - (a2). Compare byte size given that d7 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d7 is higher than (a2)
+        "   cmp.b       (%%a2),%%d6\n"          // cmp: d6 - (a2). Compare byte size given that d6 won't be > 160 for our practical cases
+        "   bhi.s       1b\n"                   // loop back if d6 is higher than (a2)
 		// turn off VDP
-		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
+		"   move.w      %%d3,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
         // trigger DMA transfer
-        "   move.l      %%d6,(%%a1)\n"          // *((vu32*) VDP_CTRL_PORT) = palCmdForDMA;
+        "   move.l      %%d5,(%%a1)\n"          // *((vu32*) VDP_CTRL_PORT) = palCmdForDMA;
 		// turn on VDP
-		"   move.w      %%d5,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
+		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
 
         // DMA batch 2
-        "   move.l      %%a0,%%d3\n"            // d3: palInFramePtr
+        "   move.l      %%a0,%%d2\n"            // d2: palInFramePtr
         "   lea         (%c[_MOVIE_FRAME_COLORS_PER_STRIP_DIV_2]*2,%%a0),%%a0\n"  // palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP/2;
         // palCmdForDMA = palCmdAddrrToggle == 0 ? 0xC0200080 : 0xC0600080;
-		"   add.l       %%a3,%%d6\n"            // d6: palCmdForDMA += 0x200000 // previous batch advanced 16 colors (MOVIE_FRAME_COLORS_PER_STRIP/2)
+		"   add.l       %%a3,%%d5\n"            // d5: palCmdForDMA += 0x200000 // previous batch advanced 16 colors (MOVIE_FRAME_COLORS_PER_STRIP/2)
         // Setup DMA command
-        "   lsr.w       #1,%%d3\n"              // d3: fromAddrForDMA = (u32) palInFramePtr >> 1;
-            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d3: fromAddrForDMA >> 16
+        "   lsr.w       #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
+            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d2: fromAddrForDMA >> 16
         "   move.w      #0x9500,%%d0\n"         // d0: 0x9500
-        "   or.b        %%d3,%%d0\n"            // d0: 0x9500 | (u8)(fromAddrForDMA)
-        "   move.w      %%d3,-(%%sp)\n"
+        "   or.b        %%d2,%%d0\n"            // d0: 0x9500 | (u8)(fromAddrForDMA)
+        "   move.w      %%d2,-(%%sp)\n"
         "   move.w      #0x9600,%%d1\n"         // d1: 0x9600
         "   or.b        (%%sp)+,%%d1\n"         // d1: 0x9600 | (u8)(fromAddrForDMA >> 8)
-        //"   swap        %%d3\n"                 // d3: fromAddrForDMA >> 16
-        //"   andi.b      #0x7f,%%d3\n"           // d3: (fromAddrForDMA >> 16) & 0x7f
-            // NOTE: previous & 0x7f operation not needed because higher bits were somehow already zeroed
-        //"   move.w      #0x9700,%%d2\n"         // d2: 0x9700
-        //"   or.b        %%d3,%%d2\n"            // d2: 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f)
+        //"   swap        %%d2\n"                 // d2: fromAddrForDMA >> 16
+        //"   andi.w      #0x007f,%%d2\n"         // d2: (fromAddrForDMA >> 16) & 0x7f
+            // NOTE: previous & 0x7f operation might be discarded if higher bits are somehow already zeroed
+        //"   ori.w       #0x9700,%%d2\n"         // d2: 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f)
         // Setup DMA length (in word here)
         "   move.w      %[_DMA_9300_LEN_DIV_2],(%%a1)\n"  // *((vu16*) VDP_CTRL_PORT) = 0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/2) & 0xff);
         //"   move.w      %[_DMA_9400_LEN_DIV_2],(%%a1)\n"  // *((vu16*) VDP_CTRL_PORT) = 0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/2) >> 8) & 0xff);
+        // Setup DMA length (in long word here)
+        //"   move.l      %[_DMA_9300_9400_LEN_DIV_2],(%%a1)\n"
         // Setup DMA address
         "   move.w      %%d0,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9500 | (u8)(fromAddrForDMA);
         "   move.w      %%d1,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9600 | (u8)(fromAddrForDMA >> 8);
@@ -449,14 +479,14 @@ static FORCE_INLINE void swapPalettes_DMA_2_cmds_ASM () {
         "   move.l      %%a0,%c[palInFramePtr]\n"                       // store current pointer value of a0 into variable palInFramePtr
         // wait HCounter
         "1:\n"
-        "   cmp.b       (%%a2),%%d7\n"          // cmp: d7 - (a2). Compare byte size given that d7 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d7 is higher than (a2)
+        "   cmp.b       (%%a2),%%d6\n"          // cmp: d6 - (a2). Compare byte size given that d6 won't be > 160 for our practical cases
+        "   bhi.s       1b\n"                   // loop back if d6 is higher than (a2)
 		// turn off VDP
-		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
+		"   move.w      %%d3,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
         // trigger DMA transfer
-        "   move.l      %%d6,(%%a1)\n"          // *((vu32*) VDP_CTRL_PORT) = palCmdForDMA;
+        "   move.l      %%d5,(%%a1)\n"          // *((vu32*) VDP_CTRL_PORT) = palCmdForDMA;
 		// turn on VDP
-		"   move.w      %%d5,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
+		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
 		: 
 		[palInFramePtr] "+m" (palInFramePtr),
 		[palIdx] "+m" (palCmdAddrrToggle)
@@ -466,11 +496,12 @@ static FORCE_INLINE void swapPalettes_DMA_2_cmds_ASM () {
         [hcLimit] "i" (152),
         [_DMA_9300_LEN_DIV_2] "i" (0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/2) & 0xff)),
         [_DMA_9400_LEN_DIV_2] "i" (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/2) >> 8) & 0xff)),
+        [_DMA_9300_9400_LEN_DIV_2] "i" ( ((0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/2) & 0xff)) << 16) | (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/2) >> 8) & 0xff)) ),
 		[_MOVIE_FRAME_COLORS_PER_STRIP] "i" (MOVIE_FRAME_COLORS_PER_STRIP),
         [_MOVIE_FRAME_COLORS_PER_STRIP_DIV_2] "i" (MOVIE_FRAME_COLORS_PER_STRIP/2)
 		:
         // backup registers used in the asm implementation including the scratch pad since this code is used in an interrupt call.
-		"d0","d1","d2","d3","d4","d5","d6","d7","a0","a1","a2","a3","cc","memory"
+		"d0","d1","d2","d3","d4","d5","d6","a0","a1","a2","a3","cc","memory"
     );
 }
 
@@ -550,109 +581,112 @@ static FORCE_INLINE void swapPalettes_DMA_3_cmds_ASM () {
         "   movea.l     %c[palInFramePtr],%%a0\n" // a0: palInFramePtr
         "   lea         0xC00004,%%a1\n"          // a1: VDP_CTRL_PORT 0xC00004
         "   lea         5(%%a1),%%a2\n"           // a2: HCounter address 0xC00009 (VDP_HVCOUNTER_PORT + 1)
-        "   move.w      %[turnOff],%%d4\n"        // d4: VDP's register with display OFF value
-        "   move.w      %[turnOn],%%d5\n"         // d5: VDP's register with display ON value
-        "   move.b      %[hcLimit],%%d7\n"        // d7: HCounter limit
+        "   move.w      %[turnOff],%%d3\n"        // d3: VDP's register with display OFF value
+        "   move.w      %[turnOn],%%d4\n"         // d4: VDP's register with display ON value
+        "   move.b      %[hcLimit],%%d6\n"        // d6: HCounter limit
         "   movea.l     #0x140000,%%a3\n"         // a3: 0x140000 is the command offset for 10 colors (MOVIE_FRAME_COLORS_PER_STRIP/3) sent to the VDP, used as: cmdAddress += 0x140000
 
         // DMA batch 1
-        "   move.l      %%a0,%%d3\n"            // d3: palInFramePtr
+        "   move.l      %%a0,%%d2\n"            // d2: palInFramePtr
         "   lea         (%c[_MOVIE_FRAME_COLORS_PER_STRIP_DIV_3]*2,%%a0),%%a0\n"  // palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP/3;
         // palCmdForDMA = palIdx == 0 ? 0xC0000080 : 0xC0400080;
         // set base command address once and then we'll add the right offset in next sets
-		"   move.l      #0xC0000080,%%d6\n"     // d6: palCmdForDMA = 0xC0000080
+		"   move.l      #0xC0000080,%%d5\n"     // d5: palCmdForDMA = 0xC0000080
 		"   tst.b       %[palIdx]\n"            // palIdx == 0?
 		"   beq.s       0f\n"
-		"   move.l      #0xC0400080,%%d6\n"     // d6: palCmdForDMA = 0xC0400080
+		"   move.l      #0xC0400080,%%d5\n"     // d5: palCmdForDMA = 0xC0400080
         "0:\n"
         // Setup DMA command
-        "   lsr.w       #1,%%d3\n"              // d3: fromAddrForDMA = (u32) palInFramePtr >> 1;
-            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d3: fromAddrForDMA >> 16
+        "   lsr.w       #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
+            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d2: fromAddrForDMA >> 16
         "   move.w      #0x9500,%%d0\n"         // d0: 0x9500
-        "   or.b        %%d3,%%d0\n"            // d0: 0x9500 | (u8)(fromAddrForDMA)
-        "   move.w      %%d3,-(%%sp)\n"
+        "   or.b        %%d2,%%d0\n"            // d0: 0x9500 | (u8)(fromAddrForDMA)
+        "   move.w      %%d2,-(%%sp)\n"
         "   move.w      #0x9600,%%d1\n"         // d1: 0x9600
         "   or.b        (%%sp)+,%%d1\n"         // d1: 0x9600 | (u8)(fromAddrForDMA >> 8)
-        //"   swap        %%d3\n"                 // d3: fromAddrForDMA >> 16
-        //"   andi.b      #0x7f,%%d3\n"           // d3: (fromAddrForDMA >> 16) & 0x7f
-            // NOTE: previous & 0x7f operation not needed because higher bits were somehow already zeroed
-        //"   move.w      #0x9700,%%d2\n"         // d2: 0x9700
-        //"   or.b        %%d3,%%d2\n"            // d2: 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f)
+        //"   swap        %%d2\n"                 // d2: fromAddrForDMA >> 16
+        //"   andi.w      #0x007f,%%d2\n"         // d2: (fromAddrForDMA >> 16) & 0x7f
+            // NOTE: previous & 0x7f operation might be discarded if higher bits are somehow already zeroed
+        //"   ori.w       #0x9700,%%d2\n"         // d2: 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f)
         // Setup DMA length (in word here)
         "   move.w      %[_DMA_9300_LEN_DIV_3],(%%a1)\n"  // *((vu16*) VDP_CTRL_PORT) = 0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/3) & 0xff);
         //"   move.w      %[_DMA_9400_LEN_DIV_3],(%%a1)\n"  // *((vu16*) VDP_CTRL_PORT) = 0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/3) >> 8) & 0xff);
+        // Setup DMA length (in long word here)
+        //"   move.l      %[_DMA_9300_9400_LEN_DIV_3],(%%a1)\n"
         // Setup DMA address
         "   move.w      %%d0,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9500 | (u8)(fromAddrForDMA);
         "   move.w      %%d1,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9600 | (u8)(fromAddrForDMA >> 8);
         //"   move.w      %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
         // wait HCounter
         "1:\n"
-        "   cmp.b       (%%a2),%%d7\n"          // cmp: d7 - (a2). Compare byte size given that d7 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d7 is higher than (a2)
+        "   cmp.b       (%%a2),%%d6\n"          // cmp: d6 - (a2). Compare byte size given that d6 won't be > 160 for our practical cases
+        "   bhi.s       1b\n"                   // loop back if d6 is higher than (a2)
 		// turn off VDP
-		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
+		"   move.w      %%d3,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
         // trigger DMA transfer
-        "   move.l      %%d6,(%%a1)\n"          // *((vu32*) VDP_CTRL_PORT) = palCmdForDMA;
+        "   move.l      %%d5,(%%a1)\n"          // *((vu32*) VDP_CTRL_PORT) = palCmdForDMA;
 		// turn on VDP
-		"   move.w      %%d5,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
+		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
 
         // DMA batch 2
-        "   move.l      %%a0,%%d3\n"            // d3: palInFramePtr
+        "   move.l      %%a0,%%d2\n"            // d2: palInFramePtr
         "   lea         (%c[_MOVIE_FRAME_COLORS_PER_STRIP_DIV_3]*2,%%a0),%%a0\n"  // palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP/3;
         // palCmdForDMA = palCmdAddrrToggle == 0 ? 0xC0140080 : 0xC0540080;
-		"   add.l       %%a3,%%d6\n"            // d6: palCmdForDMA += 0x140000 // previous batch advanced 10 colors (MOVIE_FRAME_COLORS_PER_STRIP/3)
+		"   add.l       %%a3,%%d5\n"            // d5: palCmdForDMA += 0x140000 // previous batch advanced 10 colors (MOVIE_FRAME_COLORS_PER_STRIP/3)
         // Setup DMA command
-        "   lsr.w       #1,%%d3\n"              // d3: fromAddrForDMA = (u32) palInFramePtr >> 1;
-            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d3: fromAddrForDMA >> 16
+        "   lsr.w       #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
+            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d2: fromAddrForDMA >> 16
         "   move.w      #0x9500,%%d0\n"         // d0: 0x9500
-        "   or.b        %%d3,%%d0\n"            // d0: 0x9500 | (u8)(fromAddrForDMA)
-        "   move.w      %%d3,-(%%sp)\n"
+        "   or.b        %%d2,%%d0\n"            // d0: 0x9500 | (u8)(fromAddrForDMA)
+        "   move.w      %%d2,-(%%sp)\n"
         "   move.w      #0x9600,%%d1\n"         // d1: 0x9600
         "   or.b        (%%sp)+,%%d1\n"         // d1: 0x9600 | (u8)(fromAddrForDMA >> 8)
-        //"   swap        %%d3\n"                 // d3: fromAddrForDMA >> 16
-        //"   andi.b      #0x7f,%%d3\n"           // d3: (fromAddrForDMA >> 16) & 0x7f
-            // NOTE: previous & 0x7f operation not needed because higher bits were somehow already zeroed
-        //"   move.w      #0x9700,%%d2\n"         // d2: 0x9700
-        //"   or.b        %%d3,%%d2\n"            // d2: 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f)
+        //"   swap        %%d2\n"                 // d2: fromAddrForDMA >> 16
+        //"   andi.w      #0x007f,%%d2\n"         // d2: (fromAddrForDMA >> 16) & 0x7f
+            // NOTE: previous & 0x7f operation might be discarded if higher bits are somehow already zeroed
+        //"   ori.w       #0x9700,%%d2\n"         // d2: 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f)
         // Setup DMA length (in word here)
         "   move.w      %[_DMA_9300_LEN_DIV_3],(%%a1)\n"  // *((vu16*) VDP_CTRL_PORT) = 0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/3) & 0xff);
         //"   move.w      %[_DMA_9400_LEN_DIV_3],(%%a1)\n"  // *((vu16*) VDP_CTRL_PORT) = 0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/3) >> 8) & 0xff);
+        // Setup DMA length (in long word here)
+        //"   move.l      %[_DMA_9300_9400_LEN_DIV_3],(%%a1)\n"
         // Setup DMA address
         "   move.w      %%d0,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9500 | (u8)(fromAddrForDMA);
         "   move.w      %%d1,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9600 | (u8)(fromAddrForDMA >> 8);
         //"   move.w      %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
         // wait HCounter
         "1:\n"
-        "   cmp.b       (%%a2),%%d7\n"          // cmp: d7 - (a2). Compare byte size given that d7 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d7 is higher than (a2)
+        "   cmp.b       (%%a2),%%d6\n"          // cmp: d6 - (a2). Compare byte size given that d6 won't be > 160 for our practical cases
+        "   bhi.s       1b\n"                   // loop back if d6 is higher than (a2)
 		// turn off VDP
-		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
+		"   move.w      %%d3,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
         // trigger DMA transfer
-        "   move.l      %%d6,(%%a1)\n"          // *((vu32*) VDP_CTRL_PORT) = palCmdForDMA;
+        "   move.l      %%d5,(%%a1)\n"          // *((vu32*) VDP_CTRL_PORT) = palCmdForDMA;
 		// turn on VDP
-		"   move.w      %%d5,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
+		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
 
         // DMA batch 3
-        "   move.l      %%a0,%%d3\n"            // d3: palInFramePtr
+        "   move.l      %%a0,%%d2\n"            // d2: palInFramePtr
         "   lea         (%c[_MOVIE_FRAME_COLORS_PER_STRIP_DIV_3_REM]*2,%%a0),%%a0\n"  // palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP/3 + REMAINDER;
         // palCmdForDMA = palCmdAddrrToggle == 0 ? 0xC0280080 : 0xC0680080;
-		"   add.l       %%a3,%%d6\n"            // d6: palCmdForDMA += 0x140000 // previous batch advanced 10 colors (MOVIE_FRAME_COLORS_PER_STRIP/3)
+		"   add.l       %%a3,%%d5\n"            // d5: palCmdForDMA += 0x140000 // previous batch advanced 10 colors (MOVIE_FRAME_COLORS_PER_STRIP/3)
         // Setup DMA command
-        "   lsr.w       #1,%%d3\n"              // d3: fromAddrForDMA = (u32) palInFramePtr >> 1;
-            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d3: fromAddrForDMA >> 16
+        "   lsr.w       #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
+            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d2: fromAddrForDMA >> 16
         "   move.w      #0x9500,%%d0\n"         // d0: 0x9500
-        "   or.b        %%d3,%%d0\n"            // d0: 0x9500 | (u8)(fromAddrForDMA)
-        "   move.w      %%d3,-(%%sp)\n"
+        "   or.b        %%d2,%%d0\n"            // d0: 0x9500 | (u8)(fromAddrForDMA)
+        "   move.w      %%d2,-(%%sp)\n"
         "   move.w      #0x9600,%%d1\n"         // d1: 0x9600
         "   or.b        (%%sp)+,%%d1\n"         // d1: 0x9600 | (u8)(fromAddrForDMA >> 8)
-        //"   swap        %%d3\n"                 // d3: fromAddrForDMA >> 16
-        //"   andi.b      #0x7f,%%d3\n"           // d3: (fromAddrForDMA >> 16) & 0x7f
-            // NOTE: previous & 0x7f operation not needed because higher bits were somehow already zeroed
-        //"   move.w      #0x9700,%%d2\n"         // d2: 0x9700
-        //"   or.b        %%d3,%%d2\n"            // d2: 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f)
+        //"   swap        %%d2\n"                 // d2: fromAddrForDMA >> 16
+        //"   andi.w      #0x007f,%%d2\n"         // d2: (fromAddrForDMA >> 16) & 0x7f
+            // NOTE: previous & 0x7f operation might be discarded if higher bits are somehow already zeroed
+        //"   ori.w       #0x9700,%%d2\n"         // d2: 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f)
         // Setup DMA length (in word here)
         "   move.w      %[_DMA_9300_LEN_DIV_3_REM],(%%a1)\n"  // *((vu16*) VDP_CTRL_PORT) = 0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/3 + REMAINDER) & 0xff);
         //"   move.w      %[_DMA_9400_LEN_DIV_3_REM],(%%a1)\n"  // *((vu16*) VDP_CTRL_PORT) = 0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/3 + REMAINDER) >> 8) & 0xff);
+        // Setup DMA length (in long word here)
+        //"   move.l      %[_DMA_9300_9400_LEN_DIV_3_REM],(%%a1)\n"
         // Setup DMA address
         "   move.w      %%d0,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9500 | (u8)(fromAddrForDMA);
         "   move.w      %%d1,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9600 | (u8)(fromAddrForDMA >> 8);
@@ -662,14 +696,14 @@ static FORCE_INLINE void swapPalettes_DMA_3_cmds_ASM () {
         "   move.l      %%a0,%c[palInFramePtr]\n"                       // store current pointer value of a0 into variable palInFramePtr
         // wait HCounter
         "1:\n"
-        "   cmp.b       (%%a2),%%d7\n"          // cmp: d7 - (a2). Compare byte size given that d7 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d7 is higher than (a2)
+        "   cmp.b       (%%a2),%%d6\n"          // cmp: d6 - (a2). Compare byte size given that d6 won't be > 160 for our practical cases
+        "   bhi.s       1b\n"                   // loop back if d6 is higher than (a2)
 		// turn off VDP
-		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
+		"   move.w      %%d3,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
         // trigger DMA transfer
-        "   move.l      %%d6,(%%a1)\n"          // *((vu32*) VDP_CTRL_PORT) = palCmdForDMA;
+        "   move.l      %%d5,(%%a1)\n"          // *((vu32*) VDP_CTRL_PORT) = palCmdForDMA;
 		// turn on VDP
-		"   move.w      %%d5,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
+		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
 		: 
 		[palInFramePtr] "+m" (palInFramePtr),
 		[palIdx] "+m" (palCmdAddrrToggle)
@@ -679,14 +713,16 @@ static FORCE_INLINE void swapPalettes_DMA_3_cmds_ASM () {
         [hcLimit] "i" (152),
         [_DMA_9300_LEN_DIV_3] "i" (0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/3) & 0xff)),
         [_DMA_9400_LEN_DIV_3] "i" (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/3) >> 8) & 0xff)),
+        [_DMA_9300_9400_LEN_DIV_3] "i" ( ((0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/3) & 0xff)) << 16) | (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/3) >> 8) & 0xff)) ),
         [_DMA_9300_LEN_DIV_3_REM] "i" (0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/3 + MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(3)) & 0xff)),
         [_DMA_9400_LEN_DIV_3_REM] "i" (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/3 + MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(3)) >> 8) & 0xff)),
+        [_DMA_9300_9400_LEN_DIV_3_REM] "i" ( ((0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/3 + MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(3)) & 0xff)) << 16) | (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/3 + MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(3)) >> 8) & 0xff)) ),
 		[_MOVIE_FRAME_COLORS_PER_STRIP] "i" (MOVIE_FRAME_COLORS_PER_STRIP),
         [_MOVIE_FRAME_COLORS_PER_STRIP_DIV_3] "i" (MOVIE_FRAME_COLORS_PER_STRIP/3),
         [_MOVIE_FRAME_COLORS_PER_STRIP_DIV_3_REM] "i" (MOVIE_FRAME_COLORS_PER_STRIP/3 + MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(3))
 		:
         // backup registers used in the asm implementation including the scratch pad since this code is used in an interrupt call.
-		"d0","d1","d2","d3","d4","d5","d6","d7","a0","a1","a2","a3","cc","memory"
+		"d0","d1","d2","d3","d4","d5","d6","a0","a1","a2","a3","cc","memory"
     );
 }
 
@@ -769,7 +805,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_NTSC () {
     }
     else {
         vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
-        swapPalettes_DMA_2_cmds_ASM();
+        swapPalettes_DMA_3_cmds();
     }
 }
 
@@ -779,6 +815,6 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_PAL () {
     }
     else {
         vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
-        swapPalettes_DMA_2_cmds_ASM();
+        swapPalettes_DMA_3_cmds();
     }
 }

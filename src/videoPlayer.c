@@ -7,29 +7,12 @@
 #include "decomp/rlew.h"
 #include "stopwatch.h"
 #include "utils.h"
+#include "memcpy.h"
 
 static u32* unpackedTilesetChunk = NULL;
 static u16* unpackedTilemap = NULL;
 static u16* unpackedPalsRender = NULL;
 static u16* unpackedPalsBuffer = NULL;
-
-// This method adds the extended width to the destination pointer after each bulk of MOVIE_FRAME_HEIGHT_IN_TILES.
-extern void memcpy_tilemap_asm (u8* from, u8* to);
-
-/// lenBytes is multiple of 4. So we can use long words to copy 4 bytes in one instruction.
-/// By printing lenBytes we got: 64, 128
-static FORCE_INLINE void memcpy_asm (u16 lenBytes, u8* from, u8* to) {
-    __asm volatile (
-        "lsr.w    #2,%2\n\t"        // divide by 4
-        "subq.w   #1,%2\n\t"        // prepare for dbra/dbf
-        "1:\n\t"
-        "move.l   (%0)+,(%1)+\n\t"
-        "dbra     %2,1b"            // dbra/dbf: decrement %2, test if %2 >= 0 then branch back. When %2 = -1 then exits loop
-        : 
-        : "a" (from), "a" (to), "d" (lenBytes)
-        : "cc","memory"
-    );
-}
 
 /// @brief See original Z80_setBusProtection() method.
 /// NOTE: This implementation doesn't disable interrupts because at the moment it's called no interrupt is expected to occur.
@@ -94,8 +77,6 @@ static FORCE_INLINE void waitVInt_AND_flushDMA () {
     //     waitVCounterReg(MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL + 2*HINT_COUNTER_FOR_COLORS_UPDATE);
     // else
     //     waitVCounterReg(MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + 2*HINT_COUNTER_FOR_COLORS_UPDATE);
-    // // Turn off display here in case this code reaches before VInt is triggered, it will be turned on in HInt
-    // turnOffVDP(0x74);
 
 	waitVInt();
 
@@ -110,14 +91,7 @@ static FORCE_INLINE void waitVInt_AND_flushDMA () {
 
 	setBusProtection_Z80(FALSE);
 
-	// This needed for DMA setup used in HInt, and likely needed for the CPU HInt too.
-	// *((vu16*) VDP_CTRL_PORT) = 0x8F00 | 2; // instead of VDP_setAutoInc(2) due to additionals read and write from/to internal regValues[]
-
 	turnOnVDP(0x74);
-
-	// We can perform previous two operations in one call to VDP control port by sending u32 data
-	// u32 twoWrites = (0x8F00 | 2) | ((0x8100 | (116 | 0x40)) << 16);
-	// *(vu32*) VDP_CTRL_PORT = twoWrites;
 
     // TODO: update joy here like in raycasting project
 }
@@ -390,7 +364,6 @@ void playMovie () {
     // - Move the SAT (Sprite Allocation Table) where the HScroll table is located: 0xF000. This allows us to setup next thing.
     // - Now SAT and HScroll table are at 0xF000 and it seems only first 32 bytes (0x20) have an effect in the image, 
     //   hence we have additional free VRAM from 0xF020 to 0xFFFF -> 4064 bytes = 127 tiles.
-    VDP_setBGAAddress(VDP_getBGAAddress());
     VDP_setBGBAddress(VDP_getBGAAddress());
     VDP_setWindowAddress(VDP_getBGAAddress());
     VDP_setSpriteListAddress(VDP_getHScrollTableAddress());
