@@ -58,8 +58,10 @@ const tilesCacheFile_countLines = countTilesCacheLines("res/" + tilesCacheId + "
 const cacheFixedTilesNum = 127;
 const cacheVarTilesNum = (tilesCacheFile_countLines - cacheFixedTilesNum);
 const cacheStartIndexInVRAM_var = 1792 - cacheVarTilesNum;
-const cacheStartIndexInVRAM_fixed = 0xF020/32;
-const cacheStartIndexInVRAM_fixed_str = "0xF020/32"
+const cacheRangesInVRAM_fixed = [ {start: 0xF020/32, length: cacheFixedTilesNum} ];
+const cacheRangesInVRAM_fixed_str = cacheRangesInVRAM_fixed
+                                        .map(range => `${range.start}-${range.length}`)
+                                        .join(','); // Comma separated list of ranges
 
 // Ensure no override happens between frame tiles and cache tiles
 checkCacheStartIndexAfterTilesets(loadTilesCache, cacheStartIndexInVRAM_var, resPropertiesMap);
@@ -146,6 +148,28 @@ else if (tilesetSplit == 3) {
 	tilesetMaxChunk3Size = resPropertiesMap.get('MAX_TILESET_CHUNK_3_SIZE_FOR_SPLIT_IN_3');
 }
 
+// --------- Generate movie_cache_consts.h file
+fs.writeFileSync(`${GEN_INC_DIR}/movie_cache_consts.h`, 
+`#ifndef _MOVIE_CACHE_CONSTS_H
+#define _MOVIE_CACHE_CONSTS_H
+
+#define MOVIE_TILES_CACHE_START_INDEX_VAR ${cacheStartIndexInVRAM_var}
+#define MOVIE_TILES_CACHE_TILES_NUM_VAR ${cacheVarTilesNum}
+
+typedef struct {
+    unsigned short start;
+    unsigned short length;
+} RangeFixedVRAM;
+
+#define MOVIE_TILES_CACHE_RANGES_NUM ${cacheRangesInVRAM_fixed.length}
+
+const RangeFixedVRAM cacheRangesInVRAM_fixed [MOVIE_TILES_CACHE_RANGES_NUM] = {
+    ${cacheRangesInVRAM_fixed.map(range => `{ ${range.start}, ${range.length} }`).join(',\n    ')}
+};
+
+#endif // _MOVIE_CACHE_CONSTS_H
+`);
+
 // --------- Generate movie_data_consts.h file
 fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`, 
 `#ifndef _MOVIE_DATA_CONSTS_H
@@ -178,11 +202,6 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 #define VIDEO_FRAME_TILESET_MAX_CHUNK_1_SIZE ${tilesetMaxChunk1Size}
 #define VIDEO_FRAME_TILESET_MAX_CHUNK_2_SIZE ${tilesetMaxChunk2Size}
 #define VIDEO_FRAME_TILESET_MAX_CHUNK_3_SIZE ${tilesetMaxChunk3Size}
-
-#define MOVIE_TILES_CACHE_START_INDEX_VAR ${cacheStartIndexInVRAM_var}
-#define MOVIE_TILES_CACHE_TILES_NUM_VAR ${cacheVarTilesNum}
-#define MOVIE_TILES_CACHE_START_INDEX_FIXED ${cacheStartIndexInVRAM_fixed} // ${cacheStartIndexInVRAM_fixed_str}
-#define MOVIE_TILES_CACHE_TILES_NUM_FIXED ${cacheFixedTilesNum}
 
 #endif // _MOVIE_DATA_CONSTS_H
 `);
@@ -222,11 +241,11 @@ const ${type_Palette32AllStrips}* pals_data[MOVIE_FRAME_COUNT] = {
 // Eg: "TileMapCustom, ImageNoPalsSplit31, Palette32AllStripsSplit3"
 const headerAppenderAllCustom = `HEADER_APPENDER_ALL_CUSTOM  headerAllCustomTypes` + '\n\n';
 
-// TILES_CACHE_LOADER tilesCacheId enable cacheStartIndexInVRAM_var cacheVarTilesNum cacheStartIndexInVRAM_fixed cacheFixedTilesNum filename compression compressionCustom
-// Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1576  216  1921  127  movieFrames_cache.txt  APLIB  NONE
+// TILES_CACHE_LOADER tilesCacheId enable cacheStartIndexInVRAM_var cacheVarTilesNum cacheRangesInVRAM_fixed filename compression compressionCustom
+// Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1576  216  1921-127  movieFrames_cache.txt  APLIB  NONE
 // Flag 'enable' possible values: FALSE, TRUE
 const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache?"TRUE":"FALSE"}`
-		+ `  ${cacheStartIndexInVRAM_var}  ${cacheVarTilesNum}  ${cacheStartIndexInVRAM_fixed}  ${cacheFixedTilesNum}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
+		+ `  ${cacheStartIndexInVRAM_var}  ${cacheVarTilesNum}  ${cacheRangesInVRAM_fixed_str}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
 
 // TILES_CACHE_STATS_ENABLER tilesCacheId enable minTilesetSize
 // Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  500

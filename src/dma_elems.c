@@ -9,7 +9,8 @@ DMAOpInfo dma_elem2;
 bool dma_elem1_is_set = FALSE;
 bool dma_elem2_is_set = FALSE;
 
-FORCE_INLINE void enqueueDMA_elem (void* from, u16 to, u16 len, bool enqueueAtSlot1) {
+FORCE_INLINE void enqueueDMA_elem (void* from, u16 to, u16 len, bool enqueueAtSlot1)
+{
     u32 fromAddr = (u32) from;
 
     if (enqueueAtSlot1) {
@@ -44,7 +45,8 @@ FORCE_INLINE void enqueueDMA_elem (void* from, u16 to, u16 len, bool enqueueAtSl
     #endif
 }
 
-FORCE_INLINE void flushDMA_elems () {
+FORCE_INLINE void flushDMA_elems ()
+{
     if (dma_elem1_is_set) {
         dma_elem1_is_set = FALSE;
         DMAOpInfo* elem1_ptr = &dma_elem1;

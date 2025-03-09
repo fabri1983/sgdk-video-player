@@ -15,7 +15,8 @@
 
 /// @brief Set bit 6 (64 decimal, 0x40 hexa) of reg 1.
 /// @param reg01 VDP's Reg 1 holds other bits than just VDP ON/OFF status, so we need its current value.
-FORCE_INLINE void turnOffVDP (u8 reg01) {
+FORCE_INLINE void turnOffVDP (u8 reg01)
+{
     //reg01 &= ~0x40;
     //*(vu16*) VDP_CTRL_PORT = 0x8100 | reg01;
     *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
@@ -23,7 +24,8 @@ FORCE_INLINE void turnOffVDP (u8 reg01) {
 
 /// @brief Set bit 6 (64 decimal, 0x40 hexa) of reg 1.
 /// @param reg01 VDP's Reg 1 holds other bits than just VDP ON/OFF status, so we need its current value.
-FORCE_INLINE void turnOnVDP (u8 reg01) {
+FORCE_INLINE void turnOnVDP (u8 reg01)
+{
     //reg01 |= 0x40;
     //*(vu16*) VDP_CTRL_PORT = 0x8100 | reg01;
     *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
@@ -32,7 +34,8 @@ FORCE_INLINE void turnOnVDP (u8 reg01) {
 /**
  * Wait until HCounter 0xC00009 reaches nth position (actually the (n*2)th pixel since the VDP counts by 2).
 */
-static FORCE_INLINE void waitHCounter_opt1 (u8 n) {
+static FORCE_INLINE void waitHCounter_opt1 (u8 n)
+{
     u32 regA = VDP_HVCOUNTER_PORT + 1; // HCounter address is 0xC00009
     __asm volatile (
         "1:\t\n" 
@@ -48,7 +51,8 @@ static FORCE_INLINE void waitHCounter_opt1 (u8 n) {
 /**
  * Wait until HCounter 0xC00009 reaches nth position (actually the (n*2)th pixel since the VDP counts by 2).
 */
-static FORCE_INLINE void waitHCounter_opt2 (u8 n) {
+static FORCE_INLINE void waitHCounter_opt2 (u8 n)
+{
     u32* regA; // placeholder used to indicate the use of an Ax register
     __asm volatile (
         "move.l    #0xC00009,%0\n\t" // Load HCounter (VDP_HVCOUNTER_PORT + 1 = 0xC00009) into an An register
@@ -88,7 +92,8 @@ FORCE_INLINE void waitVCounterReg (u16 n)
  * \param len How many colors to move.
  * \param fromAddr Must be >> 1 (shifted to right).
 */
-FORCE_INLINE void setupDMAForPals (u16 len, u32 fromAddr) {
+FORCE_INLINE void setupDMAForPals (u16 len, u32 fromAddr)
+{
     // Uncomment if you previously change it to 1 (CPU access to VRAM is 1 byte length, and 2 bytes length for CRAM and VSRAM)
     //VDP_setAutoInc(2);
 /*
@@ -136,22 +141,26 @@ static u16* palInFramePtr; // pals pointer increased in every HInt call cycle
 static u16 palCmdAddrrToggle = HINT_PALS_CMD_ADDR_RESET_VALUE; // used to toggle between the two different CRAM cmd addresses used to send the pals
 static u16 vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1;
 
-void setMoviePalsPointerBeforeInterrupts (u16* rootPalsPtr) {
+void setMoviePalsPointerBeforeInterrupts (u16* rootPalsPtr)
+{
     palInFrameRootPtr = rootPalsPtr;
     palInFramePtr = rootPalsPtr;
 }
 
-void setMoviePalsPointer (u16* rootPalsPtr) {
+void setMoviePalsPointer (u16* rootPalsPtr)
+{
     palInFrameRootPtr = rootPalsPtr;
 }
 
-void VIntMovieCallback () {
+void VIntMovieCallback ()
+{
 	palInFramePtr = palInFrameRootPtr; // Resets to 1st strip's palettes due to ptr modification made by HInt
 	palCmdAddrrToggle = HINT_PALS_CMD_ADDR_RESET_VALUE; // Resets pal index due to modification made by HInt.
 	vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1; // Resets due to modification made by HInt
 }
 
-static FORCE_INLINE void swapPalettes_CPU_ASM () {
+static FORCE_INLINE void swapPalettes_CPU_ASM ()
+{
     __asm volatile (
         // prepare_regs
         "   movea.l     %c[palInFramePtr],%%a0\n" // a0: palInFramePtr
@@ -282,7 +291,8 @@ static FORCE_INLINE void swapPalettes_CPU_ASM () {
     );
 }
 
-static FORCE_INLINE void swapPalettes_CPU () {
+static FORCE_INLINE void swapPalettes_CPU ()
+{
     /*
         Every command is CRAM address to start write 4 colors (2 times u32 bits)
         u32 cmd1st = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 0) * 2));
@@ -375,7 +385,8 @@ static FORCE_INLINE void swapPalettes_CPU () {
 	turnOnVDP(0x74);
 }
 
-HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC () {
+HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC ()
+{
 	if (vcounterManual < MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC || vcounterManual > MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC) {
 	    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
     }
@@ -385,7 +396,8 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC () {
     }
 }
 
-HINTERRUPT_CALLBACK HIntCallback_CPU_PAL () {
+HINTERRUPT_CALLBACK HIntCallback_CPU_PAL ()
+{
 	if (vcounterManual < MOVIE_HINT_COLORS_SWAP_START_SCANLINE_PAL || vcounterManual > MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL) {
 	    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
     }
@@ -395,7 +407,8 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_PAL () {
     }
 }
 
-static FORCE_INLINE void swapPalettes_DMA_2_cmds_ASM () {
+static FORCE_INLINE void swapPalettes_DMA_2_cmds_ASM ()
+{
     __asm volatile (
         // prepare_regs
         "   movea.l     %c[palInFramePtr],%%a0\n" // a0: palInFramePtr
@@ -505,7 +518,8 @@ static FORCE_INLINE void swapPalettes_DMA_2_cmds_ASM () {
     );
 }
 
-static FORCE_INLINE void swapPalettes_DMA_2_cmds () {
+static FORCE_INLINE void swapPalettes_DMA_2_cmds ()
+{
     /*
         With 2 DMA commands and same DMA lengths:
         Every command is CRAM address to start DMA MOVIE_FRAME_COLORS_PER_STRIP/2 colors
@@ -563,7 +577,8 @@ MEMORY_BARRIER();
     turnOnVDP(0x74);
 }
 
-static FORCE_INLINE void swapPalettes_DMA_3_cmds_ASM () {
+static FORCE_INLINE void swapPalettes_DMA_3_cmds_ASM ()
+{
     /*
         With 3 DMA commands and different DMA lenghts:
         Every command is CRAM address to start DMA MOVIE_FRAME_COLORS_PER_STRIP/3. The last one issues MOVIE_FRAME_COLORS_PER_STRIP/3 + REMAINDER.
@@ -726,7 +741,8 @@ static FORCE_INLINE void swapPalettes_DMA_3_cmds_ASM () {
     );
 }
 
-static FORCE_INLINE void swapPalettes_DMA_3_cmds () {
+static FORCE_INLINE void swapPalettes_DMA_3_cmds ()
+{
     /*
         With 3 DMA commands and different DMA lenghts:
         Every command is CRAM address to start DMA 8 colors, then 12 more colors, and last 12 colors. Totaling 32 colors.
@@ -799,7 +815,8 @@ MEMORY_BARRIER();
     turnOnVDP(0x74);
 }
 
-HINTERRUPT_CALLBACK HIntCallback_DMA_NTSC () {
+HINTERRUPT_CALLBACK HIntCallback_DMA_NTSC ()
+{
 	if (vcounterManual < MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC || vcounterManual > MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC) {
 	    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
     }
@@ -809,7 +826,8 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_NTSC () {
     }
 }
 
-HINTERRUPT_CALLBACK HIntCallback_DMA_PAL () {
+HINTERRUPT_CALLBACK HIntCallback_DMA_PAL ()
+{
 	if (vcounterManual < MOVIE_HINT_COLORS_SWAP_START_SCANLINE_PAL || vcounterManual > MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL) {
 	    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
     }

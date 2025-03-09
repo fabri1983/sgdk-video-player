@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,8 +51,7 @@ public class TilesCacheManager {
 
 	private static Map<String, Integer> cacheStartIndexInVRAM_var_ById = new HashMap<>();
 	private static Map<String, Integer> cacheVarTilesNum_ById = new HashMap<>();
-	private static Map<String, Integer> cacheStartIndexInVRAM_fixed_ById = new HashMap<>();
-	private static Map<String, Integer> cacheFixedTilesNum_ById = new HashMap<>();
+	private static Map<String, List<Entry<Integer,Integer>>> cacheRangesInVRAM_fixed_ById = new HashMap<>();
 
 	public static void setMinTilesetSizeForStatsFor (String cacheId, int minTilesetSize) {
 		minTilesetSizeForStatsByCacheId.put(cacheId, Integer.valueOf(minTilesetSize));
@@ -72,12 +72,8 @@ public class TilesCacheManager {
 		cacheVarTilesNum_ById.put(cacheId, Integer.valueOf(cacheVarTilesNum));
 	}
 
-	public static void setStartIndexInVRAM_fixed (String cacheId, int cacheStartIndexInVRAM_2) {
-		cacheStartIndexInVRAM_fixed_ById.put(cacheId, Integer.valueOf(cacheStartIndexInVRAM_2));
-	}
-
-	public static void setCacheFixedTilesNum (String cacheId, int cacheFixedTilesNum) {
-		cacheFixedTilesNum_ById.put(cacheId, Integer.valueOf(cacheFixedTilesNum));
+	public static void setRangesInVRAM_fixed (String cacheId, List<Entry<Integer,Integer>> cacheRangesInVRAM_fixed) {
+		cacheRangesInVRAM_fixed_ById.put(cacheId, cacheRangesInVRAM_fixed);
 	}
 
 	public static int getStartIndexInVRAM_var (String cacheId) {
@@ -94,18 +90,28 @@ public class TilesCacheManager {
 		return value.intValue();
 	}
 
-	public static int getStartIndexInVRAM_fixed (String cacheId) {
-		Integer value = cacheStartIndexInVRAM_fixed_ById.get(cacheId);
-		if (value == null)
-			return 0;
-		return value.intValue();
+	public static List<Entry<Integer,Integer>> getRangesInVRAM_fixed (String cacheId) {
+		List<Entry<Integer,Integer>> list = cacheRangesInVRAM_fixed_ById.get(cacheId);
+		if (list == null)
+			return Collections.emptyList();
+		return list;
 	}
 
-	public static int getCacheFixedTilesNum (String cacheId) {
-		Integer value = cacheFixedTilesNum_ById.get(cacheId);
-		if (value == null)
+	public static int getCacheFixedTOTALTilesNum (String cacheId) {
+		List<Entry<Integer,Integer>> list = cacheRangesInVRAM_fixed_ById.get(cacheId);
+		if (list == null)
 			return 0;
-		return value.intValue();
+		return list.stream()
+                .mapToInt(Map.Entry::getValue)
+                .sum();
+	}
+
+	public static int getCacheFixedEndIndex (String cacheId) {
+		List<Entry<Integer,Integer>> list = cacheRangesInVRAM_fixed_ById.get(cacheId);
+		if (list == null)
+			return 0;
+		Entry<Integer,Integer> lastEntry = list.get(list.size() - 1);
+		return lastEntry.getKey() + lastEntry.getValue() - 1;
 	}
 
 	public static List<Tile> loadCacheFromFile (String cacheId, String filename) {
@@ -153,6 +159,30 @@ public class TilesCacheManager {
 		}
 	}
 
+	private static List<Map.Entry<Integer, Integer>> calculateGaps (List<Map.Entry<Integer, Integer>> rangesInVRAM_fixed) {
+		if (rangesInVRAM_fixed.isEmpty())
+			return Collections.emptyList();
+
+        List<Map.Entry<Integer, Integer>> result = new ArrayList<>(rangesInVRAM_fixed.size());
+
+        for (int i = 0; i < rangesInVRAM_fixed.size(); i++) {
+            Map.Entry<Integer, Integer> currentRange = rangesInVRAM_fixed.get(i);
+            // calculate the end index of the range
+            int endIndex = currentRange.getKey() + currentRange.getValue() - 1;
+            // calculate the gap between the end index and the next range's start
+            int gapToNextRange = 0;
+            if (i < rangesInVRAM_fixed.size() - 1) {
+                Map.Entry<Integer, Integer> nextRange = rangesInVRAM_fixed.get(i + 1);
+                gapToNextRange = nextRange.getKey() - endIndex;
+            }
+
+            // Add the new entry to the result list
+            result.add(new AbstractMap.SimpleEntry<>(endIndex, gapToNextRange));
+        }
+
+        return result;
+    }
+
 	/**
 	 * Check if the parameter tile exist in the cache. The search uses TileEquality to consider H/V flip cases.
 	 */
@@ -165,15 +195,21 @@ public class TilesCacheManager {
 			return null;
 
 		final int startIndexInVRAM_var = getStartIndexInVRAM_var(cacheId);
-		final int cacheVarTilesNum = getCacheVarTilesNum(cacheId);
-		final int startIndexInVRAM_fixed = getStartIndexInVRAM_fixed(cacheId);
-		final int cacheFixedTilesNum = getCacheFixedTilesNum(cacheId);
-		final int endIndexInVRAM_var = startIndexInVRAM_var + cacheVarTilesNum - 1;
-		final int endIndexInVRAM_fixed = startIndexInVRAM_fixed + cacheFixedTilesNum - 1;
+		final int cacheTilesNum_var = getCacheVarTilesNum(cacheId);
+		final int endIndexInVRAM_var = startIndexInVRAM_var + cacheTilesNum_var - 1;
+		final List<Entry<Integer,Integer>> rangesInVRAM_fixed = getRangesInVRAM_fixed(cacheId);
+		final int endIndexInVRAM_fixed = getCacheFixedEndIndex(cacheId);
 		
-		// Start assigning an index at the the beginning of fixed VRAM: startIndexInVRAM_fixed
+		// Start assigning an index at the the beginning of fixed VRAM. If not fixed VRAM then use variable VRAM starting index
+		final int startIndexInVRAM = rangesInVRAM_fixed.isEmpty() ? startIndexInVRAM_var : rangesInVRAM_fixed.get(0).getKey();
+		// End index
+		final int endIndexInVRAM = rangesInVRAM_fixed.isEmpty() ? endIndexInVRAM_var : endIndexInVRAM_fixed;
+
+		// Only when a range of fixed VRAM is set, we need to use the ranges list to know the gaps the indexInCache has to add to it self
+		List<Entry<Integer,Integer>> rangesForGaps = calculateGaps(rangesInVRAM_fixed);
+
 		Tile tileFound = null;
-		int indexInCache = startIndexInVRAM_fixed;
+		int indexInCache = startIndexInVRAM;
 		// we have to search over all entries since the tile might be flipped.
 		for (Tile t : tiles) {
 			if (tile.getEquality(t) != TileEquality.NONE) {
@@ -181,17 +217,43 @@ public class TilesCacheManager {
 				break;
 			}
 			++indexInCache; // stepping forward in VRAM
+
+			// Ensure the stepping in VRAM is along the fixed VRAM regions 
+			if (!rangesForGaps.isEmpty()) {
+				for (int i=0; i < rangesForGaps.size(); ++i) {
+					Entry<Integer, Integer> range = rangesForGaps.get(i);
+					if (indexInCache > range.getKey()) {
+						// apply the gap so it continues into next range
+						indexInCache += range.getValue();
+						// remove the gap
+						rangesForGaps.remove(i);
+						break;
+					}
+				}
+			}
+			
+			// Once the rangesForGaps is empty it means we have not found the tile among the fixed VRAM indexes,
+			// so we continue normally without gaps into variable VRAM indexes.
 		}
 
 		if (tileFound == null)
 			return null;
 
+		// THE NEXT VALIDATES FOR THE SCENARIO WHEN ONLY ONE SETTING WAS SET WHETHER FIXED OR VAR VRAM CACHE.
 		// If indexInCache exceeds endIndexInVRAM_fixed it means we exhausted the fixed VRAM, 
-		// then we need to set indexInCache at variable VRAM: startIndexInVRAM_var.
-		if (indexInCache > endIndexInVRAM_fixed) {
-			final int exceeded = indexInCache - endIndexInVRAM_fixed;
+		// then we need to set indexInCache at variable VRAM startIndexInVRAM_var (if available).
+		if (indexInCache > endIndexInVRAM) {
+			// No fixed cache was set? Then we have exceeded the variable VRAM
+			if (rangesInVRAM_fixed.isEmpty())
+				throw new RuntimeException("indexInCache > endIndexInVRAM_var: " + indexInCache + " > " + endIndexInVRAM_var);
+			// Fixed cache was set and exhausted. Ensure we have variable VRAM to be used. If not then throw exception
+			else if (cacheTilesNum_var == 0)
+				throw new RuntimeException("Fixed VRAM for cache " + cacheId + " exhausted and there is no Variable VRAM to occupy.");
+
+			// At this point we have exhausted the fixed VRAM and we need to check if we haven't exhausted variable VRAM
+			final int exceeded = indexInCache - endIndexInVRAM;
 			indexInCache = startIndexInVRAM_var + exceeded - 1;
-			// check indexInCache doesn't exceed variable VRAM
+			// Ensure indexInCache doesn't exceed variable VRAM
 			if (indexInCache > endIndexInVRAM_var)
 				throw new RuntimeException("indexInCache > endIndexInVRAM_var: " + indexInCache + " > " + endIndexInVRAM_var);
 		}

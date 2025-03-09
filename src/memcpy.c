@@ -1,6 +1,7 @@
 #include "memcpy.h"
 
-FORCE_INLINE void memcpy_asm (u16 lenBytes, u8* from, u8* to) {
+FORCE_INLINE void memcpy_asm (u16 lenBytes, u8* from, u8* to)
+{
     __asm volatile (
         "lsr.w    #2,%2\n\t"        // divide by 4
         "subq.w   #1,%2\n\t"        // prepare for dbra/dbf
