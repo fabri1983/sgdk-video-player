@@ -13,7 +13,14 @@ public class TilesetStatsCollector {
 	private static Map<String, Integer> minTotalTilenumPerId = new HashMap<>();
 	private static Map<String, Integer> maxTotalTilenumPerId = new HashMap<>();
 
+	public static boolean isOnlyChunk1Valid(String id){
+		return (maxTilenumChunk2PerId.get(id) == null || maxTilenumChunk2PerId.get(id) == 0) 
+				&& (maxTilenumChunk3PerId.get(id) == null || maxTilenumChunk3PerId.get(id) == 0);
+	}
+
 	public static void count1chunk(String id, int chunkSize1) {
+		if (id == null || "".equals(id))
+			return;
 		counForMin(id, chunkSize1, minTilenumPerId);
 		counForMax(id, chunkSize1, maxTilenumPerId);
 		counForMax(id, chunkSize1, maxTilenumChunk1PerId);
@@ -24,6 +31,8 @@ public class TilesetStatsCollector {
 	}
 
 	public static void count2chunks(String id, int chunkSize1, int chunkSize2) {
+		if (id == null || "".equals(id))
+			return;
 		counForMin(id, chunkSize1, minTilenumPerId);
 		counForMax(id, chunkSize1, maxTilenumPerId);
 		counForMax(id, chunkSize1, maxTilenumChunk1PerId);
@@ -36,6 +45,8 @@ public class TilesetStatsCollector {
 	}
 
 	public static void count3chunks(String id, int chunkSize1, int chunkSize2, int chunkSize3) {
+		if (id == null || "".equals(id))
+			return;
 		counForMin(id, chunkSize1, minTilenumPerId);
 		counForMax(id, chunkSize1, maxTilenumPerId);
 		counForMax(id, chunkSize1, maxTilenumChunk1PerId);
@@ -50,6 +61,8 @@ public class TilesetStatsCollector {
 	}
 
 	private static void counForMin(String id, int chunkSize, Map<String, Integer> map) {
+		if (id == null || "".equals(id))
+			return;
 		Integer min = map.get(id);
 		if (min == null) {
 			min = Integer.valueOf(chunkSize);
@@ -60,6 +73,8 @@ public class TilesetStatsCollector {
 	}
 
 	private static void counForMax(String id, int chunkSize, Map<String, Integer> map) {
+		if (id == null || "".equals(id))
+			return;
 		Integer max = map.get(id);
 		if (max == null) {
 			max = Integer.valueOf(chunkSize);
@@ -70,6 +85,8 @@ public class TilesetStatsCollector {
 	}
 
 	public static Integer getMinTileNum(String id) {
+		if (id == null || "".equals(id))
+			return null;
 		Integer min = minTilenumPerId.get(id);
 		if (min == null)
 			return null;
@@ -77,6 +94,8 @@ public class TilesetStatsCollector {
 	}
 
 	public static Integer getMaxTileNum(String id) {
+		if (id == null || "".equals(id))
+			return null;
 		Integer max = maxTilenumPerId.get(id);
 		if (max == null)
 			return null;
@@ -84,6 +103,8 @@ public class TilesetStatsCollector {
 	}
 
 	public static Integer getMaxTileNumChunk1(String id) {
+		if (id == null || "".equals(id))
+			return null;
 		Integer max = maxTilenumChunk1PerId.get(id);
 		if (max == null)
 			return null;
@@ -91,6 +112,8 @@ public class TilesetStatsCollector {
 	}
 
 	public static Integer getMaxTileNumChunk2(String id) {
+		if (id == null || "".equals(id))
+			return null;
 		Integer max = maxTilenumChunk2PerId.get(id);
 		if (max == null)
 			return null;
@@ -98,6 +121,8 @@ public class TilesetStatsCollector {
 	}
 
 	public static Integer getMaxTileNumChunk3(String id) {
+		if (id == null || "".equals(id))
+			return null;
 		Integer max = maxTilenumChunk3PerId.get(id);
 		if (max == null)
 			return null;
@@ -105,6 +130,8 @@ public class TilesetStatsCollector {
 	}
 
 	public static Integer getMinTotalTileNum(String id) {
+		if (id == null || "".equals(id))
+			return null;
 		Integer minTotal = minTotalTilenumPerId.get(id);
 		if (minTotal == null)
 			return null;
@@ -112,6 +139,8 @@ public class TilesetStatsCollector {
 	}
 
 	public static Integer getMaxTotalTileNum(String id) {
+		if (id == null || "".equals(id))
+			return null;
 		Integer maxTotal = maxTotalTilenumPerId.get(id);
 		if (maxTotal == null)
 			return null;

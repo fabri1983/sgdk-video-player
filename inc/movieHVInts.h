@@ -55,13 +55,6 @@ void turnOnVDP (u8 reg01);
 */
 void waitVCounterReg (u16 n);
 
-/**
- * \brief Writes into VDP_CTRL_PORT (0xC00004) the setup for DMA (length and source address).
- * \param len How many colors to move.
- * \param fromAddr Must come >> 1 (shifted to right) already.
-*/
-void setupDMAForPals (u16 len, u32 fromAddr);
-
 void setMoviePalsPointerBeforeInterrupts (u16* rootPalsPtr);
 
 void setMoviePalsPointer (u16* rootPalsPtr);

@@ -364,30 +364,30 @@ public class TilesCacheManager {
 		StringBuilder sb = new StringBuilder(50000); // 50k chars (bytes)
 		int topNusedTiles = ExtProperties.getInt(ExtProperties.TOP_N_USED_TILES);
 
-		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
-		sb.append("##  [TOP ").append(topNusedTiles).append("] Tiles in Resources under cache id: ").append(cacheId).append(System.lineSeparator());
-		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
-		sb.append(String.format("%-12s %4s  %s", "hash", "#", "data")).append(System.lineSeparator());
 		List<Entry<Integer, AtomicInteger>> sortedTopNresourcesPerTile = resourcesPerTile.entrySet()
                 .stream()
                 .sorted((entry1, entry2) -> entry2.getValue().get() - entry1.getValue().get())
                 .limit(topNusedTiles)
                 .collect(Collectors.toList());
+		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
+		sb.append("##  [TOP ").append(sortedTopNresourcesPerTile.size()).append("] Tiles in Resources under cache id: ").append(cacheId).append(System.lineSeparator());
+		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
+		sb.append(String.format("%-12s %4s  %s", "hash", "#", "data")).append(System.lineSeparator());
 		for (Entry<Integer, AtomicInteger> entry : sortedTopNresourcesPerTile) {
 			String tileDataArrayStr = tileDataToStr(tileByHashCode.get(entry.getKey()));
 			String dataStr = String.format("%-12d %4d  %s", entry.getKey().intValue(), entry.getValue().intValue(), tileDataArrayStr);
 			sb.append(dataStr).append(System.lineSeparator());
 		}
 
-		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
-		sb.append("##  [TOP ").append(topNusedTiles).append("] Tiles total in all Resources under cache id: ").append(cacheId).append(System.lineSeparator());
-		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
-		sb.append(String.format("%-12s %4s  %s", "hash", "#", "data")).append(System.lineSeparator());
 		List<Entry<Integer, AtomicInteger>> sortedTopNoccursPerTile = occurrencesPerTile.entrySet()
                 .stream()
                 .sorted((entry1, entry2) -> entry2.getValue().get() - entry1.getValue().get())
                 .limit(topNusedTiles)
                 .collect(Collectors.toList());
+		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
+		sb.append("##  [TOP ").append(sortedTopNoccursPerTile.size()).append("] Tiles total in all Resources under cache id: ").append(cacheId).append(System.lineSeparator());
+		sb.append("##-----------------------------------------------------------------------------##").append(System.lineSeparator());
+		sb.append(String.format("%-12s %4s  %s", "hash", "#", "data")).append(System.lineSeparator());
 		for (Entry<Integer, AtomicInteger> entry : sortedTopNoccursPerTile) {
 			String tileDataArrayStr = tileDataToStr(tileByHashCode.get(entry.getKey()));
 			String dataStr = String.format("%-12d %4d  %s", entry.getKey().intValue(), entry.getValue().intValue(), tileDataArrayStr);

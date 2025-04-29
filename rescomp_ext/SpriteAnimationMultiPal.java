@@ -96,30 +96,22 @@ public class SpriteAnimationMultiPal extends Resource
                     duplicate++;
                 }
             }
-            
-            // FIXME: why are we doing that ? duplicate resource optimization should be enough
-            // // try to search for duplicated frame first
-            // SpriteFrame frame = findExistingSpriteFrame(frameImage, frameBounds.getSize(), time, collision,
-            // compression);
-            //
-            // // not found ? --> define new frame
-            // if (frame == null)
-            // {
-            // frame = new SpriteFrame(id + "_frame" + i, frameImage, wf, hf, time, collision, compression, opt,
-            // optIteration);
-            // }
-            // else
-            // {
-            // System.out.println("Sprite frame at anim #" + animIndex + " frame #" + i + " is a duplicate of " +
-            // frame.id);
-            // }
-            //
-            // // add frame
-            // frames.add(frame);
 
-            // create sprite frame ('timer' is augmented by number of duplicate)
-            SpriteFrameMultiPal frame = new SpriteFrameMultiPal(id + "_frame" + i, frameImage, wf, hf, time[Math.min(time.length - 1, i)] * (duplicate + 1), 
-            		collision, compression, optType, optLevel, spriteBoundariesPals);
+            // try to search for a duplicated sprite mask so we can re-use the previous sprite cutting
+            SpriteFrameMultiPal frame = findMatchingSpriteFrameMask(frameImage, frameBounds.getSize());
+            // found it ?
+            if (frame != null)
+            {
+            	// create sprite frame ('timer' is augmented by number of duplicate) and re-use previous sprite cutting
+            	frame = new SpriteFrameMultiPal(id + "_frame" + i, frameImage, wf, hf, time[Math.min(time.length - 1, i)] * (duplicate + 1), 
+            			collision, compression, frame.getSprites(), spriteBoundariesPals);
+            }
+            else
+            {
+            	// create sprite frame ('timer' is augmented by number of duplicate)
+            	frame = new SpriteFrameMultiPal(id + "_frame" + i, frameImage, wf, hf, time[Math.min(time.length - 1, i)] * (duplicate + 1), 
+            			collision, compression, optType, optLevel, spriteBoundariesPals);
+            }
             // add as internal resource (get duplicate if exist)
             frame = (SpriteFrameMultiPal) addInternalResource(frame);
             // bypass duplicates
@@ -137,24 +129,38 @@ public class SpriteAnimationMultiPal extends Resource
         hc = loopIndex ^ frames.hashCode();
     }
 
-    private SpriteFrameMultiPal findExistingSpriteFrame(byte[] frameImage, Dimension dimension, int time, CollisionType collision, Compression compression)
+    private SpriteFrameMultiPal findMatchingSpriteFrameMask(byte[] frameImage, Dimension dimension)
     {
         for (Resource res : Compiler.getResources(SpriteFrameMultiPal.class))
         {
             final SpriteFrameMultiPal spriteFrame = (SpriteFrameMultiPal) res;
 
-            if (checkEqual(spriteFrame, frameImage, dimension, time, collision, compression))
+            if (checkMaskEqual(spriteFrame, frameImage, dimension))
                 return spriteFrame;
         }
 
         return null;
     }
 
-    private boolean checkEqual(SpriteFrameMultiPal spriteFrame, byte[] frameImage, Dimension dimension, int timer, CollisionType collision, Compression compression)
+    private boolean checkMaskEqual(SpriteFrameMultiPal spriteFrame, byte[] frameImage, Dimension dimension)
     {
-        return (SpriteFrameMultiPal.computeFastHashcode(frameImage, dimension, timer, collision, compression) == spriteFrame.fhc)
-                && Arrays.equals(frameImage, spriteFrame.frameImage) && compression.equals(spriteFrame.compression) && ((collision == spriteFrame.collisionType)
-                        || ((collision != null) && (collision.equals(spriteFrame.collisionType))) && (timer == spriteFrame.timer));
+    	if (!spriteFrame.frameDim.equals(dimension))
+    		return false;
+
+    	final byte[] frame1 = spriteFrame.frameImage;
+		final byte[] frame2 = frameImage;
+    	
+		if (frame1.length != frame2.length)
+    		return false;
+    	
+    	for(int i = 0; i < frame1.length; i++)
+    	{
+    		boolean p1 = frame1[i] != 0;
+    		boolean p2 = frame2[i] != 0;
+    		if (p1 != p2) return false;
+    	}
+    	
+    	return true;
     }
 
     public boolean isEmpty()

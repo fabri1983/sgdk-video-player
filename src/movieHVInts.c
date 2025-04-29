@@ -13,7 +13,29 @@
 //     reg01 = VDP_getReg(0x01);
 // }
 
-/// @brief Set bit 6 (64 decimal, 0x40 hexa) of reg 1.
+/// @brief Set bit 6 (64 decimal, 0x40 hexa) of VDP's reg 1.
+/// @param ctrl_port a variable defined as (vu32*)VDP_CTRL_PORT.
+/// @param reg01 VDP's Reg 1 holds other bits than just VDP ON/OFF status, so we need its current value.
+#define turnOffVDP_m(ctrl_port,reg01) \
+    __asm volatile ( \
+        "move.w  %[_reg01],(%[_ctrl_port])" \
+        : \
+        : [_ctrl_port] "a" (ctrl_port), [_reg01] "i" (0x8100 | (reg01 & ~0x40)) \
+        : \
+    )
+
+/// @brief Set bit 6 (64 decimal, 0x40 hexa) of VDP's reg 1.
+/// @param ctrl_port a variable defined as (vu32*)VDP_CTRL_PORT.
+/// @param reg01 VDP's Reg 1 holds other bits than just VDP ON/OFF status, so we need its current value.
+#define turnOnVDP_m(ctrl_port,reg01) \
+    __asm volatile ( \
+        "move.w  %[_reg01],(%[_ctrl_port])" \
+        : \
+        : [_ctrl_port] "a" (ctrl_port), [_reg01] "i" (0x8100 | (reg01 | 0x40)) \
+        : \
+    )
+
+/// @brief Set bit 6 (64 decimal, 0x40 hexa) of VDP's reg 1.
 /// @param reg01 VDP's Reg 1 holds other bits than just VDP ON/OFF status, so we need its current value.
 FORCE_INLINE void turnOffVDP (u8 reg01)
 {
@@ -22,7 +44,7 @@ FORCE_INLINE void turnOffVDP (u8 reg01)
     *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
 }
 
-/// @brief Set bit 6 (64 decimal, 0x40 hexa) of reg 1.
+/// @brief Set bit 6 (64 decimal, 0x40 hexa) of VDP's reg 1.
 /// @param reg01 VDP's Reg 1 holds other bits than just VDP ON/OFF status, so we need its current value.
 FORCE_INLINE void turnOnVDP (u8 reg01)
 {
@@ -32,9 +54,25 @@ FORCE_INLINE void turnOnVDP (u8 reg01)
 }
 
 /**
+ * Wait until HCounter 0xC00009 reaches nth position (actually the (n*2)th pixel since the VDP counts by 2)
+*/
+FORCE_INLINE void waitHCounter_old (u8 n) {
+    // HCOUNTER = VDP_HVCOUNTER_PORT + 1 = 0xC00009
+    __asm volatile (
+        "1:\n\t"
+        "cmpi.b    %[hcLimit],0xC00009\n\t" // cmp: (0xC00009) - hcLimit
+        "blo.s     1b"                      // Compares byte because hcLimit won't be > 160 for our practical cases
+        // blo is for unsigned comparisons, same than bcs
+        :
+        : [hcLimit] "i" (n)
+        : "cc"
+    );
+}
+
+/**
  * Wait until HCounter 0xC00009 reaches nth position (actually the (n*2)th pixel since the VDP counts by 2).
 */
-static FORCE_INLINE void waitHCounter_opt1 (u8 n)
+FORCE_INLINE void waitHCounter_opt1 (u8 n)
 {
     u32 regA = VDP_HVCOUNTER_PORT + 1; // HCounter address is 0xC00009
     __asm volatile (
@@ -51,7 +89,7 @@ static FORCE_INLINE void waitHCounter_opt1 (u8 n)
 /**
  * Wait until HCounter 0xC00009 reaches nth position (actually the (n*2)th pixel since the VDP counts by 2).
 */
-static FORCE_INLINE void waitHCounter_opt2 (u8 n)
+FORCE_INLINE void waitHCounter_opt2 (u8 n)
 {
     u32* regA; // placeholder used to indicate the use of an Ax register
     __asm volatile (
@@ -83,55 +121,6 @@ FORCE_INLINE void waitVCounterReg (u16 n)
             // bge/bgt are for signed comparisons in case n comes already smaller than value in VDP_HVCOUNTER_PORT memory
         :
         : "a" (regA), "d" (n << 8) // (n << 8) | 0xFF
-        : "cc"
-    );
-}
-
-/**
- * \brief Writes into VDP_CTRL_PORT (0xC00004) the setup for DMA (length and source address).
- * \param len How many colors to move.
- * \param fromAddr Must be >> 1 (shifted to right).
-*/
-FORCE_INLINE void setupDMAForPals (u16 len, u32 fromAddr)
-{
-    // Uncomment if you previously change it to 1 (CPU access to VRAM is 1 byte length, and 2 bytes length for CRAM and VSRAM)
-    //VDP_setAutoInc(2);
-/*
-    vu16* pw = (vu16*) VDP_CTRL_PORT;
-    // Setup DMA length (in word here)
-    *pw = 0x9300 + (len & 0xff);
-    *pw = 0x9400 + ((len >> 8) & 0xff);
-    // Setup DMA address
-    // fromAddr already comes with >> 1
-    *pw = 0x9500 + (fromAddr & 0xff); // low
-    fromAddr >>= 8;
-    *pw = 0x9600 + (fromAddr & 0xff); // mid
-    fromAddr >>= 8;
-    *pw = 0x9700 + (fromAddr & 0x7f); // high
-*/
-    u32* dmaCtrl_ptr = (u32*) VDP_CTRL_PORT;
-    u32 dmaLen = ((0x9300 | (u8)len) << 16) | (0x9400 | (u8)(len >> 8));
-    u16 dn = 0x9500;
-    __asm volatile (
-        // Setup DMA length (in long word here)
-        "move.l   %[dmaLen],(%[dmaCtrl_ptr])\n\t" // *((vu32*) VDP_CTRL_PORT) = ((0x9300 | (u8)len) << 16) | (0x9400 | (u8)(len >> 8));
-        // Setup DMA address low
-        //"move.w   #0x9500,%[dn]\n\t"              // dn: 0x9500
-        "or.b     %[fromAddr],%[dn]\n\t"          // dn: 0x9500 | (u8)(fromAddr)
-        "move.w   %[dn],(%[dmaCtrl_ptr])\n\t"     // *((vu16*) VDP_CTRL_PORT) = 0x9500 | (u8)fromAddr; // low
-        // Setup DMA address mid
-        "move.w   %[fromAddr],-(%%sp)\n\t"
-        "move.w   #0x9600,%[dn]\n\t"              // dn: 0x9600
-        "or.b     (%%sp)+,%[dn]\n\t"              // dn: 0x9600 | (u8)(fromAddr >> 8)
-        "move.w   %[dn],(%[dmaCtrl_ptr])\n\t"     // *((vu16*) VDP_CTRL_PORT) = 0x9600 | (u8)(fromAddr >> 8); // mid
-        // Setup DMA address high
-        "move.l   %[fromAddr],%[dn]\n\t"          // dn: fromAddr
-        "swap     %[dn]\n\t"                      // dn: fromAddr >> 16
-        "andi.w   #0x007f,%[dn]\n\t"              // dn: (fromAddr >> 16) & 0x7f
-        "ori.w    #0x9700,%[dn]\n\t"              // dn: 0x9700 | ((fromAddr >> 16) & 0x7f)
-        "move.w   %[dn],(%[dmaCtrl_ptr])"         // *((vu16*) VDP_CTRL_PORT) = 0x9700 | ((fromAddr >> 16) & 0x7f); // high
-        : [dmaCtrl_ptr] "+a" (dmaCtrl_ptr), [dn] "+d" (dn)
-        : [fromAddr] "d" (fromAddr), [dmaLen] "id" (dmaLen)
         : "cc"
     );
 }
@@ -558,7 +547,6 @@ MEMORY_BARRIER();
     palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP/2; // advance into next color batch
     palCmdForDMA = palCmdAddrrToggle == 0 ? 0xC0200080 : 0xC0600080; // advance command for next MOVIE_FRAME_COLORS_PER_STRIP/2 colors
 MEMORY_BARRIER();
-    //setupDMAForPals(16, fromAddrForDMA);
     // Setup DMA length (in long word here): low at higher word, high at lower word
     *((vu32*) VDP_CTRL_PORT) = ((0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/2) & 0xff)) << 16) |
             (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/2) >> 8) & 0xff));

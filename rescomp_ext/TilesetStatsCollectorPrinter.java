@@ -61,13 +61,22 @@ public class TilesetStatsCollectorPrinter extends Resource
     {
     	String tilesetStatsCollectorId = this.id;
 
-		System.out.println(TilesetStatsCollectorProcessor.resId + ": stats for id " + tilesetStatsCollectorId);    		
-		System.out.println("Min chunk size: " + TilesetStatsCollector.getMinTileNum(tilesetStatsCollectorId));
-		System.out.println("Max chunk size: " + TilesetStatsCollector.getMaxTileNum(tilesetStatsCollectorId));
-		System.out.println("Max chunk1 size: " + TilesetStatsCollector.getMaxTileNumChunk1(tilesetStatsCollectorId));
-		System.out.println("Max chunk2 size: " + TilesetStatsCollector.getMaxTileNumChunk2(tilesetStatsCollectorId));
-		System.out.println("Max chunk3 size: " + TilesetStatsCollector.getMaxTileNumChunk3(tilesetStatsCollectorId));
-		System.out.println("Min Total size: " + TilesetStatsCollector.getMinTotalTileNum(tilesetStatsCollectorId));
-		System.out.println("Max Total size: " + TilesetStatsCollector.getMaxTotalTileNum(tilesetStatsCollectorId));
+		System.out.println(TilesetStatsCollectorProcessor.resId + ": stats for id " + tilesetStatsCollectorId);
+
+		// if we have only set chunk1 then we can just print the min and max chunk size
+		if (TilesetStatsCollector.isOnlyChunk1Valid(tilesetStatsCollectorId)) {
+			System.out.println("Min chunk size: " + TilesetStatsCollector.getMinTileNum(tilesetStatsCollectorId));
+			System.out.println("Max chunk size: " + TilesetStatsCollector.getMaxTileNum(tilesetStatsCollectorId));
+		}
+		else {
+			System.out.println("Min chunk size: " + TilesetStatsCollector.getMinTileNum(tilesetStatsCollectorId));
+			System.out.println("Max chunk size: " + TilesetStatsCollector.getMaxTileNum(tilesetStatsCollectorId));
+			System.out.println("Max chunk1 size: " + TilesetStatsCollector.getMaxTileNumChunk1(tilesetStatsCollectorId));
+			System.out.println("Max chunk2 size: " + TilesetStatsCollector.getMaxTileNumChunk2(tilesetStatsCollectorId));
+			System.out.println("Max chunk3 size: " + TilesetStatsCollector.getMaxTileNumChunk3(tilesetStatsCollectorId));
+			System.out.println("Min Total size: " + TilesetStatsCollector.getMinTotalTileNum(tilesetStatsCollectorId));
+			System.out.println("Max Total size: " + TilesetStatsCollector.getMaxTotalTileNum(tilesetStatsCollectorId));
+		}
     }
+
 }

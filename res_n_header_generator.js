@@ -241,16 +241,16 @@ const ${type_Palette32AllStrips}* pals_data[MOVIE_FRAME_COUNT] = {
 // Eg: "TileMapCustom, ImageNoPalsSplit31, Palette32AllStripsSplit3"
 const headerAppenderAllCustom = `HEADER_APPENDER_ALL_CUSTOM  headerAllCustomTypes` + '\n\n';
 
+// TILES_CACHE_STATS_ENABLER tilesCacheId enable minTilesetSize
+// Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  500
+// Flag 'enable' possible values: FALSE, TRUE
+const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${enableTilesCacheStats?"TRUE":"FALSE"}  500` + '\n\n';
+
 // TILES_CACHE_LOADER tilesCacheId enable cacheStartIndexInVRAM_var cacheVarTilesNum cacheRangesInVRAM_fixed filename compression compressionCustom
 // Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1576  216  1921-127  movieFrames_cache.txt  APLIB  NONE
 // Flag 'enable' possible values: FALSE, TRUE
 const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache?"TRUE":"FALSE"}`
 		+ `  ${cacheStartIndexInVRAM_var}  ${cacheVarTilesNum}  ${cacheRangesInVRAM_fixed_str}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
-
-// TILES_CACHE_STATS_ENABLER tilesCacheId enable minTilesetSize
-// Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  500
-// Flag 'enable' possible values: FALSE, TRUE
-const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${enableTilesCacheStats?"TRUE":"FALSE"}  500` + '\n\n';
 
 // IMAGE_STRIPS_NO_PALS name "baseFile" strips tilesetStatsCollectorId [tilesCacheId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]
 // Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesetStats1  tilesCache_movie1  3  1  ODD  64  FAST  NONE  NONE  TRUE  ALL
@@ -270,13 +270,13 @@ const paletteResListStr = sortedFileNamesEveryFirstStrip
 			+ `  ` + (paletteAddCompressionField ? 'TRUE' : 'FALSE'))
 	.join('\n') + '\n\n';
 
+// This resource runs only if a tile stats id was set in previous rresources
+const printTilesetStatsCollector = `TILESET_STATS_COLLECTOR  ${tilesetStatsId}` + '\n\n';
+
 // Eg: TILES_CACHE_STATS_PRINTER  movieFrames_cache  CONSOLE
 // Flag printTo possible values: CONSOLE, FILE, NONE
 // This resource runs only if the tile cache stats were set enabled, at TILES_CACHE_STATS_ENABLER
 const printTilesCacheStatsStr = `TILES_CACHE_STATS_PRINTER  ${tilesCacheId}  FILE` + '\n\n';
-
-// This resource runs only if the tile cache stats were set enabled, at TILES_CACHE_STATS_ENABLER
-const printTilesetStatsCollector = `TILESET_STATS_COLLECTOR  ${tilesetStatsId}` + '\n\n';
 
 const customCompressorTracker = `HEADER_APPENDER_COMPRESSION_CUSTOM_TRACKER  compressionCustomTrackerHeader_movie1` + '\n\n';
 

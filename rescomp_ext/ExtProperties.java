@@ -56,16 +56,15 @@ public class ExtProperties {
 		if (props != null)
 			return props;
 
+		// TODO NEXT DOESN'T WORK!!
+
 		// Lastly try to load as a resource located at given package
-		try (InputStream inputStream = ExtProperties.class.getResourceAsStream(atPackage + fileName)) {	
+		try (InputStream inputStream = ExtProperties.class.getResourceAsStream(atPackage + fileName)) {
 			props = new Properties();
 			props.load(inputStream);
 		} catch (Exception e) {
-			props = null;
+			throw new RuntimeException("COULDN'T LOAD PROPERTIES FILE: " + fileName, e);
 		}
-
-		if (props == null)
-			throw new RuntimeException("COULDN'T LOAD PROPERTIES FILE: " + fileName);
 
 		return props;
 	}
@@ -87,7 +86,7 @@ public class ExtProperties {
 					return Integer.parseInt(props.getProperty(key));
 			}
 		}
-		return Integer.MIN_VALUE;
+		return 0;
 	}
 
 }

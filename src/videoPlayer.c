@@ -289,7 +289,8 @@ static FORCE_INLINE void enqueueTilesetData (u16 startTileIndex, u16 length)
 	// This was the previous one
 	// VDP_loadTileData(unpackedTilesetChunk, startTileIndex, length, DMA_QUEUE);
 	// Now we use custom DMA_queueDmaFast() because the data is in RAM, so no 128KB bank boundary check is needed
-	enqueueDMA_elem((void*) unpackedTilesetChunk, startTileIndex * 32, length * 16, TRUE);
+    bool enqueueAtSlot1 = TRUE;
+	enqueueDMA_elem((void*) unpackedTilesetChunk, startTileIndex * 32, length * 16, enqueueAtSlot1);
 }
 
 static FORCE_INLINE void enqueueTilemapData (u16 tilemapAddrInPlane, bool enqueueAtSlot1)

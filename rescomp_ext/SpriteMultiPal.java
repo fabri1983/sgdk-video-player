@@ -94,7 +94,7 @@ public class SpriteMultiPal extends Resource
         palette = (Palette) addInternalResource(new Palette(id + "_palette", imgFile, palIndex * 16, palsUsed * 16, true));
 
         // for debug purpose (scale image x2 so it's easier to see bounding boxes)
-        int scaleFactorForBoundariesDebug = 1;
+        int scaleFactorForBoundariesDebug = 1; // fabri1983: we keep factor to 1 so we can use the image in the tiledpalettequant tool
         final BufferedImage bufImg = ImageUtil.scale(ImageUtil.load(imgFile), w * scaleFactorForBoundariesDebug, h * scaleFactorForBoundariesDebug, false);
         final Graphics2D g2 = bufImg.createGraphics();
         g2.setColor(Color.pink);

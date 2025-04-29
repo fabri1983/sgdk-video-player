@@ -40,14 +40,15 @@ public class ImageStripsNoPalsProcessor implements Processor
     @Override
     public Resource execute(String[] fields) throws Exception
     {
-		if (fields.length < 5)
+		if (fields.length < 4)
 		{
 			System.out.println("Wrong " + resId + " definition");
-			System.out.println(resId + " name \"baseFile\" strips tilesetStatsCollectorId [tilesCacheId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]");
+			System.out.println(resId + " name \"baseFile\" strips [tilesetStatsCollectorId tilesCacheId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]");
 			System.out.println("  name               Image variable name. Eg: frame_12");
 			System.out.println("  baseFile           Path of the first strip for input RGB image file with palettes (BMP or PNG image). Eg: \"res/rgb/frame_12_0.png\" or \"res/rgb/frame_12_0_RGB.png\"");
 			System.out.println("  strips             How many strips is the final image composed of. Eg: 21. It means there are frame_12_0.png, frame_12_1.png, ... frame_12_20.png");
 			System.out.println("  tilesetStatsCollectorId      Group under same id the stats collected from tilesets. Use " + TilesetStatsCollectorProcessor.resId + " with the same id to print the stats in the console.");
+			System.out.println("                               Use NONE or NULL to avoid the stats collecting.");
 			System.out.println("  tilesCacheId       Set an id (case insensitive) to identify and re use the same cache of tiles along other resources.");
 			System.out.println("                       Use NONE or NULL to disable the use of the tile cache.");
 			System.out.println("                       Use " + TilesCacheStatsEnablerProcessor.resId + " and " + TilesCacheStatsPrinterProcessor.resId + " with the same id to collect data and print them (file or console).");
@@ -98,16 +99,19 @@ public class ImageStripsNoPalsProcessor implements Processor
         int strips = StringUtil.parseInt(fields[3], 0);
 
         // tilesetStatsCollectorId
-        String tilesetStatsCollectorId = fields[4].toUpperCase();
-        if (tilesetStatsCollectorId == null || tilesetStatsCollectorId.isEmpty() || tilesetStatsCollectorId.isBlank()) {
-        	throw new IllegalArgumentException("tilesetStatsCollectorId is missing.");
+        String tilesetStatsCollectorId = null; // null or empty string is considered as an invalid tile stats cache id
+        if (fields.length >= 5) {
+	        tilesetStatsCollectorId = fields[4].toUpperCase();
+	        if ("NONE".equals(tilesetStatsCollectorId) || "NULL".equals(tilesetStatsCollectorId)) {
+	        	tilesetStatsCollectorId = null;
+	        }
         }
 
         // tileCacheId
         String tilesCacheId = null; // null or empty string is considered as an invalid tile cache id
         if (fields.length >= 6) {
         	String valueId = fields[5].toUpperCase();
-        	if (valueId != null && !valueId.isEmpty() && !valueId.isBlank() && !"NONE".equals(valueId) && !"NULL".equals(valueId)) {
+        	if (!"NONE".equals(valueId) && !"NULL".equals(valueId)) {
         		tilesCacheId = valueId;
         		TilesCacheManager.createCacheIfNotExist(tilesCacheId);
         	}
@@ -253,6 +257,10 @@ public class ImageStripsNoPalsProcessor implements Processor
 //				resId, "titanRGB", "C:\\MyProjects\\VSCode\\sgdk\\titan256c\\res\\titan256c\\titan_0_0_RGB.png", "28", "tilesetStats1", 
 //				"NULL", "1", "1", "NONE", "0", "FAST", "NONE", "NONE", "TRUE", "ALL"
 //			};
-//		p.execute(fields_test_B);
+//		String[] fields_test_doom_bg_shifted = {
+//				resId, "img_title_bg_full_shifted", "C:\\MyProjects\\VSCode\\sgdk\\raycasting_anael\\res\\title\\doom_title_screen_full_shifted_0_0_RGB.png",
+//				"28", "stats_strips_2", "cache_titleBGfullTiles", "1", "1", "NONE", "0", "APLIB", "NONE", "NONE", "TRUE", "ALL"
+//			};
+//		p.execute(fields_test_doom_bg_shifted);
 //	}
 }

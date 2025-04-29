@@ -10,6 +10,7 @@ import sgdk.rescomp.tool.TilesetStatsCollector;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileOptimization;
+import sgdk.rescomp.type.Basics.TileOrdering;
 import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.CustomDataTypes;
 import sgdk.rescomp.type.ToggleMapTileBaseIndex;
@@ -44,14 +45,17 @@ public class ImageStripsNoPals extends Resource
 
         // build TILESET with wanted compression
         tileset = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_tileset", finalImageData, w, h, 0, 0, wt, ht, tileOpt, 
-        		compression, compressionCustomTileset, false, false, tilesCacheId, addCompressionField));
+        		compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField));
 
         System.out.print(" " + id + " -> numTiles: " + tileset.getNumTile() + ". ");
-        TilesetStatsCollector.count1chunk(tilesetStatsCollectorId, tileset.getNumTile());
+        if (tilesetStatsCollectorId != null && !"".equals(tilesetStatsCollectorId)) {
+	        TilesetStatsCollector.count1chunk(tilesetStatsCollectorId, tileset.getNumTile());
+        }
 
         // build TILEMAP with wanted compression
         tilemap = (TilemapOriginalCustom) addInternalResource(TilemapOriginalCustom.getTilemap(id + "_tilemap", tileset, toggleMapTileBaseIndexFlag, 
-        		mapBase, finalImageData, wt, ht, tileOpt, compression, compressionCustomTilemap, mapExtendedWidth, tilesCacheId, addCompressionField));
+        		mapBase, finalImageData, wt, ht, tileOpt, compression, compressionCustomTilemap, mapExtendedWidth, TileOrdering.ROW, tilesCacheId, 
+        		addCompressionField));
 
         if (TilesCacheManager.isStatsEnabledFor(tilesCacheId) 
         		&& tileset.getNumTile() >= TilesCacheManager.getMinTilesetSizeForStatsFor(tilesCacheId)) {
