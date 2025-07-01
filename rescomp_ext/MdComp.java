@@ -66,10 +66,17 @@ public class MdComp {
 			byte[] result = RLEWCompressor.compress_B(data, binId);
 			return result;
 		}
-
+	
 		long suffix = System.currentTimeMillis();
 		String infile = tmdDir + File.separator + compression.getValue() + "_" + binId + "_IN_" + suffix + ".bin";
 		String outfile = tmdDir + File.separator + compression.getValue() + "_" + binId + "_OUT_" + suffix + ".bin";
+		
+		if (compression == CompressionCustom.TWIZZLER) {
+			outfile = infile.replace(".bin", ".twiz");
+		}
+		else if (compression == CompressionCustom.TWIZZLERMOD) {
+			outfile = infile.replace(".bin", ".twim");
+		}
 
 		try {
 			writeBytesToFile(data, infile);
@@ -89,21 +96,32 @@ public class MdComp {
 				// -f: force overwrite; -9: best compression (slow) 
 				flags = Arrays.asList(compression.getExeName(), "-f", "-9", "--favor-decSpeed", "--no-frame-crc", infile, outfile);
 			}
+			else if (compression == CompressionCustom.LZ4_SMALL || compression == CompressionCustom.LZ4X) {
+				// -f: force overwrite; -9: best compression (slow) 
+				flags = Arrays.asList(compression.getExeName(), "-f", "-9", infile, outfile);
+			}
 			else if (compression == CompressionCustom.MEGAPACK) {
 				flags = Arrays.asList(compression.getExeName(), infile, outfile, "c");
 			}
 			else if (compression == CompressionCustom.NIBBLER) {
 				flags = Arrays.asList("vamos", compression.getExeName(), infile, outfile);
 			}
-			else if (compression == CompressionCustom.PACKFIRE) {
+			else if (compression == CompressionCustom.PACKFIRE_LARGE) {
 				// -b: binary output; -l: generates large model
 				flags = Arrays.asList(compression.getExeName(), "-b", "-l", infile, outfile);
+			}
+			else if (compression == CompressionCustom.PACKFIRE_TINY) {
+				// -b: binary output; -t: Try to output tiny model data if possible
+				flags = Arrays.asList(compression.getExeName(), "-b", "-t", infile, outfile);
 			}
 			else if (compression == CompressionCustom.RNC1 || compression == CompressionCustom.RNC2) {
 				if (compression == CompressionCustom.RNC1)
 					flags = Arrays.asList(compression.getExeName(), "p", infile, outfile, "-m=1");
 				else
 					flags = Arrays.asList(compression.getExeName(), "p", infile, outfile, "-m=2");
+			}
+			else if (compression == CompressionCustom.TWIZZLER || compression == CompressionCustom.TWIZZLERMOD) {
+				flags = Arrays.asList(compression.getExeName(), infile);
 			}
 			else if (compression == CompressionCustom.UFTC || compression == CompressionCustom.UFTC15) {
 				if (compression == CompressionCustom.UFTC15)

@@ -55,10 +55,11 @@ public class SpriteBoundariesPalettes {
 		}
 	}
 
-	public int getPalId (SpriteCell sprite) {
-		if (palByBoundary.isEmpty())
-			return 0;
+	public boolean isEmpty () {
+		return palByBoundary.isEmpty();
+	}
 
+	public int getPalId (SpriteCell sprite) {
 		Optional<Entry<Rectangle, Integer>> found = palByBoundary.entrySet().stream()
 			.filter(entry -> {
 				Rectangle rect = entry.getKey();

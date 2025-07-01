@@ -9,11 +9,10 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 
 
 ### Features
-- Supports up to 256 colors per frame.
+- Supports up to 256+ colors per frame.
 - Supports both NTSC and PAL systems.
 - Currently running at 10~15 FPS in NTSC and 10~12 FPS in PAL, with a frame size of 272x192 pixels.
 - Uses custom extensions for the [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
-- Uses custom `sega.s` *_VINT* which immediately calls user's VInt Callback, saving some cycles by discarding User tasks, Bitmap tasks, and XGM tasks.
 
 
 ### Config theese first:
@@ -78,8 +77,8 @@ in correct format for the SGDK rescomp tool.
 ### TODO
 - Update joy like in raycasting project.
 - Try Enigma on tilemaps and check if the optimized decompressor is faster than LZ4.
-- Pre load frame 0 before starting music and see how does result with sound timing.
-- Tileset decompression worst case takes 249052 cycles (~519 scanlines) including all the delays added by VInt and Hint callbacks.
+- Pre load frame 0 before starting music and see how does result with sound timing/sync.
+- The Tileset chunk decompression worst case takes 249052 cycles (~519 scanlines) including all the delays added by VInt and Hint callbacks.
 - Try new video from VirtualDub2 project. Better definition and correct dimensions. Frame size: 272 x 200 px (34 x 25 tiles).
 - Idea to avoid sending the first 2 strips'pals (64 colors) and send only first strip's pals (32 colors):
 	- DMA_QUEUE the first 2 pals (32 colors) at VInt.
@@ -99,7 +98,7 @@ in correct format for the SGDK rescomp tool.
 	- update README.md steps 2 and 4.
 	- update videoPlayer in order to do the unpack/load of all the elements along 3 display loops.
 - Try final frame size: 288 x 208 px (36 x 26 tiles).
-- Could declaring the arrays data[] y pals_data[] directly in ASM reduce rom size and/or speed access?
+- Could declaring the arrays data[] and pals_data[] directly in ASM reduce rom size and/or speed access?
 - Clear mem used by sound when exiting the video loop?
 - Try to change from H40 to H32 (or was it viceversa?) on HInt Callback, and hope for any any speed gain?
 	See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks

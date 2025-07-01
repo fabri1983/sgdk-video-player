@@ -334,9 +334,9 @@ static void fadeToBlack ()
 
 	while (loopFrames >= 0) {
 		if ((loopFrames-- % FADE_TO_BLACK_STEP_FREQ) == 0) {
-			u16* palsPtr = unpackedPalsRender;
+			u16* pals_ptr = unpackedPalsRender;
 			for (u16 i=MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP; i--;) {
-                u16 d = *palsPtr - 0x222; // decrement 1 unit on every component
+                u16 d = *pals_ptr - 0x222; // decrement 1 unit on every component
                 switch (d & 0b1000100010000) {
 					case 0b0000000010000: d &= ~0b0000000011110; break; // red overflows? then zero it
 					case 0b0000100010000: d &= ~0b0000111111110; break; // red and green overflow? then zero them
@@ -347,7 +347,7 @@ static void fadeToBlack ()
 					case 0b1000100010000: d = 0; break; // all colors overflow, then zero them
 					default: break;
                 }
-                *palsPtr++ = d;
+                *pals_ptr++ = d;
             }
 		}
 		// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
@@ -363,9 +363,9 @@ static void unloadSoundDriver ()
 
 static void loadSoundDriver ()
 {
-	// Z80_loadDriver(Z80_DRIVER_PCM, TRUE);
-	// Z80_loadDriver(Z80_DRIVER_XGM, TRUE);
-    Z80_loadDriver(Z80_DRIVER_XGM2, TRUE);
+	// PCM_loadDriver(TRUE);
+	// XGM_loadDriver(TRUE);
+    XGM2_loadDriver(TRUE);
 }
 
 static void playSound ()

@@ -109,7 +109,7 @@ public class SpriteFrameMultiPal extends Resource
         int ind = 0;
         for (SpriteCell sprite : sprites) {
         	// fabri1983: get the palette id of the sprite
-        	int palId = spriteBoundariesPals == null ? 0 : spriteBoundariesPals.getPalId(sprite);
+        	int palId = spriteBoundariesPals == null || spriteBoundariesPals.isEmpty()? 0 : spriteBoundariesPals.getPalId(sprite);
             vdpSprites.add(new VDPSpriteMultiPal(id + "_sprite" + ind++, sprite, wf, hf, palId));
         }
 

@@ -15,7 +15,7 @@
 #include "utils.h"
 #include "logos_res.h"
 
-#define STR_VERSION "v2.12 (Apr 2025)"
+#define STR_VERSION "v2.12 (Jun 2025)"
 #define STR_VERSION_LEN 17 // String version length including \0
 
 void displayTeddyBearLogo ()
@@ -47,8 +47,18 @@ void displayTeddyBearLogo ()
     VDP_setTextPalette(PAL3);
     VDP_drawText((const char*) STR_VERSION, screenWidth/8 - STR_VERSION_LEN, screenHeight/8 - 1);
 
-    // Fade in to Sprite palette (previously located at PAL3)
-    PAL_fadeIn(PAL3*16, PAL3*16 + 15, sprDefTeddyBearAnim.palette->data, 30, FALSE);
+    // Fade in to Sprite palette (previously loaded at PAL3)
+    PAL_fadeIn(PAL3*16, PAL3*16 + (16-1), sprDefTeddyBearAnim.palette->data, 30, TRUE);
+    // process fading immediately
+    do {
+        SYS_doVBlankProcess();
+        const u16 joyState = JOY_readJoypad(JOY_1);
+        if (joyState & BUTTON_START)
+            break;
+    }
+    while (PAL_doFadeStep());
+    // final update
+    SYS_doVBlankProcess();
 
     //
     // Display loop for SGDK Teddy Bear animation
@@ -57,10 +67,8 @@ void displayTeddyBearLogo ()
     for (;;)
     {
         const u16 joyState = JOY_readJoypad(JOY_1);
-
-        if (joyState & BUTTON_START) {
+        if (joyState & BUTTON_START)
             break;
-        }
 
         if (SPR_isAnimationDone(teddyBearAnimSpr)) {
             // Leave some time the last animation frame in the screen

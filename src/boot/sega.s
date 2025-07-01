@@ -40,7 +40,7 @@ _Vecteurs_68K:
         dc.l    _INT
         dc.l    hintCaller
         dc.l    _INT
-        dc.l    _VINT_lean              /* _VINT_lean instead of SGDK's _VINT */
+        dc.l    _VINT
         dc.l    _INT
         dc.l    _trap_0                 /* Resume supervisor task */
         dc.l    _INT,_INT,_INT,_INT,_INT,_INT,_INT
@@ -142,12 +142,10 @@ no_user_task:
         movem.l %d0-%d1/%a0-%a1,-(%sp)
         ori.w   #0x0001, intTrace           /* in V-Int */
         addq.l  #1, vtimer                  /* increment frame counter (more a vint counter) */
-        btst    #3, VBlankProcess+1         /* PROCESS_XGM_TASK ? (use VBlankProcess+1 as btst is a byte operation) */
-        beq.s   no_xgm_task
 
-        jsr     XGM_doVBlankProcess         /* do XGM vblank task */
+        move.l  z80VIntCB, %a0              /* load Z80 V-Int handler */
+        jsr     (%a0)                       /* call user callback */
 
-no_xgm_task:
         btst    #1, VBlankProcess+1         /* PROCESS_BITMAP_TASK ? (use VBlankProcess+1 as btst is a byte operation) */
         beq.s   no_bmp_task
 
@@ -158,19 +156,6 @@ no_bmp_task:
         jsr     (%a0)                       /* call user callback */
         andi.w  #0xFFFE, intTrace           /* out V-Int */
         movem.l (%sp)+,%d0-%d1/%a0-%a1
-        rte
-
-* Custom version of the _VINT vector which discards User tasks, Bitmap tasks, and XGM tasks, 
-* uses usp to backup a0, and immediately calls user's VInt callback.
-_VINT_lean:
-        * 84 cycles
-        move.l  %a0, %usp
-        *ori.w   #0x0001, intTrace           /* in V-Int */
-        addq.l  #1, vtimer
-        move.l  vintCB, %a0
-        jsr     (%a0)
-        *andi.w  #0xFFFE, intTrace           /* out V-Int */
-        move.l  %usp, %a0
         rte
 
 *------------------------------------------------

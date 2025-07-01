@@ -112,7 +112,7 @@ public class VDPSpriteMultiPal extends Resource
     @Override
     public void out(ByteArrayOutputStream outB, StringBuilder outS, StringBuilder outH) throws IOException
     {
-        // FrameVDPSprite structure
+        // FrameVDPSprite structure. This one must be defined in your custom .h file.
         Util.decl(outS, outH, "FrameVDPSpriteWithPal", id, 2, global);
 
         internalOutS(outS);

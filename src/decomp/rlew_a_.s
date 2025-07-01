@@ -19,7 +19,7 @@
 ;//   Method A: lower compression ratio but faster decompression time.
 ;//   Decompress a RLEW compressed stream of N rows and M words each row, and 
 ;//   applies an offset in the out buffer at the end of each decompressed row 
-;//   only if target is a map with extended width.
+;//   only if target is a tilemap with extended width.
 ;//
 ;// INPUT:
 ;//   d0  Jump gap in bytes on destination buffer when a row has been decompressed
@@ -37,7 +37,7 @@
 ;// ---------------------------------------------------------------------------
 ;// C prototype: extern void rlew_decomp_A_asm (const u8 jumpGap, u8* src, u8* dest);
 func rlew_decomp_A_asm
-	movem.l     4(sp), d0/a0-a1     ;// copy parameters into registers d0/a0-a1
+    movem.l     4(sp), d0/a0-a1     ;// copy parameters into registers d0/a0-a1
     movem.l     d2-d7/a2-a3, -(sp)  ;// save registers (except the scratch pad)
 
     ;// using registers instead of immediate values in some instructions take less cycles

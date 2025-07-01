@@ -376,22 +376,30 @@ static FORCE_INLINE void swapPalettes_CPU ()
 
 HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC ()
 {
-	if (vcounterManual < MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC || vcounterManual > MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC) {
-	    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+
+	if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+	    return;
+    }
+    if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+	    return;
     }
     else {
-        vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
         swapPalettes_CPU_ASM();
     }
 }
 
 HINTERRUPT_CALLBACK HIntCallback_CPU_PAL ()
 {
-	if (vcounterManual < MOVIE_HINT_COLORS_SWAP_START_SCANLINE_PAL || vcounterManual > MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL) {
-	    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+
+	if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_PAL + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+	    return;
+    }
+    if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+	    return;
     }
     else {
-        vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
         swapPalettes_CPU_ASM();
     }
 }
@@ -805,22 +813,30 @@ MEMORY_BARRIER();
 
 HINTERRUPT_CALLBACK HIntCallback_DMA_NTSC ()
 {
-	if (vcounterManual < MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC || vcounterManual > MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC) {
-	    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+
+	if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+        return;
+    }
+    else if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+        return;
     }
     else {
-        vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
         swapPalettes_DMA_3_cmds();
     }
 }
 
 HINTERRUPT_CALLBACK HIntCallback_DMA_PAL ()
 {
-	if (vcounterManual < MOVIE_HINT_COLORS_SWAP_START_SCANLINE_PAL || vcounterManual > MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL) {
-	    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+
+	if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_PAL + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+        return;
+    }
+    else if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+        return;
     }
     else {
-        vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
         swapPalettes_DMA_3_cmds();
     }
 }
