@@ -1,4 +1,4 @@
-#include <genesis.h>
+#include <types.h>
 #include <vdp.h>
 #include <pal.h>
 #include <sys.h>

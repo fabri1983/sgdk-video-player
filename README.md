@@ -16,8 +16,8 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 
 
 ### Config theese first:
-- You need *Image Magick v7.x* tools and set in _PATH_.
-- You need *ffmpeg* and set in the _PATH_.
+- You need *Image Magick v7.x* tools set in _PATH_.
+- You need *ffmpeg* set in the _PATH_.
 - Set `ENABLE_BANK_SWITCH` 1 in _SGDK_'s `config.h` if the rom size is bigger than 4MB, and re build the _SGDK_ lib.
 - You need *NodeJs* and set *NODEJS_HOME* in your user/system variables.
 
@@ -27,7 +27,8 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 Set NodeJs env var.
 
 2) By default we use resolution 272x192 pixels for the video processing and displaying.
-If you change that resolution you need to update the `tilemapAddrInPlane` calculation in `videoPlayer.c`, as well as next steps.
+If you change that resolution you need to update constant `VIDEO_FRAME_PLANE_ADDRESS`. See `checkCorrectPlaneAddress()` in `videoPlayer.c`.
+Then edit accordingly while going through next steps.
 
 3) `extract.bat video.mp4 tmpmv 272 192 8 15 n`
 tmpmv: output folder
@@ -43,7 +44,7 @@ Once rgb images with palettes were generated and before saving them ensure the n
 	- check _Switch 2 Palettes positions_
 	- check _Start at [PAL0,PAL1] first_
 	- enter 24 (192/8=24 strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
-- Download the images and move them at res\rgb folder.
+- Download the images and move them into `res\rgb` folder.
 
 5) Edit cache tiles configuration to analyze new tiles
 Open file `res_n_header_generator.js` and edit variables `enableTilesCacheStats` and `loadTilesCache` accordingly.

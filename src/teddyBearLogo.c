@@ -12,10 +12,10 @@
 #include <sprite_eng.h>
 #include <string.h>
 #include "teddyBearLogo.h"
-#include "utils.h"
 #include "logos_res.h"
+#include "utils.h"
 
-#define STR_VERSION "v2.12 (Jun 2025)"
+#define STR_VERSION "v2.12 (Jul 2025)"
 #define STR_VERSION_LEN 17 // String version length including \0
 
 void displayTeddyBearLogo ()

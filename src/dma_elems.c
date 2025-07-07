@@ -1,19 +1,19 @@
 #include <types.h>
 #include <dma.h>
 #include <tools.h>
+#include <sys.h>
 #include "dma_elems.h"
 #include "videoPlayer.h"
+#include "utils.h"
 
 DMAOpInfo dma_elem1;
 DMAOpInfo dma_elem2;
 bool dma_elem1_is_set = FALSE;
 bool dma_elem2_is_set = FALSE;
 
-FORCE_INLINE void enqueueDMA_elem (void* from, u16 to, u16 len, bool enqueueAtSlot1)
+void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, bool queueAtSlot1)
 {
-    u32 fromAddr = (u32) from;
-
-    if (enqueueAtSlot1) {
+    if (queueAtSlot1) {
         // $13:len L  $14:len H (DMA length in word)
         dma_elem1.regLenL = 0x9300 | (len & 0xFF);
         dma_elem1.regLenH = 0x9400 | ((len >> 8) & 0xFF);
@@ -45,8 +45,16 @@ FORCE_INLINE void enqueueDMA_elem (void* from, u16 to, u16 len, bool enqueueAtSl
     #endif
 }
 
-FORCE_INLINE void flushDMA_elems ()
+void DMA_ELEMS_flush ()
 {
+    #if (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES == MOVIE_FRAME_WIDTH_IN_TILES)
+    vu32* vdpCtrl_ptr_l = (vu32*) VDP_CTRL_PORT;
+    #pragma GCC unroll 256 // Always set a big number since it does not accept defines
+    for (u8 i=0; i < MOVIE_FRAME_HEIGHT_IN_TILES; ++i) {
+        doDMAfast_fixed_args(vdpCtrl_ptr_l, RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS + i*MOVIE_FRAME_WIDTH_IN_TILES*2, VDP_DMA_VRAM_ADDR(VIDEO_FRAME_PLANE_ADDRESS + i*VIDEO_PLANE_COLUMNS*2), MOVIE_FRAME_WIDTH_IN_TILES);
+    }
+    #endif
+
     if (dma_elem1_is_set) {
         dma_elem1_is_set = FALSE;
         DMAOpInfo* elem1_ptr = &dma_elem1;

@@ -2,12 +2,11 @@
 #define _MOVIE_PLAYER_H
 
 #include "generated/movie_data_consts.h"
-#include "utils.h"
 
-// #define DEBUG_VIDEO_PLAYER
-// #define DEBUG_TILES_CACHE
-// #define DEBUG_FIXED_VFRAME 160 // Always use an even frame number due to the map base tile index statically set on each frame by our custom rescomp extension
-// #define LOG_DIFF_BETWEEN_VIDEO_FRAMES
+#define VIDEO_PLAYER_DEBUG_MODE FALSE
+#define VIDEO_PLAYER_DEBUG_TILES_CACHE FALSE
+#define VIDEO_PLAYER_DEBUG_FIXED_VFRAME 0 // Always use an even frame number due to the map base tile index statically set on each frame by our custom rescomp extension
+#define VIDEO_PLAYER_DEBUG_LOG_DIFF_BETWEEN_VIDEO_FRAMES FALSE
 
 /// If TRUE then it will add Joy plling logic and user can exit the video playback at any time. FALSE otherwise.
 /// The JOY polling logic is a bit heavy and it adds some overhead. So test it.
@@ -37,6 +36,16 @@
 #define VIDEO_FRAME_PALS_NUM (MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP)
 #define VIDEO_FRAME_PALS_CHUNK_SIZE (VIDEO_FRAME_PALS_NUM / 3)
 #define VIDEO_FRAME_PALS_CHUNK_SIZE_LAST ((VIDEO_FRAME_PALS_NUM / 3) + (VIDEO_FRAME_PALS_NUM % 3))
+
+// 64 for 320p. 32 for 256p.
+#define VIDEO_PLANE_COLUMNS 64
+
+#define VIDEO_FRAME_PLANE_ADDRESS 0xE186
+
+#include <memory_base.h>
+
+// This is the fixed RAM address for the tilemap buffer.
+#define RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS (MEMORY_HIGH - (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES * 2))
 
 /// NOT USED ANYMORE! We now have splitted every frame's tileset in 3 chunks and using VIDEO_FRAME_TILESET_CHUNK_SIZE instead.
 /// LEGACY.

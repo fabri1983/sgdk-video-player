@@ -1,3 +1,5 @@
+#include <types.h>
+#include <sys.h>
 #include "memcpy.h"
 
 FORCE_INLINE void memcpy_asm (u16 lenBytes, u8* from, u8* to)

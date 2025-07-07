@@ -1,5 +1,6 @@
+#include <types.h>
+#include <sys.h>
 #include "decomp/rlew.h"
-#include "utils.h"
 
 #define DUPLICATE_WORD_INTO_LONG(vword, vlong)\
     __asm __volatile__ (\

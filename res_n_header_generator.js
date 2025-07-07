@@ -56,8 +56,8 @@ const tilesCacheId = "tilesCache_movie1"; // this is also the name of the variab
 // locate starting at address 0xF020.
 const tilesCacheFile_countLines = countTilesCacheLines("res/" + tilesCacheId + ".txt");
 const cacheFixedTilesNum = 127;
-const cacheVarTilesNum = (tilesCacheFile_countLines - cacheFixedTilesNum);
-const cacheStartIndexInVRAM_var = 1792 - cacheVarTilesNum;
+const cacheTilesNum_var = (tilesCacheFile_countLines - cacheFixedTilesNum);
+const cacheStartIndexInVRAM_var = 1792 - cacheTilesNum_var;
 const cacheRangesInVRAM_fixed = [ {start: 0xF020/32, length: cacheFixedTilesNum} ];
 const cacheRangesInVRAM_fixed_str = cacheRangesInVRAM_fixed
                                         .map(range => `${range.start}-${range.length}`)
@@ -123,11 +123,19 @@ if (paletteAddCompressionField)
 const matchFirstFrame = FILE_REGEX_2.exec(sortedFileNamesEveryFirstStrip[0]);
 const toggleMapTileBaseIndexFlag = parseInt(matchFirstFrame[1]) % 2 == 0 ? "EVEN" : "ODD"; // use NONE to disable it
 
-// Resource plugin: extends map width to N tiles. Values: 0 (disabled), 32, 64, 128.
-// videoPlayer.c: buffer allocation and copy algorithm.
-// NOTE: changing any of the values here demands you to review/update enqueueTilemapData() in videoPlayer.c.
-const mapExtendedWidth_forResource = 64; // If using RLEW compression this width is internally changed to the real width of the tilemap
-const widthTilesExt_forVideoPlayer = 64;
+const useExtendedWidth = true;
+// Used at Resource plugin: extends map width to N tiles. Values: 0 (disabled), 32, 64, 128.
+let mapExtendedWidth_forResource;
+// Used at videoPlayer.c: buffer allocation, copy algorithm, and DMA.
+let widthTilesExt_forVideoPlayer;
+
+if (useExtendedWidth) {
+    mapExtendedWidth_forResource = 64; // If using RLEW compression this width is internally changed to the real width of the tilemap
+    widthTilesExt_forVideoPlayer = mapExtendedWidth_forResource;
+} else {
+    mapExtendedWidth_forResource = 0;
+    widthTilesExt_forVideoPlayer = widthTiles;
+}
 
 if (!fs.existsSync(GEN_INC_DIR)) {
 	fs.mkdirSync(GEN_INC_DIR, { recursive: true });
@@ -154,7 +162,7 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_cache_consts.h`,
 #define _MOVIE_CACHE_CONSTS_H
 
 #define MOVIE_TILES_CACHE_START_INDEX_VAR ${cacheStartIndexInVRAM_var}
-#define MOVIE_TILES_CACHE_TILES_NUM_VAR ${cacheVarTilesNum}
+#define MOVIE_TILES_CACHE_TILES_NUM_VAR ${cacheTilesNum_var}
 
 typedef struct {
     unsigned short start;
@@ -250,7 +258,7 @@ const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${
 // Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1576  216  1921-127  movieFrames_cache.txt  APLIB  NONE
 // Flag 'enable' possible values: FALSE, TRUE
 const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache?"TRUE":"FALSE"}`
-		+ `  ${cacheStartIndexInVRAM_var}  ${cacheVarTilesNum}  ${cacheRangesInVRAM_fixed_str}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
+		+ `  ${cacheStartIndexInVRAM_var}  ${cacheTilesNum_var}  ${cacheRangesInVRAM_fixed_str}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
 
 // IMAGE_STRIPS_NO_PALS name "baseFile" strips tilesetStatsCollectorId [tilesCacheId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]
 // Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesetStats1  tilesCache_movie1  3  1  ODD  64  FAST  NONE  NONE  TRUE  ALL

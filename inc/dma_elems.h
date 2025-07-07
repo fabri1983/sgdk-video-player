@@ -2,12 +2,11 @@
 #define _DMA_ELEMS_H
 
 #include <types.h>
-#include "utils.h"
 
-/// Sets DMAOpInfo first or second slot depending on enqueueAtSlot1. 
-/// Only for DMA_VRAM. Assumees step = 2.
-void enqueueDMA_elem (void* from, u16 to, u16 len, bool enqueueAtSlot1);
+/// Sets DMAOpInfo first or second slot depending on queueAtSlot1 parameter. 
+/// Only for DMA_VRAM destination. Assumees VDP step is 2.
+void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, bool queueAtSlot1);
 
-void flushDMA_elems ();
+void DMA_ELEMS_flush ();
 
 #endif // _DMA_ELEMS_H

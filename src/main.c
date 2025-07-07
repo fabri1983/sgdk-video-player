@@ -1,7 +1,9 @@
 #include <types.h>
 #include <sys.h>
+#include <vdp.h>
 #include "videoPlayer.h"
 #include "teddyBearLogo.h"
+#include "utils.h"
 
 int main (bool hardReset)
 {

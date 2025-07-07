@@ -2,7 +2,6 @@
 #define _MEMCPY_H
 
 #include <types.h>
-#include "utils.h"
 
 // This method adds the extended width to the destination pointer after each bulk of MOVIE_FRAME_HEIGHT_IN_TILES.
 extern void memcpy_tilemap_asm (u8* from, u8* to);
