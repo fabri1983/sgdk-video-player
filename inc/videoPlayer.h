@@ -8,6 +8,9 @@
 #define VIDEO_PLAYER_DEBUG_FIXED_VFRAME 0 // Always use an even frame number due to the map base tile index statically set on each frame by our custom rescomp extension
 #define VIDEO_PLAYER_DEBUG_LOG_DIFF_BETWEEN_VIDEO_FRAMES FALSE
 
+/// Max elements for buffer of type DMAOpInfo
+#define VIDEO_PLAYER_DMA_MAX_ELEMS 4
+
 /// If TRUE then it will add Joy plling logic and user can exit the video playback at any time. FALSE otherwise.
 /// The JOY polling logic is a bit heavy and it adds some overhead. So test it.
 #define EXIT_PLAYER_WITH_JOY_START FALSE

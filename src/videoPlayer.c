@@ -16,7 +16,6 @@
 #include "dma_elems.h"
 #include "compressionTypesTracker.h"
 #include "decomp/rlew.h"
-#include "stopwatch.h"
 #include "utils.h"
 #include "memcpy.h"
 
@@ -298,11 +297,10 @@ static FORCE_INLINE void queueTilesetData (u16 startTileIndex, u16 length)
 	// This was the previous one
 	// VDP_loadTileData(unpackedTilesetChunk, startTileIndex, length, DMA_QUEUE);
 	// Now we use custom DMA_queueDmaFast() because the data is in RAM, so no 128KB bank boundary check is needed
-    bool queueAtSlot1 = TRUE;
-	DMA_ELEMS_queue((u32) unpackedTilesetChunk, startTileIndex * 32, length * 16, queueAtSlot1);
+	DMA_ELEMS_queue((u32) unpackedTilesetChunk, startTileIndex * 32, length * 16);
 }
 
-static FORCE_INLINE void queueTilemapData (u16 tilemapAddrInPlane, bool queueAtSlot1)
+static FORCE_INLINE void queueTilemapData (u16 tilemapAddrInPlane)
 {
     #if (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES == MOVIE_FRAME_WIDTH_IN_TILES)
     // No queue needed here, we handle the DMA of RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS buffer directly when flushing DMA
@@ -311,7 +309,7 @@ static FORCE_INLINE void queueTilemapData (u16 tilemapAddrInPlane, bool queueAtS
 	// This was the previous one, which benefits from tilemap width being 64 tiles
 	// VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0 & TILE_INDEX_MASK, lenInWords, 2, DMA_QUEUE);
 	// Now we use custom DMA_queueDmaFast() because the data is in RAM, so no 128KB bank boundary check is needed
-	DMA_ELEMS_queue(RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS, tilemapAddrInPlane + ((0 & TILE_INDEX_MASK) * 2), lenInWords, queueAtSlot1);
+	DMA_ELEMS_queue(RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS, tilemapAddrInPlane + ((0 & TILE_INDEX_MASK) * 2), lenInWords);
     #endif
 }
 
@@ -405,9 +403,9 @@ void playMovie ()
     VDP_setPlaneSize(VIDEO_PLANE_COLUMNS, 32, TRUE);
 
     // If we need more free RAM then:
-    DMA_initEx(DMA_QUEUE_SIZE_MIN, -1, DMA_BUFFER_SIZE_MIN);
-	MEM_free(dmaQueues); // free up DMA_QUEUE_SIZE_MIN * sizeof(DMAOpInfo) bytes
-	MEM_pack();
+    // DMA_initEx(DMA_QUEUE_SIZE_MIN, -1, DMA_BUFFER_SIZE_MIN);
+	// MEM_free(dmaQueues); // free upto DMA_QUEUE_SIZE_MIN * sizeof(DMAOpInfo) bytes
+	// MEM_pack();
 
 	// If we want to use up to 1791 tiles (remember we keep the reserved tile at address 0) then we need to move BG_B 
 	// and Window planes into BG_A so we can use the space otherwise used by BG_B by default. So:
@@ -443,8 +441,8 @@ void playMovie ()
 	// Load the appropriate driver
     loadSoundDriver();
 
-    // 39880 bytes
-	// KLog_U1("Free Mem: ", MEM_getFree() - (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES * 2));
+    // 32422 bytes (39848 bytes if SGDK's DMA buffers are cleared)
+	KLog_U1("Free Mem: ", MEM_getFree() - (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES * 2));
 
     // Loop the entire video
 	for (;;) // Better than while (TRUE) for infinite loops
@@ -457,6 +455,8 @@ void playMovie ()
 
 		// Let the HInt use the right pals before setting the VInt and HInt callbacks, otherwise it glitches out by one frame
 		setMoviePalsPointerBeforeInterrupts(unpackedPalsRender); // Palettes are all black at this point
+
+        DMA_ELEMS_reset();
 
         // Start sound
         playSound();
@@ -523,7 +523,7 @@ void playMovie ()
 
 			unpackFrameTilemap(data[vFrame]->tilemap1);
 
-			queueTilemapData(VIDEO_FRAME_PLANE_ADDRESS, TRUE); // TRUE: enqueue at slot 1. FALSE: enqueue at slot 2
+			queueTilemapData(VIDEO_FRAME_PLANE_ADDRESS);
 
 			// NOTE: first 2 strips' palettes (previously unpacked) will be enqueued in waitVInt_AND_flushDMA()
 			// NOTE2: not true until TODO PALS_1 is done

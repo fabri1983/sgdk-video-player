@@ -6,37 +6,28 @@
 #include "videoPlayer.h"
 #include "utils.h"
 
-DMAOpInfo dma_elem1;
-DMAOpInfo dma_elem2;
-bool dma_elem1_is_set = FALSE;
-bool dma_elem2_is_set = FALSE;
+static DMAOpInfo dma_elems[VIDEO_PLAYER_DMA_MAX_ELEMS];
+static u16 elem_index;
 
-void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, bool queueAtSlot1)
+FORCE_INLINE void DMA_ELEMS_reset ()
 {
-    if (queueAtSlot1) {
-        // $13:len L  $14:len H (DMA length in word)
-        dma_elem1.regLenL = 0x9300 | (len & 0xFF);
-        dma_elem1.regLenH = 0x9400 | ((len >> 8) & 0xFF);
-        // $16:M  $f:step (DMA address M and Step register)
-        dma_elem1.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // step = 2
-        // $17:H  $15:L (DMA address H & L)
-        dma_elem1.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
+    elem_index = 0;
+}
 
-        dma_elem1.regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
-        dma_elem1_is_set = TRUE;
-    }
-    else {
-        // $13:len L  $14:len H (DMA length in word)
-        dma_elem2.regLenL = 0x9300 | (len & 0xFF);
-        dma_elem2.regLenH = 0x9400 | ((len >> 8) & 0xFF);
-        // $16:M  $f:step (DMA address M and Step register)
-        dma_elem2.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // step = 2
-        // $17:H  $15:L (DMA address H & L)
-        dma_elem2.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
+FORCE_INLINE void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len)
+{
+    DMAOpInfo* dma_elem = &dma_elems[elem_index];
+    ++elem_index;
 
-        dma_elem2.regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
-        dma_elem2_is_set = TRUE;
-    }
+    // $13:len L  $14:len H (DMA length in word)
+    dma_elem->regLenL = 0x9300 | (len & 0xFF);
+    dma_elem->regLenH = 0x9400 | ((len >> 8) & 0xFF);
+    // $16:M  $f:step (DMA address M and Step register)
+    dma_elem->regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // step = 2
+    // $17:H  $15:L (DMA address H & L)
+    dma_elem->regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
+
+    dma_elem->regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
 
     #ifdef DEBUG_VIDEO_PLAYER
     // if transfer size above max transfer then warn it
@@ -47,43 +38,30 @@ void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, bool queueAtSlot1)
 
 void DMA_ELEMS_flush ()
 {
-    #if (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES == MOVIE_FRAME_WIDTH_IN_TILES)
     vu32* vdpCtrl_ptr_l = (vu32*) VDP_CTRL_PORT;
+
+    #if (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES == MOVIE_FRAME_WIDTH_IN_TILES)
     #pragma GCC unroll 256 // Always set a big number since it does not accept defines
     for (u8 i=0; i < MOVIE_FRAME_HEIGHT_IN_TILES; ++i) {
         doDMAfast_fixed_args(vdpCtrl_ptr_l, RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS + i*MOVIE_FRAME_WIDTH_IN_TILES*2, VDP_DMA_VRAM_ADDR(VIDEO_FRAME_PLANE_ADDRESS + i*VIDEO_PLANE_COLUMNS*2), MOVIE_FRAME_WIDTH_IN_TILES);
     }
     #endif
 
-    if (dma_elem1_is_set) {
-        dma_elem1_is_set = FALSE;
-        DMAOpInfo* elem1_ptr = &dma_elem1;
-        vu16* pw = (u16*) VDP_CTRL_PORT;
-        __asm volatile (
-            "move.l   (%0)+, (%1)\n\t"
-            "move.l   (%0)+, (%1)\n\t"
-            "move.l   (%0)+, (%1)\n\t"
-            "move.w   (%0)+, (%1)\n\t"
-            "move.w   (%0)+, (%1)"      // Stef: important to use word write for command triggering DMA (see SEGA notes)
-            : "+a" (elem1_ptr)
-            : "a" (pw)
-            :
-        );
-    }
-
-    if (dma_elem2_is_set) {
-        dma_elem2_is_set = FALSE;
-        DMAOpInfo* elem2_ptr = &dma_elem2;
-        vu16* pw = (u16*) VDP_CTRL_PORT;
-        __asm volatile (
-            "move.l   (%0)+, (%1)\n\t"
-            "move.l   (%0)+, (%1)\n\t"
-            "move.l   (%0)+, (%1)\n\t"
-            "move.w   (%0)+, (%1)\n\t"
-            "move.w   (%0)+, (%1)"      // Stef: important to use word write for command triggering DMA (see SEGA notes)
-            : "+a" (elem2_ptr)
-            : "a" (pw)
-            :
-        );
-    }
+    DMAOpInfo* ptr = dma_elems;
+    __asm volatile (
+        "subq.w   #1,%0\n\t" // decrement 1 for proper use of dbf/dbra
+        "bmi.s    2f\n"      // if NEGATIVE flag is set then it means elem_index was 0
+        "1:\n\t"
+        "move.l   (%1)+, (%2)\n\t"
+        "move.l   (%1)+, (%2)\n\t"
+        "move.l   (%1)+, (%2)\n\t"
+        "move.w   (%1)+, (%2)\n\t"
+        "move.w   (%1)+, (%2)\n\t"      // Stef: important to use word write for command triggering DMA (see SEGA notes)
+        "dbf      %0,1b\n"
+        "2:\n\t"
+        "moveq    #0,%0\n"   // elem_index = 0
+        : "+d" (elem_index), "+a" (ptr)
+        : "a" (vdpCtrl_ptr_l)
+        :
+    );
 }
