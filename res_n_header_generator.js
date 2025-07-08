@@ -17,7 +17,7 @@ const GEN_INC_DIR = 'inc/generated/';
 const RES_DIR = 'res/';
 
 const removeExtension = s => s.replace(/\.(png|PNG|bmp|BMP)$/, '');
-const FILE_REGEX_2 = /^\w+_(\d+)_(\d+)(_RGB)?\.(png|PNG|bmp|BMP)$/; // frame_100_0_RGB.png OR frame_100_0.png
+const FILE_REGEX_2 = /^\w+_(\d+)_(\d+)(_RGB)?\.(png|PNG|bmp|BMP)$/; // Eg: frame_100_0_RGB.png OR frame_100_0.png
 
 const widthTiles = parseInt(args[0])/8;
 const heightTiles = parseInt(args[1])/8;
@@ -97,7 +97,7 @@ else if (tilesetSplit == 3) {
 	videoFrameTilesetTotalSize = resPropertiesMap.get('MAX_TILESET_TOTAL_SIZE_FOR_SPLIT_IN_3');
 }
 
-if (imageAddCompressionField)
+if (imageAddCompressionField == true)
 	type_ImageNoPals += "CompField";
 
 // split palettes in N chunks. Current valid values are [1, 2, 3]
@@ -111,7 +111,7 @@ if (palette32Split == 2)
 else if (palette32Split == 3)
 	type_Palette32AllStrips = "Palette32AllStripsSplit3";
 
-if (paletteAddCompressionField)
+if (paletteAddCompressionField == true)
 	type_Palette32AllStrips += "CompField";
 
 // This activates the use of a map base tile index which sets the initial tile index for the tilemap of the resource.
@@ -123,13 +123,13 @@ if (paletteAddCompressionField)
 const matchFirstFrame = FILE_REGEX_2.exec(sortedFileNamesEveryFirstStrip[0]);
 const toggleMapTileBaseIndexFlag = parseInt(matchFirstFrame[1]) % 2 == 0 ? "EVEN" : "ODD"; // use NONE to disable it
 
-const useExtendedWidth = true;
+const useExtendedWidth = false;
 // Used at Resource plugin: extends map width to N tiles. Values: 0 (disabled), 32, 64, 128.
 let mapExtendedWidth_forResource;
 // Used at videoPlayer.c: buffer allocation, copy algorithm, and DMA.
 let widthTilesExt_forVideoPlayer;
 
-if (useExtendedWidth) {
+if (useExtendedWidth == true) {
     mapExtendedWidth_forResource = 64; // If using RLEW compression this width is internally changed to the real width of the tilemap
     widthTilesExt_forVideoPlayer = mapExtendedWidth_forResource;
 } else {
@@ -261,20 +261,20 @@ const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache
 		+ `  ${cacheStartIndexInVRAM_var}  ${cacheTilesNum_var}  ${cacheRangesInVRAM_fixed_str}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
 
 // IMAGE_STRIPS_NO_PALS name "baseFile" strips tilesetStatsCollectorId [tilesCacheId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]
-// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesetStats1  tilesCache_movie1  3  1  ODD  64  FAST  NONE  NONE  TRUE  ALL
+// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesetStats1  tilesCache_movie1  3  1  ODD  64  NONE  LZ4W  RLEW_A  TRUE  ALL
 const imageResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `IMAGE_STRIPS_NO_PALS  mv_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${tilesetStatsId}`
 			+ `  ${tilesCacheId}  ${tilesetSplit}  ${tilemapSplit}`
-            + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth_forResource}  NONE  FAST  RLEW_A`
+            + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth_forResource}  NONE  LZ4W  LZ4W`
 			+ `  ` + (imageAddCompressionField ? 'TRUE' : 'FALSE')
 			+ `  ALL`)
 	.join('\n') + '\n\n';
 
 // PALETTE_32_COLORS_ALL_STRIPS name baseFile strips palsPosition palsPosition addCompressionField compression compressionCustom addCompressionField
-// Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  PAL0PAL1  TRUE  FAST  NONE  FALSE
+// Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  PAL0PAL1  TRUE  LZ4W  NONE  FALSE
 const paletteResListStr = sortedFileNamesEveryFirstStrip
 	.map(s => `PALETTE_32_COLORS_ALL_STRIPS  pal_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${palette32Split}`
-			+ `  PAL0PAL1  TRUE  FAST  NONE`
+			+ `  PAL0PAL1  TRUE  LZ4W  NONE`
 			+ `  ` + (paletteAddCompressionField ? 'TRUE' : 'FALSE'))
 	.join('\n') + '\n\n';
 

@@ -77,9 +77,9 @@ in correct format for the SGDK rescomp tool.
 
 ### TODO
 - Update joy like in raycasting project.
-- Try Enigma on tilemaps and check if the optimized decompressor is faster than LZ4.
+- Try Enigma on tilemaps and check if the optimized decompressor is faster than current timings.
 - Pre load frame 0 before starting music and see how does result with sound timing/sync.
-- The Tileset chunk decompression worst case takes 249052 cycles (~519 scanlines) including all the delays added by VInt and Hint callbacks.
+- The Tileset chunk decompression worst case takes 249052 cycles (~519 scanlines) including all the delays added by VInt and Hint interrupts.
 - Try new video from VirtualDub2 project. Better definition and correct dimensions. Frame size: 272 x 200 px (34 x 25 tiles).
 - Idea to avoid sending the first 2 strips'pals (64 colors) and send only first strip's pals (32 colors):
 	- DMA_QUEUE the first 2 pals (32 colors) at VInt.

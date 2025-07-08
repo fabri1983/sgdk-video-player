@@ -3,7 +3,10 @@
 
 #include <types.h>
 
-// This method adds the extended width to the destination pointer after each bulk of MOVIE_FRAME_HEIGHT_IN_TILES.
+/// This method skips the extended width when copying data into destination buffer.
+/// Every bulk of MOVIE_FRAME_HEIGHT_IN_TILES it makes the jump.
+extern void memcpy_tilemap_extended_asm (u8* from, u8* to);
+
 extern void memcpy_tilemap_asm (u8* from, u8* to);
 
 /// Tileset length in bytes is multiple of 4. So we can use long words to copy 4 bytes in one instruction.

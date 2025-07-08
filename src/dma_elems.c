@@ -6,28 +6,45 @@
 #include "videoPlayer.h"
 #include "utils.h"
 
-static DMAOpInfo dma_elems[VIDEO_PLAYER_DMA_MAX_ELEMS];
-static u16 elem_index;
+static DMAOpInfo dmaElemTileset;
+#if (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES != MOVIE_FRAME_WIDTH_IN_TILES)
+static DMAOpInfo dmaElemTilemap;
+#endif
+static bool dmaElemTileset_ready;
+static bool dmaElemTilemap_ready;
 
-FORCE_INLINE void DMA_ELEMS_reset ()
+FORCE_INLINE void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, u8 dmaElemType)
 {
-    elem_index = 0;
-}
+    if (VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET == dmaElemType)
+    {
+        // $13:len L  $14:len H (DMA length in word)
+        dmaElemTileset.regLenL = 0x9300 | (len & 0xFF);
+        dmaElemTileset.regLenH = 0x9400 | ((len >> 8) & 0xFF);
+        // $16:M  $f:step (DMA address M and Step register)
+        dmaElemTileset.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // VDP step = 2
+        // $17:H  $15:L (DMA address H & L)
+        dmaElemTileset.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
+        // VDP command
+        dmaElemTileset.regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
 
-FORCE_INLINE void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len)
-{
-    DMAOpInfo* dma_elem = &dma_elems[elem_index];
-    ++elem_index;
+        dmaElemTileset_ready = TRUE;
+    }
+    else if (VIDEO_PLAYER_DMA_ELEM_TYPE_TILEMAP == dmaElemType)
+    {
+        #if (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES != MOVIE_FRAME_WIDTH_IN_TILES)
+        // $13:len L  $14:len H (DMA length in word)
+        dmaElemTilemap.regLenL = 0x9300 | (len & 0xFF);
+        dmaElemTilemap.regLenH = 0x9400 | ((len >> 8) & 0xFF);
+        // $16:M  $f:step (DMA address M and Step register)
+        dmaElemTilemap.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // VDP step = 2
+        // $17:H  $15:L (DMA address H & L)
+        dmaElemTilemap.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
+        // VDP command
+        dmaElemTilemap.regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
+        #endif
 
-    // $13:len L  $14:len H (DMA length in word)
-    dma_elem->regLenL = 0x9300 | (len & 0xFF);
-    dma_elem->regLenH = 0x9400 | ((len >> 8) & 0xFF);
-    // $16:M  $f:step (DMA address M and Step register)
-    dma_elem->regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // step = 2
-    // $17:H  $15:L (DMA address H & L)
-    dma_elem->regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
-
-    dma_elem->regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
+        dmaElemTilemap_ready = TRUE;
+    }
 
     #ifdef DEBUG_VIDEO_PLAYER
     // if transfer size above max transfer then warn it
@@ -41,27 +58,42 @@ void DMA_ELEMS_flush ()
     vu32* vdpCtrl_ptr_l = (vu32*) VDP_CTRL_PORT;
 
     #if (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES == MOVIE_FRAME_WIDTH_IN_TILES)
-    #pragma GCC unroll 256 // Always set a big number since it does not accept defines
-    for (u8 i=0; i < MOVIE_FRAME_HEIGHT_IN_TILES; ++i) {
-        doDMAfast_fixed_args(vdpCtrl_ptr_l, RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS + i*MOVIE_FRAME_WIDTH_IN_TILES*2, VDP_DMA_VRAM_ADDR(VIDEO_FRAME_PLANE_ADDRESS + i*VIDEO_PLANE_COLUMNS*2), MOVIE_FRAME_WIDTH_IN_TILES);
+    if (dmaElemTilemap_ready) {
+        dmaElemTilemap_ready = FALSE;
+        #pragma GCC unroll 256 // Always set a big number since it does not accept defines
+        for (u8 i=0; i < MOVIE_FRAME_HEIGHT_IN_TILES; ++i) {
+            doDMAfast_fixed_args(vdpCtrl_ptr_l, RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS + i*MOVIE_FRAME_WIDTH_IN_TILES*2, VDP_DMA_VRAM_ADDR(VIDEO_FRAME_PLANE_ADDRESS + i*VIDEO_PLANE_COLUMNS*2), MOVIE_FRAME_WIDTH_IN_TILES);
+        }
+    }
+    #else
+    if (dmaElemTilemap_ready) {
+        dmaElemTilemap_ready = FALSE;
+        DMAOpInfo* elem_ptr = &dmaElemTilemap;
+        __asm volatile (
+            "move.l   (%0)+, (%1)\n\t"
+            "move.l   (%0)+, (%1)\n\t"
+            "move.l   (%0)+, (%1)\n\t"
+            "move.w   (%0)+, (%1)\n\t"
+            "move.w   (%0)+, (%1)"      // Stef: important to use word write for command triggering DMA (see SEGA notes)
+            : "+a" (elem_ptr)
+            : "a" (vdpCtrl_ptr_l)
+            :
+        );
     }
     #endif
 
-    DMAOpInfo* ptr = dma_elems;
-    __asm volatile (
-        "subq.w   #1,%0\n\t" // decrement 1 for proper use of dbf/dbra
-        "bmi.s    2f\n"      // if NEGATIVE flag is set then it means elem_index was 0
-        "1:\n\t"
-        "move.l   (%1)+, (%2)\n\t"
-        "move.l   (%1)+, (%2)\n\t"
-        "move.l   (%1)+, (%2)\n\t"
-        "move.w   (%1)+, (%2)\n\t"
-        "move.w   (%1)+, (%2)\n\t"      // Stef: important to use word write for command triggering DMA (see SEGA notes)
-        "dbf      %0,1b\n"
-        "2:\n\t"
-        "moveq    #0,%0\n"   // elem_index = 0
-        : "+d" (elem_index), "+a" (ptr)
-        : "a" (vdpCtrl_ptr_l)
-        :
-    );
+    if (dmaElemTileset_ready) {
+        dmaElemTileset_ready = FALSE;
+        DMAOpInfo* elem_ptr = &dmaElemTileset;
+        __asm volatile (
+            "move.l   (%0)+, (%1)\n\t"
+            "move.l   (%0)+, (%1)\n\t"
+            "move.l   (%0)+, (%1)\n\t"
+            "move.w   (%0)+, (%1)\n\t"
+            "move.w   (%0)+, (%1)"      // Stef: important to use word write for command triggering DMA (see SEGA notes)
+            : "+a" (elem_ptr)
+            : "a" (vdpCtrl_ptr_l)
+            :
+        );
+    }
 }
