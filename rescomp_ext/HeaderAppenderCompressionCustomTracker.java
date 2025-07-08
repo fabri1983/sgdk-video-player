@@ -87,7 +87,7 @@ public class HeaderAppenderCompressionCustomTracker extends Resource
 			
 			// if the file doesn't exist, create it
 			if (!Files.exists(filePath)) {
-				// but wai, check first if we have something to add into it
+				// but wait, check first if we have something to add into it
 				if (used.isEmpty())
 					return;
 				// otherwise create it

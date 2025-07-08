@@ -50,7 +50,7 @@ public class TilesCacheManager {
 	private static Map<String, Integer> minTilesetSizeForStatsByCacheId = new HashMap<>();
 
 	private static Map<String, Integer> cacheStartIndexInVRAM_var_ById = new HashMap<>();
-	private static Map<String, Integer> cacheVarTilesNum_ById = new HashMap<>();
+	private static Map<String, Integer> cacheTilesNum_var_ById = new HashMap<>();
 	private static Map<String, List<Entry<Integer,Integer>>> cacheRangesInVRAM_fixed_ById = new HashMap<>();
 
 	public static void setMinTilesetSizeForStatsFor (String cacheId, int minTilesetSize) {
@@ -68,8 +68,8 @@ public class TilesCacheManager {
 		cacheStartIndexInVRAM_var_ById.put(cacheId, Integer.valueOf(cacheStartIndexInVRAM_1));
 	}
 	
-	public static void setCacheVarTilesNum (String cacheId, int cacheVarTilesNum) {
-		cacheVarTilesNum_ById.put(cacheId, Integer.valueOf(cacheVarTilesNum));
+	public static void setCacheTilesNum_var (String cacheId, int cacheVarTilesNum) {
+		cacheTilesNum_var_ById.put(cacheId, Integer.valueOf(cacheVarTilesNum));
 	}
 
 	public static void setRangesInVRAM_fixed (String cacheId, List<Entry<Integer,Integer>> cacheRangesInVRAM_fixed) {
@@ -83,8 +83,8 @@ public class TilesCacheManager {
 		return value.intValue();
 	}
 
-	public static int getCacheVarTilesNum (String cacheId) {
-		Integer value = cacheVarTilesNum_ById.get(cacheId);
+	public static int getCacheTilesNum_var (String cacheId) {
+		Integer value = cacheTilesNum_var_ById.get(cacheId);
 		if (value == null)
 			return 0;
 		return value.intValue();
@@ -195,7 +195,7 @@ public class TilesCacheManager {
 			return null;
 
 		final int startIndexInVRAM_var = getStartIndexInVRAM_var(cacheId);
-		final int cacheTilesNum_var = getCacheVarTilesNum(cacheId);
+		final int cacheTilesNum_var = getCacheTilesNum_var(cacheId);
 		final int endIndexInVRAM_var = startIndexInVRAM_var + cacheTilesNum_var - 1;
 		final List<Entry<Integer,Integer>> rangesInVRAM_fixed = getRangesInVRAM_fixed(cacheId);
 		final int endIndexInVRAM_fixed = getCacheFixedEndIndex(cacheId);

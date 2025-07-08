@@ -21,6 +21,8 @@ import java.util.stream.Collectors;
  */
 public class RLEWCompressor {
 
+	public static final String RLE_PROPERTY_SUFFIX_WORDS_PER_ROW = "_WORDS_PER_ROW";
+
 	/**
 	 * Only 6 bits used for the length (in words), hence (2^6)-1=63.
 	 */
@@ -73,9 +75,17 @@ public class RLEWCompressor {
 		if ((data.length % 2) != 0)
 			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": data[] length " + data.length + " + is not even");
 
-		// TODO use pattern matching on the binId to extract next value from the ExtProperties class.
 		// this is the width in words of the data region containing valid data (not the extended width in the case of a map).
-		final int wordsPerRow = Math.min(34, RLE_MAX_RUN_LENGTH); // up to RLE_MAX_RUN_LENGTH because we use 6 bits for the length
+		// up to RLE_MAX_RUN_LENGTH because we use 6 bits for the length
+		int wordsPerRow = getIntProperty(binId + RLE_PROPERTY_SUFFIX_WORDS_PER_ROW);
+		if (wordsPerRow == 0) {
+			wordsPerRow = RLE_MAX_RUN_LENGTH;
+			System.out.println("WARN: " + RLEWCompressor.class.getSimpleName() + ": wordsPerRow was invalid, now is " + RLE_MAX_RUN_LENGTH);
+		}
+		// ensure it does not exceeds the limit, otherwise throw error
+		if (wordsPerRow > RLE_MAX_RUN_LENGTH) {
+			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": wordsPerRow > " + RLE_MAX_RUN_LENGTH);
+		}
 
 		byte[] packed = methodA(data, wordsPerRow);
 
@@ -101,9 +111,17 @@ public class RLEWCompressor {
 		if ((data.length % 2) != 0)
 			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": data[] length " + data.length + " + is not even");
 
-		// TODO use pattern matching on the binId to extract next value from the ExtProperties class.
 		// this is the width in words of the data region containing valid data (not the extended width in the case of a map).
-		final int wordsPerRow = Math.min(34, RLE_MAX_RUN_LENGTH); // up to RLE_MAX_RUN_LENGTH because we use 6 bits for the length
+		// up to RLE_MAX_RUN_LENGTH because we use 6 bits for the length
+		int wordsPerRow = getIntProperty(binId + RLE_PROPERTY_SUFFIX_WORDS_PER_ROW);
+		if (wordsPerRow == 0) {
+			wordsPerRow = RLE_MAX_RUN_LENGTH;
+			System.out.println("WARN: " + RLEWCompressor.class.getSimpleName() + ": wordsPerRow was invalid, now is " + RLE_MAX_RUN_LENGTH);
+		}
+		// ensure it does not exceeds the limit, otherwise throw error
+		if (wordsPerRow > RLE_MAX_RUN_LENGTH) {
+			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": wordsPerRow > " + RLE_MAX_RUN_LENGTH);
+		}
 
 		byte[] packed = methodB(data, wordsPerRow);
 
@@ -942,5 +960,15 @@ public class RLEWCompressor {
             }
         }
         System.out.println(hexString.toString());
+	}
+	
+	private static int getIntProperty (String key) {
+		String value = System.getProperty(key);
+		try {
+			return Integer.parseInt(value);
+		}
+		catch (NumberFormatException e) {
+			return 0;
+		}
 	}
 }

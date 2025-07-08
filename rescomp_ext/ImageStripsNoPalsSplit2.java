@@ -86,7 +86,6 @@ public class ImageStripsNoPalsSplit2 extends Resource
 	        tilemap2 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tilesetsList_t2, offsetPerTilesetChunk, 
 	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, ht_1, wt, ht_2, tileOpt, compression, compressionCustomTilemap, 
 	        		mapExtendedWidth, TileOrdering.ROW, tilesCacheId, addCompressionField));
-        	
         }
 
         if (TilesCacheManager.isStatsEnabledFor(tilesCacheId) && 

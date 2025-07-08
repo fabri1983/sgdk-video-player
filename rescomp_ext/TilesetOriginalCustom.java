@@ -1,5 +1,8 @@
 package sgdk.rescomp.resource;
 
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.IndexColorModel;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -13,17 +16,20 @@ import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileEquality;
 import sgdk.rescomp.type.Basics.TileOptimization;
+import sgdk.rescomp.type.Basics.TileOrdering;
 import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.CustomDataTypes;
 import sgdk.rescomp.type.Tile;
 import sgdk.rescomp.type.TileCacheMatch;
+import sgdk.tool.ArrayUtil;
+import sgdk.tool.FileUtil;
 import sgdk.tool.ImageUtil;
 import sgdk.tool.ImageUtil.BasicImageInfo;
 
 public class TilesetOriginalCustom extends Resource
 {
     public static TilesetOriginalCustom getTileset(String id, String imgFile, Compression compression, CompressionCustom compressionCustom, 
-    		TileOptimization tileOpt, boolean addBlank, boolean temp, String tilesCacheId, boolean addCompressionField)
+    		TileOptimization tileOpt, boolean addBlank, boolean temp, TileOrdering order, boolean export, String tilesCacheId, boolean addCompressionField)
             throws Exception
     {
         // get 8bpp pixels and also check image dimension is aligned to tile
@@ -40,8 +46,32 @@ public class TilesetOriginalCustom extends Resource
         // we determine 'h' from data length and 'w' as we can crop image vertically to remove palette data
         final int h = image.length / w;
 
-        return new TilesetOriginalCustom(id, image, w, h, 0, 0, w / 8, h / 8, tileOpt, compression, compressionCustom,  addBlank, temp, tilesCacheId,
-        		addCompressionField);
+        final TilesetOriginalCustom result = new TilesetOriginalCustom(id, image, w, h, 0, 0, w / 8, h / 8, tileOpt, compression, compressionCustom,  addBlank, temp, 
+        		order, tilesCacheId, addCompressionField);
+
+        // export tileset to PNG ?
+        if (export)
+        {
+            // get the tileset image (8bpp format)
+            final byte[] tilesetImage = result.getTilesetImage();
+
+            // get the palette
+            int[] palette = (imgInfo.bpp > 8) ? ImageUtil.getRGBA8888PaletteFromTiles(imgFile) : ImageUtil.getRGBA8888PaletteFromIndColImage(imgFile);
+            // need to convert back to ABGR format
+            palette = ImageUtil.ARGBtoABGR(palette);
+            // create the IndexColorModel
+            final IndexColorModel cm = new IndexColorModel(8, 16, palette, 0, false, 0, DataBuffer.TYPE_BYTE);
+
+            // width is fixed to 16*8 (128) pixels, easy to get the height
+            final int imgH = tilesetImage.length / (16 * 8);
+            // create the BufferedImage
+            final BufferedImage exportImage = ImageUtil.createIndexedImage(16 * 8, imgH, cm, tilesetImage);
+
+            // save it
+            ImageUtil.save(exportImage, "png", FileUtil.setExtension(imgFile, "-tileset-export.png"));
+        }
+
+        return result;
     }
 
     // tiles
@@ -59,8 +89,8 @@ public class TilesetOriginalCustom extends Resource
     final private java.util.Map<Integer, List<Tile>> tileByHashcodeMap;
 
     public TilesetOriginalCustom(String id, byte[] image8bpp, int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile,
-            TileOptimization opt, Compression compression, CompressionCustom compressionCustom, boolean addBlank, boolean temp, String tilesCacheId,
-            boolean addCompressionField)
+            TileOptimization opt, Compression compression, CompressionCustom compressionCustom, boolean addBlank, boolean temp, TileOrdering order, 
+            String tilesCacheId, boolean addCompressionField)
     {
         super(id);
 
@@ -70,6 +100,68 @@ public class TilesetOriginalCustom extends Resource
         tileIndexesMap = new HashMap<>();
         tileByHashcodeMap = new HashMap<>();
         this.addCompressionField = addCompressionField;
+
+        // important to always use the **same loop order** when building Tileset and Tilemap/Map object
+        if (order == TileOrdering.ROW)
+        {
+            for (int j = 0; j < heightTile; j++)
+            {
+                for (int i = 0; i < widthTile; i++)
+                {
+                    // get tile
+                    final Tile tile = Tile.getTile(image8bpp, imageWidth, imageHeight, (i + startTileX) * 8, (j + startTileY) * 8, 8);
+                    // find if tile already exist
+                    final int index = getTileIndex(tile, opt);
+
+                    // blank tile
+                    hasBlank |= tile.isBlank();
+
+                    // fabri1983: tile with all zeros is the first SGDK tile reserved in VRAM at address 0
+                    // so we don't need to add it
+                    if (tile.getPlainValue() == 0)
+                    	continue;
+
+                    TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
+                	// found the cached tile? then continue with next one
+                	if (match != null)
+                		continue;
+
+            		// not found in the current list of tiles --> add it
+                    if (index == -1)
+                        add(tile);
+                }
+            }
+        }
+        else
+        {
+            for (int i = 0; i < widthTile; i++)
+            {
+                for (int j = 0; j < heightTile; j++)
+                {
+                    // get tile
+                    final Tile tile = Tile.getTile(image8bpp, imageWidth, imageHeight, (i + startTileX) * 8, (j + startTileY) * 8, 8);
+                    // find if tile already exist
+                    final int index = getTileIndex(tile, opt);
+
+                    // blank tile
+                    hasBlank |= tile.isBlank();
+
+                    // fabri1983: tile with all zeros is the first SGDK tile reserved in VRAM at address 0
+                    // so we don't need to add it
+                    if (tile.getPlainValue() == 0)
+                    	continue;
+
+                    TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
+                	// found the cached tile? then continue with next one
+                	if (match != null)
+                		continue;
+
+            		// not found in the current list of tiles --> add it
+                    if (index == -1)
+                        add(tile);
+                }
+            }
+        }
 
         // important to always use the same loop order when building Tileset and Tilemap/Map object
         for (int j = 0; j < heightTile; j++)
@@ -228,6 +320,32 @@ public class TilesetOriginalCustom extends Resource
 
         // not found
         return -1;
+    }
+
+    public byte[] getTilesetImage()
+    {
+        final int w = 16;
+        final int h = (tiles.size() + 15) / w;
+        final int imgW = w * 8;
+        final int imgH = h * 8;
+        final byte[] tilesetImage = new byte[imgW * imgH];
+
+        int ind = 0;
+        for (int y = 0; y < imgH; y += 8)
+        {
+            for (int x = 0; x < imgW; x += 8)
+            {
+                final Tile tile = tiles.get(ind);
+                final byte[] imageTile = ImageUtil.convertTo8bpp(ArrayUtil.intToByte(tile.data), 4);
+                // then copy tile
+                Tile.copyTile(tilesetImage, imgW, imageTile, x, y, 8);
+                // next
+                if (++ind >= tiles.size())
+                    return tilesetImage;
+            }
+        }
+
+        return tilesetImage;
     }
 
     @Override

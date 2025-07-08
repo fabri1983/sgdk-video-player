@@ -218,6 +218,11 @@ public class TilemapOriginalCustom extends Resource
         }
         final BinCustom binResource = new BinCustom(id + "_data", data, compression, compressionCustom);
 
+        // set the tilemap width in words as a property so the compressor uses the correct settings
+        if (compressionCustom == CompressionCustom.RLEW_A || compressionCustom == CompressionCustom.RLEW_B) {
+        	System.setProperty(binResource.id + RLEWCompressor.RLE_PROPERTY_SUFFIX_WORDS_PER_ROW, String.valueOf(w));
+        }
+
         // add as resource (avoid duplicate)
         bin = (BinCustom) addInternalResource(binResource);
 

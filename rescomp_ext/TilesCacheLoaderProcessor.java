@@ -37,7 +37,7 @@ public class TilesCacheLoaderProcessor implements Processor
             System.out.println("  tilesCacheId                  The same id you used in other resources to match this cache.");
             System.out.println("  enable                        Enables or disables the use of this cache. TRUE or FALSE.");
             System.out.println("  cacheStartIndexInVRAM_var     Starting index of the tiles cache in VRAM variable region.");
-            System.out.println("  cacheVarTilesNum              Number of tiles that goes into VRAM variable region.");
+            System.out.println("  cacheTilesNum_var             Number of tiles that goes into VRAM variable region.");
             System.out.println("                                Use NULL or 0 to disable it.");
             System.out.println("  cacheRangesInVRAM_fixed       Comma separated values with the starting index in VRAM and number of tiles. Eg: 792-10,912-32.");
             System.out.println("                                Use NULL or 0-0 to disable it.");
@@ -62,7 +62,7 @@ public class TilesCacheLoaderProcessor implements Processor
 		boolean enable = "TRUE".equals(fields[2].toUpperCase());
 
 		int cacheStartIndexInVRAM_var = StringUtil.parseInt(fields[3], 1);
-		int cacheVarTilesNum = StringUtil.parseInt(fields[4], 0);
+		int cacheTilesNum_var = StringUtil.parseInt(fields[4], 0);
 		List<Entry<Integer,Integer>> cacheRangesInVRAM_fixed = parseCacheFixedPairs(fields[5]);
 
 		String filename = fields[6];
@@ -77,7 +77,7 @@ public class TilesCacheLoaderProcessor implements Processor
         if (fields.length >= 9)
         	compressionCustom = CompressionCustom.from(fields[8]);
 
-		return new TilesCacheLoader(tilesCacheId, originalCacheId_keepCase, cacheStartIndexInVRAM_var, cacheVarTilesNum, cacheRangesInVRAM_fixed, 
+		return new TilesCacheLoader(tilesCacheId, originalCacheId_keepCase, cacheStartIndexInVRAM_var, cacheTilesNum_var, cacheRangesInVRAM_fixed, 
 				filename, enable, compression, compressionCustom);
     }
 
@@ -120,8 +120,11 @@ public class TilesCacheLoaderProcessor implements Processor
 
 //    public static void main(String[] args) throws Exception {
 //    	TilesCacheLoaderProcessor p = new TilesCacheLoaderProcessor();
+//    	String cacheStartIndexInVRAM_var = String.valueOf(1792-216);
+//    	String cacheTilesNum_var = "216";
+//    	String cacheRangesInVRAM_fixed = "1921-127";
 //		String[] fields_test_movie = {
-//				resId, "tilesCache_movie1", "TRUE", String.valueOf(1792-216), "216", "1921-127", 
+//				resId, "tilesCache_movie1", "TRUE", cacheStartIndexInVRAM_var, cacheTilesNum_var, cacheRangesInVRAM_fixed, 
 //				"C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\tilesCache_movie1.txt",	"APLIB", "NONE" 
 //			};
 //		p.execute(fields_test_movie);

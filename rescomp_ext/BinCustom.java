@@ -144,7 +144,7 @@ public class BinCustom extends Bin
         Util.declArray(outS, outH, "u8", id, packedData.data.length, align, global);
         // output data (compression information is stored in 'parent' resource when embedded)
         Util.outS(outS, packedData.data, 1);
-        Util.declArrayEnd(outS, outH, "u8", id, packedData.data.length, align, global);
+		Util.declArrayEnd(outS, outH, "u8", id, packedData.data.length, align, global);
         outS.append("\n");
     }
 }
