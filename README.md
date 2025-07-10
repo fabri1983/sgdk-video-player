@@ -1,5 +1,5 @@
 ## sgdk-video-player
-A video converter and video player ready to use with the [SGDK v2.0](https://github.com/Stephane-D/SGDK) for the Megadrive/Genesis system consoles.  
+A video converter and video player made with the [SGDK v2.12](https://github.com/Stephane-D/SGDK) for the Megadrive/Genesis system consoles.  
 Originally inspired by [sgdk-video-player](https://github.com/haroldo-ok/sgdk-video-player) made by _haroldo-ok_.  
 
 
@@ -10,23 +10,23 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 
 ### Features
 - Supports up to 256+ colors per frame.
-- Supports both NTSC and PAL systems.
-- Currently running at 10~15 FPS in NTSC and 10~12 FPS in PAL, with a frame size of 272x192 pixels.
+- Currently running at 10~15 FPS in NTSC and 10~12 FPS in PAL, with a frame size of 272 x 192 pixels (34 x 24 tiles).
 - Uses custom extensions for the [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
+- Uses custom tiledpalettequant app (not public yet).
 
 
 ### Config theese first:
 - You need *Image Magick v7.x* tools set in _PATH_.
 - You need *ffmpeg* set in the _PATH_.
 - Set `ENABLE_BANK_SWITCH` 1 in _SGDK_'s `config.h` if the rom size is bigger than 4MB, and re build the _SGDK_ lib.
-- You need *NodeJs* and set *NODEJS_HOME* in your user/system variables.
+- You need *NodeJs* and its *NODEJS_HOME* env var set as user/system variable.
 
 
 ### Instructions using custom tiledpalettequant app
 1) `env.bat`
-Set NodeJs env var.
+Sets NodeJs env var.
 
-2) By default we use resolution 272x192 pixels for the video processing and displaying.
+2) By default we use resolution 272 x 192 pixels for the video processing and displaying.
 If you change that resolution you need to update constant `VIDEO_FRAME_PLANE_ADDRESS`. See `checkCorrectPlaneAddress()` in `videoPlayer.c`.
 Then edit accordingly while going through next steps.
 
@@ -38,7 +38,7 @@ tmpmv: output folder
 15: frame rate
 n: color reduction (optional parameter). Max value 256 (for PNGs).
 
-4) Use nodejs custom app `tiledpalettequant` (this isn't public yet) to generate all RGB images with palettes data.
+4) Use nodejs custom app `tiledpalettequant` (not public yet) to generate all RGB images with palettes data.
 Once rgb images with palettes were generated and before saving them ensure the next config:
 - in _SGDK settings_ section:
 	- check _Switch 2 Palettes positions_
@@ -79,7 +79,7 @@ in correct format for the SGDK rescomp tool.
 - Update joy like in raycasting project.
 - Try Enigma on tilemaps and check if the optimized decompressor is faster than current timings.
 - Pre load frame 0 before starting music and see how does result with sound timing/sync.
-- The Tileset chunk decompression worst case takes 249052 cycles (~519 scanlines) including all the delays added by VInt and Hint interrupts.
+- The Tileset chunk decompression worst case using LZ4W takes 47423 cycles (~97 scanlines). Includes all the delays added by VInt and Hint interrupts.
 - Try new video from VirtualDub2 project. Better definition and correct dimensions. Frame size: 272 x 200 px (34 x 25 tiles).
 - Idea to avoid sending the first 2 strips'pals (64 colors) and send only first strip's pals (32 colors):
 	- DMA_QUEUE the first 2 pals (32 colors) at VInt.
@@ -94,10 +94,6 @@ in correct format for the SGDK rescomp tool.
 	- remove the condition if (!((prevFrame ^ vFrame) & 1))
 	- search for TODO PALS_1 and act accordingly.
 	- If the first 2 strips' pals are DMA_QUEUE in waitVInt_AND_flushDMA() then use flushQueue from Stef's: flushQueue(DMA_getQueueSize())
-- Try 20 FPS NTSC (16 FPS PAL). So 60/3=20 in NTSC. And 50/3=16 in PAL.
-	- update MOVIE_FRAME_RATE at res_n_header_generator.js.
-	- update README.md steps 2 and 4.
-	- update videoPlayer in order to do the unpack/load of all the elements along 3 display loops.
 - Try final frame size: 288 x 208 px (36 x 26 tiles).
 - Could declaring the arrays data[] and pals_data[] directly in ASM reduce rom size and/or speed access?
 - Clear mem used by sound when exiting the video loop?

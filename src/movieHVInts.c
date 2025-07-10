@@ -148,9 +148,17 @@ void VIntMovieCallback ()
 	vcounterManual = HINT_COUNTER_FOR_COLORS_UPDATE - 1; // Resets due to modification made by HInt
 }
 
-static FORCE_INLINE void swapPalettes_CPU_ASM ()
+HINTERRUPT_CALLBACK HIntCallback_CPU_ASM ()
 {
     __asm volatile (
+        "   move.w      %[vcounterManual],%%d0\n"  // d0: vcounterManual
+        "   addq.w      %[_HINT_COUNTER_FOR_COLORS_UPDATE],%%d0\n"  // d0: vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+        "   move.w      %%d0,%[vcounterManual]\n"  // store current value of vcounterManual
+        "   cmpi.w      %[LIMIT_START],%%d0\n"     // if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE))
+        "   bmi         .quit_hint_%=\n"           // return
+        "   cmpi.w      %[LIMIT_END],%%d0\n"       // if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE))
+        "   bhi         .quit_hint_%=\n"           // return
+
         // prepare_regs
         "   movea.l     %c[palInFramePtr],%%a0\n" // a0: palInFramePtr
         "   lea         0xC00004,%%a1\n"          // a1: VDP_CTRL_PORT 0xC00004
@@ -266,22 +274,38 @@ static FORCE_INLINE void swapPalettes_CPU_ASM ()
 		"   move.l      %%d3,(%%a2)\n"          // *((vu32*) VDP_DATA_PORT) = colors2_D;
 		// turn on VDP
 		"   move.w      %%d5,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
+
+        // Label to exit the hint from the vcounterManual conditions at the beginning of the method
+        ".quit_hint_%=:"
 		: 
 		[palInFramePtr] "+m" (palInFramePtr),
-		[palIdx] "+m" (palCmdAddrrToggle)
+		[palIdx] "+m" (palCmdAddrrToggle),
+        [vcounterManual] "+m" (vcounterManual)
 		: 
 		[turnOff] "i" (0x8100 | (0x74 & ~0x40)), // 0x8134
 		[turnOn] "i" (0x8100 | (0x74 | 0x40)), // 0x8174
         [hcLimit] "i" (156),
-		[_MOVIE_FRAME_COLORS_PER_STRIP] "i" (MOVIE_FRAME_COLORS_PER_STRIP)
+		[_MOVIE_FRAME_COLORS_PER_STRIP] "i" (MOVIE_FRAME_COLORS_PER_STRIP),
+        [_HINT_COUNTER_FOR_COLORS_UPDATE] "i" (HINT_COUNTER_FOR_COLORS_UPDATE),
+        [LIMIT_START] "i" (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE),
+        [LIMIT_END] "i" (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)
 		:
         // backup registers used in the asm implementation including the scratch pad since this code is used in an interrupt call.
 		"d0","d1","d2","d3","d4","d5","d6","d7","a0","a1","a2","a3","a4","cc","memory"
     );
 }
 
-static FORCE_INLINE void swapPalettes_CPU ()
+HINTERRUPT_CALLBACK HIntCallback_CPU ()
 {
+    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+
+	if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+	    return;
+    }
+    if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+	    return;
+    }
+
     /*
         Every command is CRAM address to start write 4 colors (2 times u32 bits)
         u32 cmd1st = VDP_WRITE_CRAM_ADDR((u32)((palIdx + 0) * 2));
@@ -374,39 +398,17 @@ static FORCE_INLINE void swapPalettes_CPU ()
 	turnOnVDP(0x74);
 }
 
-HINTERRUPT_CALLBACK HIntCallback_CPU_NTSC ()
-{
-    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
-
-	if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
-	    return;
-    }
-    if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
-	    return;
-    }
-    else {
-        swapPalettes_CPU_ASM();
-    }
-}
-
-HINTERRUPT_CALLBACK HIntCallback_CPU_PAL ()
-{
-    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
-
-	if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_PAL + HINT_COUNTER_FOR_COLORS_UPDATE)) {
-	    return;
-    }
-    if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL + HINT_COUNTER_FOR_COLORS_UPDATE)) {
-	    return;
-    }
-    else {
-        swapPalettes_CPU_ASM();
-    }
-}
-
-static FORCE_INLINE void swapPalettes_DMA_2_cmds_ASM ()
+HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
 {
     __asm volatile (
+        "   move.w      %[vcounterManual],%%d0\n"  // d0: vcounterManual
+        "   addq.w      %[_HINT_COUNTER_FOR_COLORS_UPDATE],%%d0\n"  // d0: vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+        "   move.w      %%d0,%[vcounterManual]\n"  // store current value of vcounterManual
+        "   cmpi.w      %[LIMIT_START],%%d0\n"     // if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE))
+        "   bmi         .quit_hint_%=\n"           // return
+        "   cmpi.w      %[LIMIT_END],%%d0\n"       // if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE))
+        "   bhi         .quit_hint_%=\n"           // return
+
         // prepare_regs
         "   movea.l     %c[palInFramePtr],%%a0\n" // a0: palInFramePtr
         "   lea         0xC00004,%%a1\n"          // a1: VDP_CTRL_PORT 0xC00004
@@ -497,9 +499,13 @@ static FORCE_INLINE void swapPalettes_DMA_2_cmds_ASM ()
         "   move.l      %%d5,(%%a1)\n"          // *((vu32*) VDP_CTRL_PORT) = palCmdForDMA;
 		// turn on VDP
 		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
+
+        // Label to exit the hint from the vcounterManual conditions at the beginning of the method
+        ".quit_hint_%=:"
 		: 
 		[palInFramePtr] "+m" (palInFramePtr),
-		[palIdx] "+m" (palCmdAddrrToggle)
+		[palIdx] "+m" (palCmdAddrrToggle),
+        [vcounterManual] "+m" (vcounterManual)
 		: 
 		[turnOff] "i" (0x8100 | (0x74 & ~0x40)), // 0x8134
 		[turnOn] "i" (0x8100 | (0x74 | 0x40)), // 0x8174
@@ -508,15 +514,27 @@ static FORCE_INLINE void swapPalettes_DMA_2_cmds_ASM ()
         [_DMA_9400_LEN_DIV_2] "i" (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/2) >> 8) & 0xff)),
         [_DMA_9300_9400_LEN_DIV_2] "i" ( ((0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/2) & 0xff)) << 16) | (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/2) >> 8) & 0xff)) ),
 		[_MOVIE_FRAME_COLORS_PER_STRIP] "i" (MOVIE_FRAME_COLORS_PER_STRIP),
-        [_MOVIE_FRAME_COLORS_PER_STRIP_DIV_2] "i" (MOVIE_FRAME_COLORS_PER_STRIP/2)
+        [_MOVIE_FRAME_COLORS_PER_STRIP_DIV_2] "i" (MOVIE_FRAME_COLORS_PER_STRIP/2),
+        [_HINT_COUNTER_FOR_COLORS_UPDATE] "i" (HINT_COUNTER_FOR_COLORS_UPDATE),
+        [LIMIT_START] "i" (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE),
+        [LIMIT_END] "i" (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)
 		:
         // backup registers used in the asm implementation including the scratch pad since this code is used in an interrupt call.
 		"d0","d1","d2","d3","d4","d5","d6","a0","a1","a2","a3","cc","memory"
     );
 }
 
-static FORCE_INLINE void swapPalettes_DMA_2_cmds ()
+HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds ()
 {
+    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+
+	if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+        return;
+    }
+    else if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+        return;
+    }
+
     /*
         With 2 DMA commands and same DMA lengths:
         Every command is CRAM address to start DMA MOVIE_FRAME_COLORS_PER_STRIP/2 colors
@@ -573,7 +591,7 @@ MEMORY_BARRIER();
     turnOnVDP(0x74);
 }
 
-static FORCE_INLINE void swapPalettes_DMA_3_cmds_ASM ()
+HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
 {
     /*
         With 3 DMA commands and different DMA lenghts:
@@ -588,6 +606,14 @@ static FORCE_INLINE void swapPalettes_DMA_3_cmds_ASM ()
     */
 
     __asm volatile (
+        "   move.w      %[vcounterManual],%%d0\n"  // d0: vcounterManual
+        "   addq.w      %[_HINT_COUNTER_FOR_COLORS_UPDATE],%%d0\n"  // d0: vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+        "   move.w      %%d0,%[vcounterManual]\n"  // store current value of vcounterManual
+        "   cmpi.w      %[LIMIT_START],%%d0\n"     // if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE))
+        "   bmi         .quit_hint_%=\n"           // return
+        "   cmpi.w      %[LIMIT_END],%%d0\n"       // if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE))
+        "   bhi         .quit_hint_%=\n"           // return
+
         // prepare_regs
         "   movea.l     %c[palInFramePtr],%%a0\n" // a0: palInFramePtr
         "   lea         0xC00004,%%a1\n"          // a1: VDP_CTRL_PORT 0xC00004
@@ -715,13 +741,17 @@ static FORCE_INLINE void swapPalettes_DMA_3_cmds_ASM ()
         "   move.l      %%d5,(%%a1)\n"          // *((vu32*) VDP_CTRL_PORT) = palCmdForDMA;
 		// turn on VDP
 		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
+
+        // Label to exit the hint from the vcounterManual conditions at the beginning of the method
+        ".quit_hint_%=:"
 		: 
 		[palInFramePtr] "+m" (palInFramePtr),
-		[palIdx] "+m" (palCmdAddrrToggle)
+		[palIdx] "+m" (palCmdAddrrToggle),
+        [vcounterManual] "+m" (vcounterManual)
 		: 
 		[turnOff] "i" (0x8100 | (0x74 & ~0x40)), // 0x8134
 		[turnOn] "i" (0x8100 | (0x74 | 0x40)), // 0x8174
-        [hcLimit] "i" (152),
+        [hcLimit] "i" (154),
         [_DMA_9300_LEN_DIV_3] "i" (0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/3) & 0xff)),
         [_DMA_9400_LEN_DIV_3] "i" (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/3) >> 8) & 0xff)),
         [_DMA_9300_9400_LEN_DIV_3] "i" ( ((0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/3) & 0xff)) << 16) | (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/3) >> 8) & 0xff)) ),
@@ -730,15 +760,27 @@ static FORCE_INLINE void swapPalettes_DMA_3_cmds_ASM ()
         [_DMA_9300_9400_LEN_DIV_3_REM] "i" ( ((0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/3 + MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(3)) & 0xff)) << 16) | (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/3 + MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(3)) >> 8) & 0xff)) ),
 		[_MOVIE_FRAME_COLORS_PER_STRIP] "i" (MOVIE_FRAME_COLORS_PER_STRIP),
         [_MOVIE_FRAME_COLORS_PER_STRIP_DIV_3] "i" (MOVIE_FRAME_COLORS_PER_STRIP/3),
-        [_MOVIE_FRAME_COLORS_PER_STRIP_DIV_3_REM] "i" (MOVIE_FRAME_COLORS_PER_STRIP/3 + MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(3))
+        [_MOVIE_FRAME_COLORS_PER_STRIP_DIV_3_REM] "i" (MOVIE_FRAME_COLORS_PER_STRIP/3 + MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(3)),
+        [_HINT_COUNTER_FOR_COLORS_UPDATE] "i" (HINT_COUNTER_FOR_COLORS_UPDATE),
+        [LIMIT_START] "i" (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE),
+        [LIMIT_END] "i" (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)
 		:
         // backup registers used in the asm implementation including the scratch pad since this code is used in an interrupt call.
 		"d0","d1","d2","d3","d4","d5","d6","a0","a1","a2","a3","cc","memory"
     );
 }
 
-static FORCE_INLINE void swapPalettes_DMA_3_cmds ()
+HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds ()
 {
+    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
+
+	if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+        return;
+    }
+    else if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
+        return;
+    }
+
     /*
         With 3 DMA commands and different DMA lenghts:
         Every command is CRAM address to start DMA 8 colors, then 12 more colors, and last 12 colors. Totaling 32 colors.
@@ -809,34 +851,4 @@ MEMORY_BARRIER();
     turnOffVDP(0x74);
     *((vu32*) VDP_CTRL_PORT) = palCmdForDMA; // trigger DMA transfer
     turnOnVDP(0x74);
-}
-
-HINTERRUPT_CALLBACK HIntCallback_DMA_NTSC ()
-{
-    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
-
-	if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
-        return;
-    }
-    else if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE)) {
-        return;
-    }
-    else {
-        swapPalettes_DMA_3_cmds();
-    }
-}
-
-HINTERRUPT_CALLBACK HIntCallback_DMA_PAL ()
-{
-    vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
-
-	if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_PAL + HINT_COUNTER_FOR_COLORS_UPDATE)) {
-        return;
-    }
-    else if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_PAL + HINT_COUNTER_FOR_COLORS_UPDATE)) {
-        return;
-    }
-    else {
-        swapPalettes_DMA_3_cmds();
-    }
 }

@@ -297,21 +297,22 @@ static FORCE_INLINE void queueTilesetData (u16 startTileIndex, u16 length)
 	DMA_ELEMS_queue((u32) unpackedTilesetChunk, startTileIndex * 32, lenInWords, VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET);
 }
 
-static FORCE_INLINE void queueTilemapData (u16 tilemapAddrInPlane)
+static FORCE_INLINE void queueTilemapData ()
 {
 	const u16 lenInWords = MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES;
 	// This was the previous one, which benefits from tilemap width being 64 tiles
-	// VDP_setTileMapData(tilemapAddrInPlane, unpackedTilemap, 0 & TILE_INDEX_MASK, lenInWords, 2, DMA_QUEUE);
+	// VDP_setTileMapData(VIDEO_FRAME_PLANE_ADDRESS, unpackedTilemap, 0 & TILE_INDEX_MASK, lenInWords, 2, DMA_QUEUE);
 	// Now we use custom DMA_queueDmaFast() because the data is in RAM, so no 128KB bank boundary check is needed
-	DMA_ELEMS_queue(RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS, tilemapAddrInPlane + ((0 & TILE_INDEX_MASK) * 2), lenInWords, VIDEO_PLAYER_DMA_ELEM_TYPE_TILEMAP);
+	DMA_ELEMS_queue(RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS, VIDEO_FRAME_PLANE_ADDRESS + ((0 & TILE_INDEX_MASK) * 2), lenInWords, VIDEO_PLAYER_DMA_ELEM_TYPE_TILEMAP);
 }
 
 #if VIDEO_FRAME_ADVANCE_STRATEGY == 4
 static u16* createFramerateDivLUT () {
 	u16 sysFrameRate = IS_PAL_SYSTEM ? 50 : 60;
-	u16 lutSize = MOVIE_FRAME_COUNT * (sysFrameRate / MOVIE_FRAME_RATE);
+	u16 lutSize = MOVIE_FRAME_COUNT * ((sysFrameRate + (MOVIE_FRAME_RATE-1)) / MOVIE_FRAME_RATE);
 	u16* lut = MEM_alloc(lutSize * 2);
 	u16* lutPtr = lut;
+    #pragma GCC unroll 0 // do not unroll this loop
 	for (u16 hwFrameCntr = 0; hwFrameCntr < lutSize; ++hwFrameCntr) {
         *lutPtr++ = divu(hwFrameCntr * MOVIE_FRAME_RATE, sysFrameRate);
     }
@@ -389,6 +390,8 @@ static void stopSound ()
 
 void playMovie ()
 {
+    VDP_setScreenHeight224();
+
 	// Blacks out everything in screen while first frame is being loaded
 	PAL_setColors(0, palette_black, 64, CPU);
 
@@ -440,9 +443,10 @@ void playMovie ()
     // Loop the entire video
 	for (;;) // Better than while (TRUE) for infinite loops
     {
-		#if VIDEO_FRAME_ADVANCE_STRATEGY == 1
+		#if VIDEO_FRAME_ADVANCE_STRATEGY == 1 || VIDEO_FRAME_ADVANCE_STRATEGY == 3 || VIDEO_PLAYER_DEBUG_FIXED_VFRAME
 		u16 sysFrameRate = IS_PAL_SYSTEM ? 50 : 60;
-		#elif VIDEO_FRAME_ADVANCE_STRATEGY == 2
+        #endif
+		#if VIDEO_FRAME_ADVANCE_STRATEGY == 2
 		u16 sysFrameRateReciprocal = IS_PAL_SYSTEM ? MOVIE_FRAME_RATE * 0x051E : MOVIE_FRAME_RATE * 0x0444;
 		#endif
 
@@ -461,16 +465,15 @@ void playMovie ()
         VDP_setHIntCounter(HINT_COUNTER_FOR_COLORS_UPDATE - 1);
         VDP_setHInterrupt(TRUE);
         #if HINT_USE_DMA
-            if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_DMA_PAL);
-            else SYS_setHIntCallback(HIntCallback_DMA_NTSC);
+            // HIntCallback_DMA_2_cmds_ASM is the fastest, hence it returns from the interrupt earlier than the others
+            SYS_setHIntCallback(HIntCallback_DMA_2_cmds_ASM);
         #else
-            if (IS_PAL_SYSTEM) SYS_setHIntCallback(HIntCallback_CPU_PAL);
-            else SYS_setHIntCallback(HIntCallback_CPU_NTSC);
+            SYS_setHIntCallback(HIntCallback_CPU_ASM);
         #endif
 
         #if VIDEO_PLAYER_DEBUG_FIXED_VFRAME
         u16 vFrame = VIDEO_PLAYER_DEBUG_FIXED_VFRAME;
-        vtimer = ((IS_PAL_SYSTEM ? 50 : 60) / MOVIE_FRAME_RATE) * VIDEO_PLAYER_DEBUG_FIXED_VFRAME;
+        vtimer = ((sysFrameRate ? 50 : 60) / MOVIE_FRAME_RATE) * VIDEO_PLAYER_DEBUG_FIXED_VFRAME;
         #else
         u16 vFrame = 0;
         vtimer = 0; // reset vtimer so we can use it as our hardware frame counter
@@ -514,23 +517,25 @@ void playMovie ()
 
 			unpackFrameTilemap(data[vFrame]->tilemap1);
 
-			queueTilemapData(VIDEO_FRAME_PLANE_ADDRESS);
+			queueTilemapData();
 
 			// NOTE: first 2 strips' palettes (previously unpacked) will be enqueued in waitVInt_AND_flushDMA()
 			// NOTE2: not true until TODO PALS_1 is done
 
-			#if VIDEO_PLAYER_DEBUG_FIXED_VFRAME == FALSE
+			#if VIDEO_PLAYER_DEBUG_FIXED_VFRAME
+            #else
 			u16 prevFrame = vFrame;
 			#endif
+
 			u16 hwFrameCntr = (u16)vtimer;
-			#if VIDEO_FRAME_ADVANCE_STRATEGY == 1 /* Takes 202~235 cycles with a peak of 657 (?). HInt disabled. */
+			#if VIDEO_FRAME_ADVANCE_STRATEGY == 1 // Takes 202~235 cycles with a peak of 657 (?). HInt disabled.
 			vFrame = divu(hwFrameCntr * MOVIE_FRAME_RATE, sysFrameRate);
-			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 2 /* Takes 370~406 cycles with a peak of 865 (?). HInt disabled. */
+			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 2 // Takes 370~406 cycles with a peak of 865 (?). HInt disabled.
 			vFrame = (hwFrameCntr * sysFrameRateReciprocal) >> 16;
-			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 3 /* Takes 204~235 cycles with a peak of 687 (?). HInt disabled. */
-			u16 deltaFrames = IS_PAL_SYSTEM ? divu(hwFrameCntr, 50/MOVIE_FRAME_RATE) : divu(hwFrameCntr, 60/MOVIE_FRAME_RATE);
+			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 3 // Takes 204~235 cycles with a peak of 687 (?). HInt disabled.
+			u16 deltaFrames = sysFrameRate == 50 ? divu(hwFrameCntr, 50/MOVIE_FRAME_RATE) : divu(hwFrameCntr, 60/MOVIE_FRAME_RATE);
 			vFrame += deltaFrames - vFrame;
-			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 4 /* Takes 71~93 cycles with a peak of 534 (?). HInt disabled. */
+			#elif VIDEO_FRAME_ADVANCE_STRATEGY == 4 // Takes 71~93 cycles with a peak of 534 (?). HInt disabled.
 			vFrame = framerateDivLUT[hwFrameCntr];
 			#endif
 
