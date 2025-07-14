@@ -62,7 +62,7 @@ FORCE_INLINE void waitHCounter_old (u8 n) {
         "1:\n\t"
         "cmpi.b    %[hcLimit],0xC00009\n\t" // cmp: (0xC00009) - hcLimit
         "blo.s     1b"                      // Compares byte because hcLimit won't be > 160 for our practical cases
-        // blo is for unsigned comparisons, same than bcs
+        // blo/bcs is for unsigned comparisons
         :
         : [hcLimit] "i" (n)
         : "cc"
@@ -78,7 +78,7 @@ FORCE_INLINE void waitHCounter_opt1 (u8 n)
     __asm volatile (
         "1:\t\n" 
         "cmp.b     (%0),%1\t\n"   // cmp: n - (0xC00009). Compares byte because hcLimit won't be > 160 for our practical cases
-        "bhi.s     1b"            // loop back if n is higher than (0xC00009)
+        "bhi.s     1b"            // loop back if n > (0xC00009)
         // bhi is for unsigned comparisons
         :
         : "a" (regA), "d" (n)
@@ -96,7 +96,7 @@ FORCE_INLINE void waitHCounter_opt2 (u8 n)
         "move.l    #0xC00009,%0\n\t" // Load HCounter (VDP_HVCOUNTER_PORT + 1 = 0xC00009) into an An register
         "1:\n\t" 
         "cmp.b     (%0),%1\n\t"      // cmp: n - (0xC00009). Compares byte because hcLimit won't be > 160 for our practical cases
-        "bhi.s     1b"               // loop back if n is higher than (0xC00009)
+        "bhi.s     1b"               // loop back if n > (0xC00009)
         // bhi is for unsigned comparisons
         : "=a" (regA)
         : "d" (n)
@@ -186,7 +186,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_ASM ()
         // wait HCounter
         "1:\n"
         "   cmp.b       (%%a3),%%d7\n"          // cmp: d7 - (a3). Compare byte size given that d7 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d7 is higher than (a3)
+        "   bhi.s       1b\n"                   // loop back if d7 > (a3)
 		// turn off VDP
 		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
 		// send colors
@@ -210,7 +210,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_ASM ()
         // wait HCounter
         "1:\n"
         "   cmp.b       (%%a3),%%d7\n"          // cmp: d7 - (a3). Compare byte size given that d7 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d7 is higher than (a3)
+        "   bhi.s       1b\n"                   // loop back if d7 > (a3)
 		// turn off VDP
 		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
 		// send colors
@@ -234,7 +234,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_ASM ()
         // wait HCounter
         "1:\n"
         "   cmp.b       (%%a3),%%d7\n"          // cmp: d7 - (a3). Compare byte size given that d7 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d7 is higher than (a3)
+        "   bhi.s       1b\n"                   // loop back if d7 > (a3)
 		// turn off VDP
 		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
 		// send colors
@@ -263,7 +263,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_ASM ()
         // wait HCounter
         "1:\n"
         "   cmp.b       (%%a3),%%d7\n"          // cmp: d7 - (a3). Compare byte size given that d7 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d7 is higher than (a3)
+        "   bhi.s       1b\n"                   // loop back if d7 > (a3)
 		// turn off VDP
 		"   move.w      %%d4,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
 		// send colors
@@ -449,7 +449,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
         // wait HCounter
         "1:\n"
         "   cmp.b       (%%a2),%%d6\n"          // cmp: d6 - (a2). Compare byte size given that d6 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d6 is higher than (a2)
+        "   bhi.s       1b\n"                   // loop back if d6 > (a2)
 		// turn off VDP
 		"   move.w      %%d3,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
         // trigger DMA transfer
@@ -487,7 +487,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
         // wait HCounter
         "1:\n"
         "   cmp.b       (%%a2),%%d6\n"          // cmp: d6 - (a2). Compare byte size given that d6 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d6 is higher than (a2)
+        "   bhi.s       1b\n"                   // loop back if d6 > (a2)
 		// turn off VDP
 		"   move.w      %%d3,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
         // trigger DMA transfer
@@ -652,7 +652,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
         // wait HCounter
         "1:\n"
         "   cmp.b       (%%a2),%%d6\n"          // cmp: d6 - (a2). Compare byte size given that d6 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d6 is higher than (a2)
+        "   bhi.s       1b\n"                   // loop back if d6 > (a2)
 		// turn off VDP
 		"   move.w      %%d3,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
         // trigger DMA transfer
@@ -687,7 +687,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
         // wait HCounter
         "1:\n"
         "   cmp.b       (%%a2),%%d6\n"          // cmp: d6 - (a2). Compare byte size given that d6 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d6 is higher than (a2)
+        "   bhi.s       1b\n"                   // loop back if d6 > (a2)
 		// turn off VDP
 		"   move.w      %%d3,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
         // trigger DMA transfer
@@ -726,7 +726,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
         // wait HCounter
         "1:\n"
         "   cmp.b       (%%a2),%%d6\n"          // cmp: d6 - (a2). Compare byte size given that d6 won't be > 160 for our practical cases
-        "   bhi.s       1b\n"                   // loop back if d6 is higher than (a2)
+        "   bhi.s       1b\n"                   // loop back if d6 > (a2)
 		// turn off VDP
 		"   move.w      %%d3,(%%a1)\n"          // *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 & ~0x40);
         // trigger DMA transfer

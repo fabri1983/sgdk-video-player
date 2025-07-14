@@ -360,16 +360,16 @@ static void fadeToBlack ()
 	}
 }
 
-static void unloadSoundDriver ()
-{
-    Z80_unloadDriver();
-}
-
 static void loadSoundDriver ()
 {
 	// PCM_loadDriver(TRUE);
 	// XGM_loadDriver(TRUE);
     XGM2_loadDriver(TRUE);
+}
+
+static void unloadSoundDriver ()
+{
+    Z80_unloadDriver();
 }
 
 static void playSound ()
@@ -453,9 +453,6 @@ void playMovie ()
 		// Let the HInt use the right pals before setting the VInt and HInt callbacks, otherwise it glitches out by one frame
 		setMoviePalsPointerBeforeInterrupts(unpackedPalsRender); // Palettes are all black at this point
 
-        // Start sound
-        playSound();
-
         // Wait for VInt so the logic can start at the beginning of the active display period
 		waitVInt();
 
@@ -480,6 +477,9 @@ void playMovie ()
         #endif
 
 		SYS_enableInts();
+
+        // Start sound
+        playSound();
 
 		// As frames are indexed in a 0 based access layout, we know that even indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM, 
 		// and odd indexes hold frames with base tile index TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE.
