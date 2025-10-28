@@ -14,28 +14,6 @@
 // }
 
 /// @brief Set bit 6 (64 decimal, 0x40 hexa) of VDP's reg 1.
-/// @param ctrl_port a variable defined as (vu32*)VDP_CTRL_PORT.
-/// @param reg01 VDP's Reg 1 holds other bits than just VDP ON/OFF status, so we need its current value.
-#define turnOffVDP_m(ctrl_port,reg01) \
-    __asm volatile ( \
-        "move.w  %[_reg01],(%[_ctrl_port])" \
-        : \
-        : [_ctrl_port] "a" (ctrl_port), [_reg01] "i" (0x8100 | (reg01 & ~0x40)) \
-        : \
-    )
-
-/// @brief Set bit 6 (64 decimal, 0x40 hexa) of VDP's reg 1.
-/// @param ctrl_port a variable defined as (vu32*)VDP_CTRL_PORT.
-/// @param reg01 VDP's Reg 1 holds other bits than just VDP ON/OFF status, so we need its current value.
-#define turnOnVDP_m(ctrl_port,reg01) \
-    __asm volatile ( \
-        "move.w  %[_reg01],(%[_ctrl_port])" \
-        : \
-        : [_ctrl_port] "a" (ctrl_port), [_reg01] "i" (0x8100 | (reg01 | 0x40)) \
-        : \
-    )
-
-/// @brief Set bit 6 (64 decimal, 0x40 hexa) of VDP's reg 1.
 /// @param reg01 VDP's Reg 1 holds other bits than just VDP ON/OFF status, so we need its current value.
 FORCE_INLINE void turnOffVDP (u8 reg01)
 {
@@ -51,22 +29,6 @@ FORCE_INLINE void turnOnVDP (u8 reg01)
     //reg01 |= 0x40;
     //*(vu16*) VDP_CTRL_PORT = 0x8100 | reg01;
     *(vu16*) VDP_CTRL_PORT = 0x8100 | (reg01 | 0x40);
-}
-
-/**
- * Wait until HCounter 0xC00009 reaches nth position (actually the (n*2)th pixel since the VDP counts by 2)
-*/
-FORCE_INLINE void waitHCounter_old (u8 n) {
-    // HCOUNTER = VDP_HVCOUNTER_PORT + 1 = 0xC00009
-    __asm volatile (
-        "1:\n\t"
-        "cmpi.b    %[hcLimit],0xC00009\n\t" // cmp: (0xC00009) - hcLimit
-        "blo.s     1b"                      // Compares byte because hcLimit won't be > 160 for our practical cases
-        // blo/bcs is for unsigned comparisons
-        :
-        : [hcLimit] "i" (n)
-        : "cc"
-    );
 }
 
 /**
@@ -155,9 +117,9 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_ASM ()
         "   addq.w      %[_HINT_COUNTER_FOR_COLORS_UPDATE],%%d0\n"  // d0: vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
         "   move.w      %%d0,%[vcounterManual]\n"  // store current value of vcounterManual
         "   cmpi.w      %[LIMIT_START],%%d0\n"     // if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE))
-        "   bmi         .quit_hint_%=\n"           // return
+        "   bmi         .quit_hint_%=\n"           // exit
         "   cmpi.w      %[LIMIT_END],%%d0\n"       // if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE))
-        "   bhi         .quit_hint_%=\n"           // return
+        "   bhi         .quit_hint_%=\n"           // exit
 
         // prepare_regs
         "   move.l      %c[palInFramePtr],%%a0\n" // a0: palInFramePtr
@@ -403,9 +365,9 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
         "   addq.w      %[_HINT_COUNTER_FOR_COLORS_UPDATE],%%d0\n"  // d0: vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
         "   move.w      %%d0,%[vcounterManual]\n"  // store current value of vcounterManual
         "   cmpi.w      %[LIMIT_START],%%d0\n"     // if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE))
-        "   bmi         .quit_hint_%=\n"           // return
+        "   bmi         .quit_hint_%=\n"           // exit
         "   cmpi.w      %[LIMIT_END],%%d0\n"       // if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE))
-        "   bhi         .quit_hint_%=\n"           // return
+        "   bhi         .quit_hint_%=\n"           // exit
 
         // prepare_regs
         "   move.l      %c[palInFramePtr],%%a0\n" // a0: palInFramePtr
@@ -606,9 +568,9 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
         "   addq.w      %[_HINT_COUNTER_FOR_COLORS_UPDATE],%%d0\n"  // d0: vcounterManual += HINT_COUNTER_FOR_COLORS_UPDATE;
         "   move.w      %%d0,%[vcounterManual]\n"  // store current value of vcounterManual
         "   cmpi.w      %[LIMIT_START],%%d0\n"     // if (vcounterManual < (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE))
-        "   bmi         .quit_hint_%=\n"           // return
+        "   bmi         .quit_hint_%=\n"           // exit
         "   cmpi.w      %[LIMIT_END],%%d0\n"       // if (vcounterManual > (MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE))
-        "   bhi         .quit_hint_%=\n"           // return
+        "   bhi         .quit_hint_%=\n"           // exit
 
         // prepare_regs
         "   move.l      %c[palInFramePtr],%%a0\n" // a0: palInFramePtr

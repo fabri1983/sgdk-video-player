@@ -10,7 +10,7 @@ IF NOT "%target%" == "release" IF NOT "%target%" == "debug" IF NOT "%target%" ==
 )
 
 :: Edit accordingly
-SET "EMU_PATH=D:\Games\retro\blastem-win64-0.6.3-pre-b42f00a3a937\blastem.exe"
+SET "EMU_PATH=D:\Games\retro\blastem-win64-0.6.3-pre-9c105d94ad6f\blastem.exe"
 
 IF NOT "%2" == "--no-emu" IF NOT EXIST %EMU_PATH% (
     ECHO Please set blastem path or use option --no-emu
@@ -24,7 +24,7 @@ IF "%GDK_WIN%" == "" (
     GOTO :END
 )
 
-%GDK_WIN%\bin\make -f %GDK_WIN%\makefile.gen %target% && IF NOT "%2" == "--no-emu" %EMU_PATH% out\rom.bin
+%GDK_WIN%\bin\make -f %GDK_WIN%\makefile.gen -j1 %target% && IF NOT "%2" == "--no-emu" START "" /B %EMU_PATH% out\rom.bin
 
 :END
 EXIT /B

@@ -1,24 +1,82 @@
-:: Locate this script at %GDK_WIN%\tools\rescomp
-:: Before you run this script make sure you have compiled your Java classes so bin folder is generated.
 @ECHO OFF
 
-IF "%~dp0" == "%GDK_WIN%\tools\rescomp\" (
-  GOTO COMPILE_JAR
-) ELSE (
-  ECHO Please locate this script at %GDK_WIN%\tools\rescomp\
-  PAUSE
-  GOTO FINISHED
+:: Locate this script at %GDK_WIN%\tools\rescomp
+
+SET JAVA_SOURCE=8
+SET JAVA_TARGET=17
+
+IF "%JAVA_HOME%"=="" (
+    echo ERROR: JAVA_HOME environment variable is not set!
+	PAUSE
+	GOTO FINISHED
 )
+
+:: Check directory
+IF NOT EXIST "%JAVA_HOME%" (
+    echo ERROR: JAVA_HOME path does not exist: %JAVA_HOME%
+	PAUSE
+	GOTO FINISHED
+)
+
+IF "%~dp0" == "%GDK_WIN%\tools\rescomp\" (
+	GOTO COMPILE_DEPENDENCIES
+) ELSE (
+	ECHO ERROR: Please locate this script at %GDK_WIN%\tools\rescomp\
+	PAUSE
+	GOTO FINISHED
+)
+
+:COMPILE_DEPENDENCIES
+
+IF EXIST "../apj/src" (
+	ECHO Compiling apj project...
+    IF NOT EXIST "../apj/bin" MD "../apj/bin"
+    dir /s /b "../apj/src\*.java" > apj_sources.txt
+    javac -source %JAVA_SOURCE% -target %JAVA_TARGET% -d "../apj/bin" @apj_sources.txt
+    del apj_sources.txt
+)
+
+IF EXIST "../commons/src" (
+	ECHO Compiling commons project...
+    IF NOT EXIST "../commons/bin" MD "../commons/bin"  
+    dir /s /b "../commons/src\*.java" > commons_sources.txt
+    javac -source %JAVA_SOURCE% -target %JAVA_TARGET% -d "../commons/bin" @commons_sources.txt
+    del commons_sources.txt
+)
+
+IF EXIST "../lz4w/src" (
+	ECHO Compiling lz4w project...
+    IF NOT EXIST "../lz4w/bin" MD "../lz4w/bin"
+    dir /s /b "../lz4w/src\*.java" > lz4w_sources.txt
+    javac -source %JAVA_SOURCE% -target %JAVA_TARGET% -d "../lz4w/bin" @lz4w_sources.txt
+    del lz4w_sources.txt
+)
+
+:COMPILE_RESCOMP
+
+ECHO Compiling rescomp project...
+
+IF NOT EXIST src\ (
+    ECHO ERROR: src folder not found
+    PAUSE
+    GOTO FINISHED
+)
+
+:: Create list of all Java files
+dir /s /b src\*.java > rescomp_sources.txt
+javac -source %JAVA_SOURCE% -target %JAVA_TARGET% -d bin -cp "../apj/bin;../commons/bin;../lz4w/bin" @rescomp_sources.txt
+del rescomp_sources.txt
 
 IF EXIST bin\ (
   GOTO COMPILE_JAR
 ) ELSE (
-  ECHO bin folder not generated yet
+  ECHO ERROR: bin folder not generated yet
   PAUSE
   GOTO FINISHED
 )
 
 :COMPILE_JAR
+
 CD bin
 RMDIR /S /Q tempClassesDir 2>NUL
 MD tempClassesDir
@@ -46,6 +104,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/processor/TilesCacheStatsPrinterProcessor.class ^
 	./sgdk/rescomp/processor/TilesetStatsCollectorProcessor.class ^
 	./sgdk/rescomp/processor/ext.processor.properties ^
+	./sgdk/rescomp/resource/BinCustom$1.class ^
 	./sgdk/rescomp/resource/BinCustom.class ^
 	./sgdk/rescomp/resource/HeaderAppender.class ^
 	./sgdk/rescomp/resource/HeaderAppenderAllCustomResource.class ^
@@ -76,17 +135,21 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/TilesetStatsCollectorPrinter.class ^
 	./sgdk/rescomp/resource/ext.resource.properties ^
 	./sgdk/rescomp/resource/internal/SpriteAnimationMultiPal.class ^
+	./sgdk/rescomp/resource/internal/SpriteFrameMultiPal$1.class ^
 	./sgdk/rescomp/resource/internal/SpriteFrameMultiPal.class ^
 	./sgdk/rescomp/resource/internal/VDPSpriteMultiPal.class ^
 	./sgdk/rescomp/tool/CompressionCustomUsageTracker.class ^
 	./sgdk/rescomp/tool/ExtProperties.class ^
 	./sgdk/rescomp/tool/MdComp.class ^
+	./sgdk/rescomp/tool/RLEWCompressor$WordInfo.class ^
 	./sgdk/rescomp/tool/RLEWCompressor.class ^
 	./sgdk/rescomp/tool/SpriteBoundariesPalettes.class ^
 	./sgdk/rescomp/tool/TilemapCustomTools.class ^
 	./sgdk/rescomp/tool/TilesCacheManager.class ^
 	./sgdk/rescomp/tool/TilesetStatsCollector.class ^
+	./sgdk/rescomp/type/CompressionCustom$1.class ^
 	./sgdk/rescomp/type/CompressionCustom.class ^
+	./sgdk/rescomp/type/CustomDataTypes$1.class ^
 	./sgdk/rescomp/type/CustomDataTypes.class ^
 	./sgdk/rescomp/type/PackedDataCustom.class ^
 	./sgdk/rescomp/type/PalettesPositionEnum.class ^

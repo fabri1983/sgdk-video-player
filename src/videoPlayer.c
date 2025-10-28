@@ -23,23 +23,46 @@ static u32* unpackedTilesetChunk = NULL;
 static u16* unpackedPalsRender = NULL;
 static u16* unpackedPalsBuffer = NULL;
 
+static FORCE_INLINE void render_Z80_requestBus(bool wait)
+{
+    // request bus (need to end reset)
+    vu16* pw_bus = (u16 *) Z80_HALT_PORT;
+    //vu16* pw_reset = (u16 *) Z80_RESET_PORT;
+    vu16* pw_reset = pw_bus + (Z80_RESET_PORT - Z80_HALT_PORT);
+
+    // take bus and end reset
+    *pw_bus = 0x0100;
+    *pw_reset = 0x0100;
+
+    if (wait) {
+        // wait for bus taken
+        while (*pw_bus & 0x0100);
+    }
+}
+
+static FORCE_INLINE void render_Z80_releaseBus()
+{
+    vu16* pw = (u16 *) Z80_HALT_PORT;
+    *pw = 0x0000;
+}
+
 /// @brief See original Z80_setBusProtection() method.
 /// NOTE: This implementation doesn't disable interrupts because at the moment it's called no interrupt is expected to occur.
 /// NOTE: This implementation assumes the Z80 bus was not already requested, and requests it immediatelly.
 /// @param value TRUE enables protection, FALSE disables it.
-static FORCE_INLINE void Z80_setBusProtection_fast (bool value)
+static FORCE_INLINE void render_Z80_setBusProtection (bool value)
 {
-    Z80_requestBus(FALSE);
-	u16 busProtectSignalAddress = (Z80_DRV_PARAMS + 0x0D) & 0xFFFF; // point to Z80 PROTECT parameter
+    render_Z80_requestBus(FALSE);
+	u16 busProtectSignalAddress = (u16)(Z80_DRV_PARAMS + 0x0D); //& 0xFFFF; // point to Z80 PROTECT parameter
     vu8* pb = (u8*) (Z80_RAM + busProtectSignalAddress); // See Z80_useBusProtection() reference in z80_ctrl.c
     *pb = value?1:0;
-	Z80_releaseBus();
+	render_Z80_releaseBus();
 }
 
 /// @brief This implementation differs from DMA_flushQueue() in which:
 /// - it doesn't check if transfer size exceeds capacity because we know before hand the max capacity.
 /// - it assumes Z80 bus wasn't requested and hence request it.
-static FORCE_INLINE void DMA_flushQueue_fast ()
+static FORCE_INLINE void render_DMA_flushQueue ()
 {
 	#if VIDEO_PLAYER_DEBIG_MODE
 	if (DMA_getQueueTransferSize() > DMA_getMaxTransferSize())
@@ -99,12 +122,14 @@ static FORCE_INLINE void waitVInt_AND_flushDMA ()
 
     turnOffVDP(0x74);
 
-	Z80_setBusProtection_fast(TRUE);
-	waitSubTick_(10); // Z80 delay --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
+	render_Z80_setBusProtection(TRUE);
+    // delay enabled ? --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
+    if (Z80_getForceDelayDMA())
+	    waitSubTick_(10);
 
-	DMA_flushQueue_fast();
+	render_DMA_flushQueue();
 
-	Z80_setBusProtection_fast(FALSE);
+	render_Z80_setBusProtection(FALSE);
 
 	turnOnVDP(0x74);
 
@@ -462,7 +487,7 @@ void playMovie ()
         VDP_setHIntCounter(HINT_COUNTER_FOR_COLORS_UPDATE - 1);
         VDP_setHInterrupt(TRUE);
         #if HINT_USE_DMA
-            // HIntCallback_DMA_2_cmds_ASM is the fastest, hence it returns from the interrupt earlier than the others
+            // HIntCallback_DMA_2_cmds_ASM is the fastest because it returns from the interrupt earlier than the others
             SYS_setHIntCallback(HIntCallback_DMA_2_cmds_ASM);
         #else
             SYS_setHIntCallback(HIntCallback_CPU_ASM);

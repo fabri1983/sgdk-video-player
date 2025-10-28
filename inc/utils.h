@@ -26,14 +26,42 @@
         /* Setup DMA address high */ \
         "move.w  %[_addr_high],(%[_ctrl_port])\n\t" /* *((vu32*) VDP_CTRL_PORT) = (0x9700 | ((fromAddr >> 17) & 0x7f)); */ \
         /* Trigger DMA */ \
-        /* NOTE: this should be done as Stef does with two .w writes from memory. See DMA_doDmaFast() */ \
-        "move.l  %[_cmdAddr],(%[_ctrl_port])" /* *((vu32*) VDP_CTRL_PORT) = cmdAddr; */ \
+        /* Force storing and issuing DMA command into and from memory (avoid possible failure on some MD) */ \
+        "move.l  %[_cmdAddr],-4(%%sp)\n\t" \
+        "move.w  -4(%%sp),(%[_ctrl_port])\n\t" \
+        "move.w  -2(%%sp),(%[_ctrl_port])" \
+        /* Faster but may fail in some MD */ \
+        /*"move.l  %[_cmdAddr],(%[_ctrl_port])"*/ /* *((vu32*) VDP_CTRL_PORT) = cmdAddr; */ \
         : \
         : [_ctrl_port] "a" (ctrl_port), \
           [_len_low_high] "i" ( ((0x9300 | ((len) & 0xff)) << 16) | (0x9400 | (((len) >> 8) & 0xff)) ), \
           [_addr_low_mid] "i" ( ((0x9500 | (((fromAddr) >> 1) & 0xff)) << 16) | (0x9600 | (((fromAddr) >> 9) & 0xff)) ), \
           [_addr_high] "i" ( (0x9700 | (((fromAddr) >> 17) & 0x7f)) ), \
           /* If you want to add VDP stepping then use: ((0x9700 | (((fromAddr) >> 17) & 0x7f)) << 16) | (0x8F00 | ((step) & 0xff)) \ */ \
+          [_cmdAddr] "i" ((u32)(cmdAddr)) \
+        : \
+    )
+
+/// @brief Writes into VDP_CTRL_PORT (0xC00004) the setup for DMA length low and writes the command too.
+/// Assumes DMA address was already setup before entering the loop where this macro is located.
+/// Assumes the 3 arguments are known values at compile time, and the VDP auto inc stepping was already set accordingly.
+/// @param ctrl_port a variable defined as (vu32*)VDP_CTRL_PORT.
+/// @param cmdAddr destination address as a command. One of: VDP_DMA_VRAM_ADDR, VDP_DMA_CRAM_ADDR, VDP_DMA_VSRAM_ADDR.
+/// @param len words to move (is words because DMA RAM/ROM to VRAM moves 2 bytes per VDP cycle op).
+#define doDMAfast_fixed_args_loop_ready(ctrl_port,cmdAddr,len) \
+    __asm volatile ( \
+        /* Setup DMA length (in long word here) */ \
+        "move.w  %[_len_low],(%[_ctrl_port])\n\t" /* *((vu16*) VDP_CTRL_PORT) = 0x9300 | (u8)len; */ \
+        /* Trigger DMA */ \
+        /* Force storing and issuing DMA command into and from memory (avoid possible failure on some MD) */ \
+        "move.l  %[_cmdAddr],-4(%%sp)\n\t" \
+        "move.w  -4(%%sp),(%[_ctrl_port])\n\t" \
+        "move.w  -2(%%sp),(%[_ctrl_port])" \
+        /* Faster but may fail in some MD */ \
+        /*"move.l  %[_cmdAddr],(%[_ctrl_port])"*/ /* *((vu32*) VDP_CTRL_PORT) = cmdAddr; */ \
+        : \
+        : [_ctrl_port] "a" (ctrl_port), \
+          [_len_low] "i" ( 0x9300 | ((len) & 0xff) ), \
           [_cmdAddr] "i" ((u32)(cmdAddr)) \
         : \
     )

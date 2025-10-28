@@ -60,9 +60,23 @@ void DMA_ELEMS_flush ()
     #if (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES == MOVIE_FRAME_WIDTH_IN_TILES)
     if (dmaElemTilemap_ready) {
         dmaElemTilemap_ready = FALSE;
+
+        // Setup DMA address ONLY ONCE
+        u32 from = RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS + 0*MOVIE_FRAME_WIDTH_IN_TILES*2;
+        from >>= 1;
+        *(vu16*)vdpCtrl_ptr_l = 0x9500 + (from & 0xff); // low
+        from >>= 8;
+        *(vu16*)vdpCtrl_ptr_l = 0x9600 + (from & 0xff); // mid
+        from >>= 8;
+        *(vu16*)vdpCtrl_ptr_l = 0x9700 + (from & 0x7f); // high
+
+        // Setup DMA length high ONLY ONCE. Length in words because DMA RAM/ROM to VRAM moves 2 bytes per VDP cycle op
+        *(vu16*)vdpCtrl_ptr_l = 0x9400 | ((MOVIE_FRAME_WIDTH_IN_TILES >> 8) & 0xff); // DMA length high
+        // DMA length low has to be set every time before triggering the DMA command
+
         #pragma GCC unroll 256 // Always set a big number since it does not accept defines
         for (u8 i=0; i < MOVIE_FRAME_HEIGHT_IN_TILES; ++i) {
-            doDMAfast_fixed_args(vdpCtrl_ptr_l, RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS + i*MOVIE_FRAME_WIDTH_IN_TILES*2, VDP_DMA_VRAM_ADDR(VIDEO_FRAME_PLANE_ADDRESS + i*VIDEO_PLANE_COLUMNS*2), MOVIE_FRAME_WIDTH_IN_TILES);
+            doDMAfast_fixed_args_loop_ready(vdpCtrl_ptr_l, VDP_DMA_VRAM_ADDR(VIDEO_FRAME_PLANE_ADDRESS + i*VIDEO_PLANE_COLUMNS*2), MOVIE_FRAME_WIDTH_IN_TILES);
         }
     }
     #else
