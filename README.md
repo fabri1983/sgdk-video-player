@@ -10,8 +10,8 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 
 ### Features
 - Supports up to 256+ colors per frame.
-- Currently running at 10~15 FPS in NTSC and 10~12 FPS in PAL, with a frame size of 272 x 192 pixels (34 x 24 tiles).
-- Uses custom extensions for the [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
+- Currently running at 10-15 FPS in NTSC and 10-12 FPS in PAL, with a frame size of 272 x 192 pixels (34 x 24 tiles).
+- Uses custom extensions for [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
 - Uses custom tiledpalettequant app (not public yet).
 
 
@@ -79,7 +79,7 @@ in correct format for the SGDK rescomp tool.
 - Update joy like in raycasting project.
 - Try Enigma on tilemaps and check if the optimized decompressor is faster than current timings.
 - Pre load frame 0 before starting music and see how does result with sound timing/sync.
-- The Tileset chunk decompression worst case using LZ4W takes 47423 cycles (~97 scanlines). Includes all the delays added by VInt and Hint interrupts.
+- The Tileset chunk decompression worst case using LZ4W takes 47423 cycles (approx 97 scanlines). Includes all the delays added by VInt and Hint interrupts.
 - Try new video from VirtualDub2 project. Better definition and correct dimensions. Frame size: 272 x 200 px (34 x 25 tiles).
 - Idea to avoid sending the first 2 strips'pals (64 colors) and send only first strip's pals (32 colors):
 	- DMA_QUEUE the first 2 pals (32 colors) at VInt.
@@ -98,9 +98,9 @@ in correct format for the SGDK rescomp tool.
 - Could declaring the arrays data[] and pals_data[] directly in ASM reduce rom size and/or speed access?
 - Clear mem used by sound when exiting the video loop?
 - Try to change from H40 to H32 (or was it viceversa?) on HInt Callback, and hope for any any speed gain?
-	See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
-	See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
-	This technique: https://gendev.spritesmind.net/forum/viewtopic.php?f=22&t=2964&sid=395ed554dbdeb24d2a5b64c29a0abd03&start=15#p35118
+	- See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
+	- See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
+	- This technique: https://gendev.spritesmind.net/forum/viewtopic.php?f=22&t=2964&sid=395ed554dbdeb24d2a5b64c29a0abd03&start=15#p35118
 
 
 ----
