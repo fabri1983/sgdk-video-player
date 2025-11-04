@@ -7,6 +7,8 @@ Originally inspired by [sgdk-video-player](https://github.com/haroldo-ok/sgdk-vi
 
 For convenience testing you can directly try the last compiled rom [videoplayer_rom.bin](videoplayer_rom.bin?raw=true "videoplayer_rom.bin").
 
+[Watch the demo video on YouTube](https://www.youtube.com/watch?v=mE4HLnmD0g0)
+
 
 ### Features
 - Supports up to 256+ colors per frame.
