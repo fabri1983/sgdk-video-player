@@ -25,8 +25,8 @@
 #define VIDEO_FRAME_ADVANCE_STRATEGY 4
 
 // Enables HInt callback implementation using DMA (TRUE) or pure CPU (FALSE).
-// Using DMA adds some pressure to the Z80 due to bus contention, or something like that. But I didn't test it in real hardware.
-#define HINT_USE_DMA TRUE
+// Using DMA adds some pressure to the Z80 due to bus contention, or something like that.
+#define HINT_USE_DMA FALSE
 
 /// If you are 100% sure ALL the tilemaps were compressed by rescomp tool (see console output) then set it TRUE
 #define ALL_TILEMAPS_COMPRESSED FALSE

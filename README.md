@@ -3,7 +3,7 @@ A video converter and video player made with the [SGDK v2.12](https://github.com
 Originally inspired by [sgdk-video-player](https://github.com/haroldo-ok/sgdk-video-player) made by _haroldo-ok_.  
 
 
-**Work In Progress. Only tested with Blastem and Nuked-MD.**
+**Work In Progress. Tested on Blastem, Nuked-MD, and real hardware.**
 
 For convenience testing you can directly try the last compiled rom [videoplayer_rom.bin](videoplayer_rom.bin?raw=true "videoplayer_rom.bin").
 

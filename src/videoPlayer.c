@@ -488,7 +488,7 @@ void playMovie ()
         VDP_setHInterrupt(TRUE);
         #if HINT_USE_DMA
             // HIntCallback_DMA_2_cmds_ASM is the fastest because it returns from the interrupt earlier than the others
-            SYS_setHIntCallback(HIntCallback_DMA_2_cmds_ASM);
+            SYS_setHIntCallback(HIntCallback_DMA_2_cmds);
         #else
             SYS_setHIntCallback(HIntCallback_CPU_ASM);
         #endif

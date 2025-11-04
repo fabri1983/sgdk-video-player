@@ -129,7 +129,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_ASM ()
         "   move.w      %[turnOff],%%d4\n"        // d4: VDP's register with display OFF value
         "   move.w      %[turnOn],%%d5\n"         // d5: VDP's register with display ON value
         "   move.b      %[hcLimit],%%d7\n"        // d7: HCounter limit
-        "   move.l      #0x100000,%%a4\n"         // a4: 0x100000 is the command offset for 8 colors sent to the VDP, used as: cmdAddress += 0x100000
+        "   move.l      %[cmdOffset],%%a4\n"      // a4: cmdOffset, used as: cmdAddress += cmdOffset
 
 		// color_batch_1_cmd:
 		// cmdAddress = palIdx == 0 ? 0xC0000000 : 0xC0400000;
@@ -247,6 +247,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU_ASM ()
 		[turnOff] "i" (0x8100 | (0x74 & ~0x40)), // 0x8134
 		[turnOn] "i" (0x8100 | (0x74 | 0x40)), // 0x8174
         [hcLimit] "i" (156),
+        [cmdOffset] "i" (0x100000), // 0x100000 is the command offset for 8 colors
 		[_MOVIE_FRAME_COLORS_PER_STRIP] "i" (MOVIE_FRAME_COLORS_PER_STRIP),
         [_HINT_COUNTER_FOR_COLORS_UPDATE] "i" (HINT_COUNTER_FOR_COLORS_UPDATE),
         [LIMIT_START] "i" (MOVIE_HINT_COLORS_SWAP_START_SCANLINE_NTSC + HINT_COUNTER_FOR_COLORS_UPDATE),
@@ -301,6 +302,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU ()
 	colors2_C = *((u32*) (palInFramePtr + 4)); // next 2 colors
 	colors2_D = *((u32*) (palInFramePtr + 6)); // next 2 colors
 	cmdAddress = (palCmdAddrrToggle == 0) ? 0xC0000000 : 0xC0400000;
+    MEMORY_BARRIER();
 	waitHCounter_opt1(145);
 	turnOffVDP(0x74);
 	*((vu32*) VDP_CTRL_PORT) = cmdAddress;
@@ -315,6 +317,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU ()
 	colors2_C = *((u32*) (palInFramePtr + 12)); // next 2 colors
 	colors2_D = *((u32*) (palInFramePtr + 14)); // next 2 colors
 	cmdAddress = (palCmdAddrrToggle == 0) ? 0xC0100000 : 0xC0500000;
+    MEMORY_BARRIER();
 	waitHCounter_opt1(145);
 	turnOffVDP(0x74);
 	*((vu32*) VDP_CTRL_PORT) = cmdAddress;
@@ -329,6 +332,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU ()
 	colors2_C = *((u32*) (palInFramePtr + 20)); // next 2 colors
 	colors2_D = *((u32*) (palInFramePtr + 22)); // next 2 colors
 	cmdAddress = (palCmdAddrrToggle == 0) ? 0xC0200000 : 0xC0600000;
+    MEMORY_BARRIER();
 	waitHCounter_opt1(145);
 	turnOffVDP(0x74);
 	*((vu32*) VDP_CTRL_PORT) = cmdAddress;
@@ -347,6 +351,7 @@ HINTERRUPT_CALLBACK HIntCallback_CPU ()
     // Prepare vars for next HInt here so we can aliviate the waitHCounter loop and exit the HInt sooner
     palInFramePtr += MOVIE_FRAME_COLORS_PER_STRIP; // advance to next strip's palettes (if pointer wasn't incremented previously)
 	palCmdAddrrToggle ^= MOVIE_FRAME_COLORS_PER_STRIP; // cycles between 0 and 32
+    MEMORY_BARRIER();
 
 	waitHCounter_opt1(145);
 	turnOffVDP(0x74);
@@ -376,8 +381,8 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
         "   move.w      %[turnOff],%%d3\n"        // d3: VDP's register with display OFF value
         "   move.w      %[turnOn],%%d4\n"         // d4: VDP's register with display ON value
         "   move.b      %[hcLimit],%%d6\n"        // d6: HCounter limit
-        "   move.l      #0x200000,%%a3\n"         // a3: 0x200000 is the command offset for 16 colors (MOVIE_FRAME_COLORS_PER_STRIP/2) sent to the VDP, used as: cmdAddress += 0x200000
         "   move.w      %[_MOVIE_FRAME_COLORS_PER_STRIP_DIV_2]*2,%%d7\n"
+        "   move.l      %[cmdOffset],%%a3\n"      // a3: cmdOffset, used as: cmdAddress += cmdOffset
 
         // DMA batch 1
         "   move.l      %%a0,%%d2\n"            // d2: palInFramePtr
@@ -467,6 +472,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
 		[turnOff] "i" (0x8100 | (0x74 & ~0x40)), // 0x8134
 		[turnOn] "i" (0x8100 | (0x74 | 0x40)), // 0x8174
         [hcLimit] "i" (152),
+        [cmdOffset] "i" (0x140000), // 0x200000 is the command offset for 16 colors (MOVIE_FRAME_COLORS_PER_STRIP/2)
         [_DMA_9300_LEN_DIV_2] "i" (0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/2) & 0xff)),
         [_DMA_9400_LEN_DIV_2] "i" (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/2) >> 8) & 0xff)),
 		[_MOVIE_FRAME_COLORS_PER_STRIP] "i" (MOVIE_FRAME_COLORS_PER_STRIP),
@@ -579,8 +585,8 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
         "   move.w      %[turnOff],%%d3\n"        // d3: VDP's register with display OFF value
         "   move.w      %[turnOn],%%d4\n"         // d4: VDP's register with display ON value
         "   move.b      %[hcLimit],%%d6\n"        // d6: HCounter limit
-        "   move.l      #0x140000,%%a3\n"         // a3: 0x140000 is the command offset for 10 colors (MOVIE_FRAME_COLORS_PER_STRIP/3) sent to the VDP, used as: cmdAddress += 0x140000
         "   move.w      %[_MOVIE_FRAME_COLORS_PER_STRIP_DIV_3]*2,%%d7\n"
+        "   move.l      %[cmdOffset],%%a3\n"      // a3: cmdOffset, used as: cmdAddress += cmdOffset
 
         // DMA batch 1
         "   move.l      %%a0,%%d2\n"            // d2: palInFramePtr
@@ -706,6 +712,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
 		[turnOff] "i" (0x8100 | (0x74 & ~0x40)), // 0x8134
 		[turnOn] "i" (0x8100 | (0x74 | 0x40)), // 0x8174
         [hcLimit] "i" (154),
+        [cmdOffset] "i" (0x140000), // 0x140000 is the command offset for 10 colors (MOVIE_FRAME_COLORS_PER_STRIP/3)
         [_DMA_9300_LEN_DIV_3] "i" (0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/3) & 0xff)),
         [_DMA_9400_LEN_DIV_3] "i" (0x9400 | (((MOVIE_FRAME_COLORS_PER_STRIP/3) >> 8) & 0xff)),
         [_DMA_9300_LEN_DIV_3_REM] "i" (0x9300 | ((MOVIE_FRAME_COLORS_PER_STRIP/3 + MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(3)) & 0xff)),
