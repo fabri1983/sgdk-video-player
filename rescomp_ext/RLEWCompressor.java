@@ -11,9 +11,9 @@ import java.util.stream.Collectors;
 
 /**
  * RLE compression algorithm that combines Variable-Length Encoding, Block Based Encoding, and Run-Length Limited (RLL) Coding.</br>
- * The source array is treated as a multi row of words, each row is treated as an independent block of RLE encoding with a limited max length.</br>
+ * The source array is treated as a multi row of words, each row is treated as an independent block of RLE encoding with a limited max 
+ * length of {@link RLEWCompressor#RLE_MAX_RUN_LENGTH} words due to the 6 bits dedicated for length.</br>
  * It runs 3 RLE phases which aim to reduce the size of the final encoding, with some configurable parameters to slightly speedup decompression.</br>
- * <b>NOTE:</b> only supports arrays up to 63 words due to 6 bits dedicated for length.</br>
  * IS USEFUL IF YOUR TARGET MAP BUFFER HAS AN EXTENDED WIDTH TO [32, 64, 128] TILES (GOOD FOR FASTER DMA OPERATION).</br>
  * THIS WAY YOU CAN DECOMPRESS A BLOCK AND LEAVE UNTOUCHED THE EXTRA SPACE USED TO FULFILL THE WIDTH UP TO [32, 64, 128] TILES.</br>
  *  
@@ -30,7 +30,7 @@ public class RLEWCompressor {
 	/**
 	 * Value must be >= 2</br>
 	 * Play with this value to see how much the size of the encoded output changes.</br>
-	 * This has an impact in the unpack algorithm time..
+	 * This has an impact in the unpack algorithm time.
 	 */
 	private static final int RLE_MIN_SEQUENCE_OF_INCREMENTAL_OCCURRENCES = Integer.MAX_VALUE; // Use a big value to disable this strategy
 	/**
@@ -597,7 +597,7 @@ public class RLEWCompressor {
 
 			byte descriptor = tempCollectorArrayPass1[j];
 
-			// If the descriptor is a RLE of length 1 (previously set on purpose) then we're going to process this and 
+			// If the descriptor is a RLE of length 1 (previously set on purpose) then we're going to process this 
 			// and consecutive words trying to collect them into a stream
 			if (descriptor == (byte) 0b00000001) {
 				j = collectWordsIntoStream_B(tempCollectorArrayPass1, tempCollectorListPass2, j);

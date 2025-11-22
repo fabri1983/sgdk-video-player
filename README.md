@@ -20,7 +20,7 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 ### Config theese first:
 - You need *Image Magick v7.x* tools set in _PATH_.
 - You need *ffmpeg* set in the _PATH_.
-- Set `ENABLE_BANK_SWITCH` 1 in _SGDK_'s `config.h` if the rom size is bigger than 4MB, and re build the _SGDK_ lib.
+- Set `ENABLE_BANK_SWITCH` 1 in _SGDK_'s `config.h` for rom size bigger than 4MB, and re build the _SGDK_ lib.
 - You need *NodeJs* and its *NODEJS_HOME* env var set as user/system variable.
 
 
@@ -42,11 +42,11 @@ n: color reduction (optional parameter). Max value 256 (for PNGs).
 
 4) Use nodejs custom app `tiledpalettequant` (not public yet) to generate all RGB images with palettes data.
 Once rgb images with palettes were generated and before saving them ensure the next config:
-- in _SGDK settings_ section:
-	- check _Switch 2 Palettes positions_
-	- check _Start at [PAL0,PAL1] first_
-	- enter 24 (192/8=24 strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
-- Download the images and move them into `res\rgb` folder.
+    - In _SGDK settings_ section:
+        - check _Switch 2 Palettes positions_
+        - check _Start at [PAL0,PAL1] first_
+        - enter 24 (192/8=24 strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
+    - Download the images and move them into `res\rgb` folder.
 
 5) Edit cache tiles configuration to analyze new tiles
 Open file `res_n_header_generator.js` and edit variables `enableTilesCacheStats` and `loadTilesCache` accordingly.
@@ -60,12 +60,12 @@ frame rate: 15
 
 7) `compile_n_run.bat release`
 Run it once to catch rescomp output to know tileset stats (resource TILESET_STATS_COLLECTOR). Then:
-- edit `res/ext.resource.properties` and update next constants:
-	- MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_<split> (with suffix SPLIT2 or SPLIT3 accordingly to your case)
-	- MAX_TILESET_TOTAL_SIZE_FOR_SPLIT_IN_<split> (with suffix SPLIT2 or SPLIT3 accordingly to your case)
-	- MAX_TILESET_CHUNK_<N>_SIZE_FOR_SPLIT_IN_<split> (with suffix SPLIT2 or SPLIT3 accordingly to your case)
-	- MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX
-- run step **5** again.
+    - Edit `res/ext.resource.properties` and update next constants:
+        - MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_<split> (with suffix SPLIT2 or SPLIT3 accordingly to your case)
+        - MAX_TILESET_TOTAL_SIZE_FOR_SPLIT_IN_<split> (with suffix SPLIT2 or SPLIT3 accordingly to your case)
+        - MAX_TILESET_CHUNK_<N>_SIZE_FOR_SPLIT_IN_<split> (with suffix SPLIT2 or SPLIT3 accordingly to your case)
+        - MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX
+    - Run step **5** again.
 `rom.bin` generated at out folder.  
 `Blastem's binary` location is set inside the bat script (edit accordingly or add *--no-emu* parameter).
 

@@ -80,12 +80,12 @@ static FORCE_INLINE void render_DMA_flushQueue ()
 
 static FORCE_INLINE void waitVInt ()
 {
-	// Casting to u8* allows to use cmp.b instead of cmp.l, by using vtimerPtr+3 which is the first byte of vtimer
-    const u8* vtimerPtr = (u8*)&vtimer + 3;
+	// Casting to u8* allows to use cmp.b instead of cmp.l, by using vtimerPtr+3 which is where the first byte of vtimer is located
+    u8* vtimerPtr = (u8*)&vtimer + 3;
     // Loops while vtimer keeps unchanged. Exits loop when it changes, meaning we are in VBlank.
     u8 currVal;
 	__asm volatile (
-        "move.b  (%1), %0\n\t"
+        "move.b  (%1), %0\n\t" // load current vtimer's lower byte value
         "1:\n\t"
         "cmp.b   (%1), %0\n\t" // cmp: %0 - (%1) => dN - (aN)
         "beq.s   1b"           // loop back if equal
@@ -124,8 +124,8 @@ static FORCE_INLINE void waitVInt_AND_flushDMA ()
 
 	render_Z80_setBusProtection(TRUE);
     // delay enabled ? --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
-    if (Z80_getForceDelayDMA())
-	    waitSubTick_(10);
+    //if (Z80_getForceDelayDMA())
+	//    waitSubTick_(10);
 
 	render_DMA_flushQueue();
 
@@ -280,8 +280,6 @@ static void allocatePalettesBuffer ()
 {
 	unpackedPalsRender = (u16*) MEM_alloc(VIDEO_FRAME_PALS_NUM * 2);
 	unpackedPalsBuffer = (u16*) MEM_alloc(VIDEO_FRAME_PALS_NUM * 2);
-	memsetU16(unpackedPalsRender, 0x0, VIDEO_FRAME_PALS_NUM); // black all the buffer
-	memsetU16(unpackedPalsBuffer, 0x0, VIDEO_FRAME_PALS_NUM); // black all the buffer
 }
 
 static FORCE_INLINE void unpackFramePalettes (u16* data, u16 len, u16 offset)
@@ -468,6 +466,12 @@ void playMovie ()
     // Loop the entire video
 	for (;;) // Better than while (TRUE) for infinite loops
     {
+        memsetU16(unpackedPalsRender, 0x0, VIDEO_FRAME_PALS_NUM); // black all the buffer
+    	memsetU16(unpackedPalsBuffer, 0x0, VIDEO_FRAME_PALS_NUM); // black all the buffer
+
+        // Clears all tilemap VRAM region for BG_B
+        VDP_fillTileMap(VDP_BG_B, 0, 0, VIDEO_PLANE_COLUMNS * 32);
+
 		#if VIDEO_FRAME_ADVANCE_STRATEGY == 1 || VIDEO_FRAME_ADVANCE_STRATEGY == 3 || VIDEO_PLAYER_DEBUG_FIXED_VFRAME
 		u16 sysFrameRate = IS_PAL_SYSTEM ? 50 : 60;
         #endif
@@ -475,11 +479,8 @@ void playMovie ()
 		u16 sysFrameRateReciprocal = IS_PAL_SYSTEM ? MOVIE_FRAME_RATE * 0x051E : MOVIE_FRAME_RATE * 0x0444;
 		#endif
 
-		// Let the HInt use the right pals before setting the VInt and HInt callbacks, otherwise it glitches out by one frame
+        // Let the HInt use the right pals before setting the VInt and HInt callbacks, otherwise it glitches out by one frame
 		setMoviePalsPointerBeforeInterrupts(unpackedPalsRender); // Palettes are all black at this point
-
-        // Wait for VInt so the logic can start at the beginning of the active display period
-		waitVInt();
 
 		SYS_disableInts();
 
@@ -493,6 +494,11 @@ void playMovie ()
             SYS_setHIntCallback(HIntCallback_CPU_ASM);
         #endif
 
+		SYS_enableInts();
+
+        // Wait for VInt so the logic can start at the beginning of the active display period
+		waitVInt();
+
         #if VIDEO_PLAYER_DEBUG_FIXED_VFRAME
         u16 vFrame = VIDEO_PLAYER_DEBUG_FIXED_VFRAME;
         vtimer = ((sysFrameRate ? 50 : 60) / MOVIE_FRAME_RATE) * VIDEO_PLAYER_DEBUG_FIXED_VFRAME;
@@ -500,8 +506,6 @@ void playMovie ()
         u16 vFrame = 0;
         vtimer = 0; // reset vtimer so we can use it as our hardware frame counter
         #endif
-
-		SYS_enableInts();
 
         // Start sound
         playSound();
@@ -576,7 +580,7 @@ void playMovie ()
 			vFrame = prevFrame + 1;
 			#else
 			// IMPORTANT: next frame must be counter parity from previous frame. If same parity (both even or both odd) then we will mistakenly 
-			// override the tileset VRAM region currently is being used for display the recently loaded frame.
+			// override the tileset VRAM region that is currently being used for display the recently loaded frame.
 			if (!((prevFrame ^ vFrame) & 1))
 			   ++vFrame; // move into next frame so parity is not shared with previous frame
 			#endif
@@ -621,8 +625,6 @@ void playMovie ()
 		}
 		// Loop the video
         else {
-			// Clears all tilemap VRAM region for BG_A
-			VDP_clearTileMap(VDP_BG_B, 0, VIDEO_PLANE_COLUMNS * 32, TRUE); // See VDP_clearPlane() for details
 			waitMs_(1000);
 		}
     }
