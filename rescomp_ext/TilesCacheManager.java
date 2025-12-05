@@ -271,7 +271,7 @@ public class TilesCacheManager {
 		return statsEnabledById.get(cacheId) == Boolean.TRUE;
 	}
 
-	public static void createCacheIfNotExist (String cacheId) {
+	public static void createStatsCacheIfNotExist (String cacheId) {
 		if (!statsCacheTotalOccurrsByCacheId.containsKey(cacheId)) {
 			Map<Integer, AtomicInteger> occurrencesPerTile = new HashMap<>((int)(2048 / 0.75) + 1);
 			statsCacheTotalOccurrsByCacheId.put(cacheId, occurrencesPerTile);

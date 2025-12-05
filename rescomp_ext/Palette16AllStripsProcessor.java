@@ -4,7 +4,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import sgdk.rescomp.Compiler;
 import sgdk.rescomp.Processor;
@@ -12,6 +11,7 @@ import sgdk.rescomp.Resource;
 import sgdk.rescomp.resource.Palette16AllStrips;
 import sgdk.rescomp.resource.Palette16AllStripsSplit2;
 import sgdk.rescomp.resource.Palette16AllStripsSplit3;
+import sgdk.rescomp.tool.CommonTilesRangeManager;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.CompressionCustom;
@@ -66,8 +66,7 @@ public class Palette16AllStripsProcessor implements Processor
         File baseFileDesc = new File(baseFile);
         String baseFileName = baseFileDesc.getName();
         String baseFileAbsPath = baseFileDesc.getAbsolutePath().replace(baseFileName, "");
-        Pattern baseFileNamePattern = Pattern.compile("^\\w+_(\\d+)_(\\d+)(_RGB)?\\.(png|bmp)$", Pattern.CASE_INSENSITIVE);
-        Matcher baseFileNameMatcher = baseFileNamePattern.matcher(baseFileName);
+        Matcher baseFileNameMatcher = CommonTilesRangeManager.stripsBaseFileNamePattern.matcher(baseFileName);
 		if (!baseFileNameMatcher.matches()) {
 			throw new IllegalArgumentException("baseFile doesn't match expected pattern.");
 		}
@@ -114,15 +113,16 @@ public class Palette16AllStripsProcessor implements Processor
 
 	private List<String> generateFilesInForStrips(String absPath, String baseFileName, Matcher baseFileNameMatcher, int strips)
 	{
-        String prefix = baseFileName.substring(0, baseFileNameMatcher.start(2)); // Extract the prefix part
-        //String middle = baseFile.substring(baseFileNameMatcher.start(2), baseMatcher.end(2)); // Extract the middle number part
-        String suffix = baseFileName.substring(baseFileNameMatcher.end(2), baseFileName.length()); // Extract the suffix (file extension) part
-        int startingStrip = Integer.parseInt(baseFileNameMatcher.group(2));
+		// Eg: mv_frame_47_0_RGB.png
+        String baseName = baseFileName.substring(0, baseFileNameMatcher.start(2)); // mv_frame_47_
+        String middle = baseFileNameMatcher.group(2); // 0
+        String ending = baseFileName.substring(baseFileNameMatcher.end(2), baseFileName.length()); // _RGB.png
+        int startingStrip = Integer.parseInt(middle);
         int length = startingStrip + strips;
 
         List<String> sortedFiles = new ArrayList<>(strips);
         for (int i = startingStrip; i < length; i++) {
-            String newFilename = absPath + prefix + String.format("%d", i) + suffix;
+            String newFilename = absPath + baseName + String.format("%d", i) + ending;
             sortedFiles.add(newFilename);
         }
 

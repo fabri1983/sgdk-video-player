@@ -9,6 +9,8 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 
 [Watch the demo video on YouTube](https://www.youtube.com/watch?v=mE4HLnmD0g0)
 
+You can find me in the SGDK Discord server: https://discord.gg/xmnBWQS
+
 
 ### Features
 - Supports up to 256+ colors per frame.

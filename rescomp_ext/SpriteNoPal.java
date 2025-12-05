@@ -12,6 +12,7 @@ import sgdk.rescomp.Resource;
 import sgdk.rescomp.resource.internal.SpriteAnimation;
 import sgdk.rescomp.resource.internal.SpriteFrame;
 import sgdk.rescomp.resource.internal.VDPSprite;
+import sgdk.rescomp.tool.ImageUtilFast;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.CollisionType;
 import sgdk.rescomp.type.Basics.Compression;
@@ -54,7 +55,7 @@ public class SpriteNoPal extends Resource
         this.hf = hf;
 
         // get 8bpp pixels and also check image dimension is aligned to tile
-        final byte[] image = ImageUtil.getImageAs8bpp(imgFile, true, true);
+        final byte[] image = ImageUtilFast.getImageAs8bpp(imgFile, true, true);
 
         // happen when we couldn't retrieve palette data from RGB image
         if (image == null)

@@ -17,7 +17,7 @@ const GEN_INC_DIR = 'inc/generated/';
 const RES_DIR = 'res/';
 
 const removeExtension = s => s.replace(/\.(png|PNG|bmp|BMP)$/, '');
-const FILE_REGEX_2 = /^\w+_(\d+)_(\d+)(_RGB)?\.(png|PNG|bmp|BMP)$/; // Eg: frame_100_0_RGB.png OR frame_100_0.png
+const IMAGE_FILES_REGEX = /^[A-Za-z_]+_(\d+)_(\d+)(_RGB|_rgb)?\.(png|PNG|bmp|BMP)$/; // Eg: frame_100_0_RGB.png OR frame_100_0.png
 
 const widthTiles = parseInt(args[0])/8;
 const heightTiles = parseInt(args[1])/8;
@@ -25,18 +25,18 @@ const stripsPerFrame = parseInt(args[1])/parseInt(args[2]);
 const frameRate = parseInt(args[3]);
 
 const fileNames = fs.readdirSync(RES_DIR + FRAMES_DIR)
-	.filter(s => FILE_REGEX_2.test(s));
+	.filter(s => IMAGE_FILES_REGEX.test(s));
 
 const sortedFileNames = fileNames
 	.map(name => {
-		const match2 = FILE_REGEX_2.exec(name);
+		const match2 = IMAGE_FILES_REGEX.exec(name);
 		return {idx: parseInt(match2[1])*100000 + parseInt(match2[2]), name};
 	})
 	.sort((a, b) => a.idx - b.idx)
 	.map(o => o.name);
 
 // Keeps only every stripsPerFrame elements
-const sortedFileNamesEveryFirstStrip = sortedFileNames
+const sortedFileNamesOnlyEveryFirstStrip = sortedFileNames
 	.filter((_, index) => index % stripsPerFrame === 0);
 
 const resPropertiesMap = loadResourceProperties("res/ext.resource.properties");
@@ -66,11 +66,16 @@ const cacheRangesInVRAM_fixed_str = cacheRangesInVRAM_fixed
 // Ensure no override happens between frame tiles and cache tiles
 checkCacheStartIndexAfterTilesets(loadTilesCache, cacheStartIndexInVRAM_var, resPropertiesMap);
 
+// Id for the common tiles range resource
+const commonTilesRangeId = "commonTilesRange_movie1";
+const minCommonTilesNum = 20;
+const useCommonTilesRange = false;
+
 // split tileset in N chunks. Current valid values are [1, 2, 3]
 const tilesetSplit = 3;
 // split tilemap in N chunks. Current values are [1, 2, 3]. Always <= tilesetSplit
 const tilemapSplit = 1;
-// add compression field if you know some tilesets and tilemaps are not compressed (by rescomp rules) or if you plan to test different compression algorithms
+// add compression field if you know some tilesets and tilemaps won't be compressed (by rescomp rules) or if you plan to test different compression algorithms
 const imageAddCompressionField = true;
 
 // Next data got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
@@ -120,7 +125,7 @@ if (paletteAddCompressionField == true)
 // and the next tile index: 716 (or max frame tileset size) + user base tile index.
 // So we can take the first frame number from its name/id, knowing that they are declared in ascendant order, and test its parity: even or odd.
 // Values: NONE disabled, EVEN if first frame num is even, ODD if odd.
-const matchFirstFrame = FILE_REGEX_2.exec(sortedFileNamesEveryFirstStrip[0]);
+const matchFirstFrame = IMAGE_FILES_REGEX.exec(sortedFileNamesOnlyEveryFirstStrip[0]);
 const toggleMapTileBaseIndexFlag = parseInt(matchFirstFrame[1]) % 2 == 0 ? "EVEN" : "ODD"; // use NONE to disable it
 
 const useExtendedWidth = false;
@@ -190,7 +195,7 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 /* -------------------------------- */
 
 #define MOVIE_FRAME_RATE ${frameRate}
-#define MOVIE_FRAME_COUNT ${sortedFileNamesEveryFirstStrip.length}
+#define MOVIE_FRAME_COUNT ${sortedFileNamesOnlyEveryFirstStrip.length}
 #define MOVIE_FRAME_WIDTH_IN_TILES ${widthTiles}
 #define MOVIE_FRAME_HEIGHT_IN_TILES ${heightTiles}
 #define MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES ${widthTilesExt_forVideoPlayer}
@@ -232,11 +237,11 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data.h`,
 #include "generated/movie_data_consts.h"
 
 const ${type_ImageNoPals}* data[MOVIE_FRAME_COUNT] = {
-	${sortedFileNamesEveryFirstStrip.map(s => `&mv_${removeExtension(s)}`).join(',\n	')}
+	${sortedFileNamesOnlyEveryFirstStrip.map(s => `&mv_${removeExtension(s)}`).join(',\n	')}
 };
 
 const ${type_Palette32AllStrips}* pals_data[MOVIE_FRAME_COUNT] = {
-	${sortedFileNamesEveryFirstStrip.map(s => `&pal_${removeExtension(s)}`).join(',\n	')}
+	${sortedFileNamesOnlyEveryFirstStrip.map(s => `&pal_${removeExtension(s)}`).join(',\n	')}
 };
 
 #endif // _MOVIE_DATA_H
@@ -249,22 +254,28 @@ const ${type_Palette32AllStrips}* pals_data[MOVIE_FRAME_COUNT] = {
 // Eg: "TileMapCustom, ImageNoPalsSplit31, Palette32AllStripsSplit3"
 const headerAppenderAllCustom = `HEADER_APPENDER_ALL_CUSTOM  headerAllCustomTypes` + '\n\n';
 
-// TILES_CACHE_STATS_ENABLER tilesCacheId enable minTilesetSize
-// Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  500
-// Flag 'enable' possible values: FALSE, TRUE
-const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${enableTilesCacheStats?"TRUE":"FALSE"}  500` + '\n\n';
-
 // TILES_CACHE_LOADER tilesCacheId enable cacheStartIndexInVRAM_var cacheVarTilesNum cacheRangesInVRAM_fixed filename compression compressionCustom
 // Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1576  216  1921-127  movieFrames_cache.txt  APLIB  NONE
 // Flag 'enable' possible values: FALSE, TRUE
-const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache?"TRUE":"FALSE"}`
+const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache? "TRUE":"FALSE"}`
 		+ `  ${cacheStartIndexInVRAM_var}  ${cacheTilesNum_var}  ${cacheRangesInVRAM_fixed_str}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
 
-// IMAGE_STRIPS_NO_PALS name "baseFile" strips tilesetStatsCollectorId [tilesCacheId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]
-// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesetStats1  tilesCache_movie1  3  1  ODD  64  NONE  LZ4W  RLEW_A  TRUE  ALL
-const imageResListStr = sortedFileNamesEveryFirstStrip
+// TILES_CACHE_STATS_ENABLER tilesCacheId enable minTilesetSize
+// Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  500
+// Flag 'enable' possible values: FALSE, TRUE
+const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${enableTilesCacheStats? "TRUE":"FALSE"}  500` + '\n\n';
+
+// IMAGE_STRIPS_COMMON_TILES_RANGE commonTilesRangeId enable "baseFile" stripsPerImg baseImgsNum compressionCustom [tilesCacheId minCommonTilesNum]
+// Eg: IMAGE_STRIPS_COMMON_TILES_RANGE  commonTilesRange_movie1  TRUE  "rgb/frame_1_0_RGB.png"  22  454  tilesCache_movie1  20
+const commonTilesRangeStr = `IMAGE_STRIPS_COMMON_TILES_RANGE  ${commonTilesRangeId}  ${useCommonTilesRange? "TRUE":"FALSE"}`
+        + `  "${FRAMES_DIR}${sortedFileNamesOnlyEveryFirstStrip[0]}"  ${stripsPerFrame}`
+        + `  ${sortedFileNamesOnlyEveryFirstStrip.length}  "LZ4W"  ${tilesCacheId}  ${minCommonTilesNum}` + '\n\n';
+
+// IMAGE_STRIPS_NO_PALS name "baseFile" strips [tilesetStatsCollectorId tilesCacheId commonTilesRangeId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]
+// Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesetStats1  tilesCache_movie1  commonTilesRange_movie1  3  1  ODD  64  NONE  LZ4W  RLEW_A  TRUE  ALL
+const imageResListStr = sortedFileNamesOnlyEveryFirstStrip
 	.map(s => `IMAGE_STRIPS_NO_PALS  mv_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${tilesetStatsId}`
-			+ `  ${tilesCacheId}  ${tilesetSplit}  ${tilemapSplit}`
+			+ `  ${tilesCacheId}  ${commonTilesRangeId}  ${tilesetSplit}  ${tilemapSplit}`
             + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth_forResource}  NONE  LZ4W  LZ4W`
 			+ `  ` + (imageAddCompressionField ? 'TRUE' : 'FALSE')
 			+ `  ALL`)
@@ -272,7 +283,7 @@ const imageResListStr = sortedFileNamesEveryFirstStrip
 
 // PALETTE_32_COLORS_ALL_STRIPS name baseFile strips palsPosition palsPosition addCompressionField compression compressionCustom addCompressionField
 // Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  PAL0PAL1  TRUE  LZ4W  NONE  FALSE
-const paletteResListStr = sortedFileNamesEveryFirstStrip
+const paletteResListStr = sortedFileNamesOnlyEveryFirstStrip
 	.map(s => `PALETTE_32_COLORS_ALL_STRIPS  pal_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${palette32Split}`
 			+ `  PAL0PAL1  TRUE  LZ4W  NONE`
 			+ `  ` + (paletteAddCompressionField ? 'TRUE' : 'FALSE'))
@@ -293,6 +304,7 @@ fs.writeFileSync(`${RES_DIR}/movie_frames.res`,
         headerAppenderAllCustom + 
         loadTilesCacheStr + 
         enableTilesCacheStatsStr + 
+        commonTilesRangeStr +
         imageResListStr + paletteResListStr + 
         printTilesCacheStatsStr + 
 		printTilesetStatsCollector +

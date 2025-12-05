@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import sgdk.rescomp.Compiler;
 import sgdk.rescomp.Processor;
@@ -16,6 +15,7 @@ import sgdk.rescomp.Resource;
 import sgdk.rescomp.resource.ImageStripsNoPals;
 import sgdk.rescomp.resource.ImageStripsNoPalsSplit2;
 import sgdk.rescomp.resource.ImageStripsNoPalsSplit3;
+import sgdk.rescomp.tool.CommonTilesRangeManager;
 import sgdk.rescomp.tool.TilesCacheManager;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
@@ -43,7 +43,7 @@ public class ImageStripsNoPalsProcessor implements Processor
 		if (fields.length < 4)
 		{
 			System.out.println("Wrong " + resId + " definition");
-			System.out.println(resId + " name \"baseFile\" strips [tilesetStatsCollectorId tilesCacheId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]");
+			System.out.println(resId + " name \"baseFile\" strips [tilesetStatsCollectorId tilesCacheId commonTilesId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]");
 			System.out.println("  name               Image variable name. Eg: frame_12");
 			System.out.println("  baseFile           Path of the first strip for input RGB image file with palettes (BMP or PNG image). Eg: \"res/rgb/frame_12_0.png\" or \"res/rgb/frame_12_0_RGB.png\"");
 			System.out.println("  strips             How many strips is the final image composed of. Eg: 21. It means there are frame_12_0.png, frame_12_1.png, ... frame_12_20.png");
@@ -52,7 +52,10 @@ public class ImageStripsNoPalsProcessor implements Processor
 			System.out.println("  tilesCacheId       Set an id (case insensitive) to identify and re use the same cache of tiles along other resources.");
 			System.out.println("                       Use NONE or NULL to disable the use of the tile cache.");
 			System.out.println("                       Use " + TilesCacheStatsEnablerProcessor.resId + " and " + TilesCacheStatsPrinterProcessor.resId + " with the same id to collect data and print them (file or console).");
-			System.out.println("                       You need to collect the stats in order to create the cache file and use it in a future run to effectivelly let the tilemaps use the cache.");
+			System.out.println("                       You need to collect the stats in order to create the cache file and use it with " + TilesCacheLoaderProcessor.resId + " in a future run to effectivelly let the tilemaps use the cache. Declare that processor before this one.");
+			System.out.println("  commonTilesId      Set an id (case insensitive) to identify and re use common tiles between all the images following the same baseFile naming pattern.");
+			System.out.println("                       Use NONE or NULL to disable the use of the tile cache.");
+			System.out.println("                       You need to declare the processor " + ImageStripsCommonTilesRangeProcessor.resId + " prior to this one in order to populate the common tiles list.");
 			System.out.println("  splitTileset       How many chunks is the tileset splitted into. Default 1 (no split), otherwise 2 or 3.");
 			System.out.println("  splitTilemap       How many chunks is the tilemap splitted into. Always less or equal than splitTileset.");
 			System.out.println("  toggleMapTileBaseIndexFlag   This is for a swap buffer mechanism.");
@@ -89,8 +92,7 @@ public class ImageStripsNoPalsProcessor implements Processor
         File baseFileDesc = new File(baseFile);
         String baseFileName = baseFileDesc.getName();
         String baseFileAbsPath = baseFileDesc.getAbsolutePath().replace(baseFileName, "");
-        Pattern baseFileNamePattern = Pattern.compile("^\\w+_(\\d+)_(\\d+)(_RGB)?\\.(png|bmp)$", Pattern.CASE_INSENSITIVE);
-        Matcher baseFileNameMatcher = baseFileNamePattern.matcher(baseFileName);
+        Matcher baseFileNameMatcher = CommonTilesRangeManager.stripsBaseFileNamePattern.matcher(baseFileName);
 		if (!baseFileNameMatcher.matches()) {
 			throw new IllegalArgumentException("baseFile doesn't match expected pattern.");
 		}
@@ -113,67 +115,76 @@ public class ImageStripsNoPalsProcessor implements Processor
         	String valueId = fields[5].toUpperCase();
         	if (!"NONE".equals(valueId) && !"NULL".equals(valueId)) {
         		tilesCacheId = valueId;
-        		TilesCacheManager.createCacheIfNotExist(tilesCacheId);
+        		TilesCacheManager.createStatsCacheIfNotExist(tilesCacheId);
         	}
         }
-        
+
+        // commonTilesId
+        String commonTilesRangeId = null; // null or empty string is considered as an invalid common tiles id
+        if (fields.length >= 7) {
+        	String valueId = fields[6].toUpperCase();
+        	if (!"NONE".equals(valueId) && !"NULL".equals(valueId)) {
+        		commonTilesRangeId = valueId;
+        	}
+        }
+
         // get tileset split number
         int splitTileset = 1;
-        if (fields.length >= 7) {
-        	int value = StringUtil.parseInt(fields[6], 1);
+        if (fields.length >= 8) {
+        	int value = StringUtil.parseInt(fields[7], 1);
 			splitTileset = Math.min(3, Math.max(1, value)); // clamp(1, 3, value)
         }
 
         // get tilemap split number
         int splitTilemap = 1;
-        if (fields.length >= 8) {
-        	int value = StringUtil.parseInt(fields[7], 1);
+        if (fields.length >= 9) {
+        	int value = StringUtil.parseInt(fields[8], 1);
         	splitTilemap = Math.min(3, Math.max(1, value)); // clamp(1, 3, value)
         	splitTilemap = Math.min(splitTileset, splitTilemap); // can't be bigger than splitTileset value
         }
 
         // get the value for toggling map tile base index for video frame swap buffer
         ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag = ToggleMapTileBaseIndex.NONE;
-        if (fields.length >= 9) {
-        	toggleMapTileBaseIndexFlag = ToggleMapTileBaseIndex.from(fields[8]);
+        if (fields.length >= 10) {
+        	toggleMapTileBaseIndexFlag = ToggleMapTileBaseIndex.from(fields[9]);
         }
 
         // extend map width to 64 tiles
         int mapExtendedWidth = 0;
-        if (fields.length >= 10) {
-        	int value = StringUtil.parseInt(fields[9], 0);
+        if (fields.length >= 11) {
+        	int value = StringUtil.parseInt(fields[10], 0);
         	if (value == 0 || value == 32 || value == 64 || value == 128)
         		mapExtendedWidth = value;
         }
 
         // get packed value
         Compression compression = Compression.NONE;
-        if (fields.length >= 11)
-            compression = Util.getCompression(fields[10]);
+        if (fields.length >= 12)
+            compression = Util.getCompression(fields[11]);
 
         // get custom compression value for tileset
         CompressionCustom compressionCustomTileset = CompressionCustom.NONE;
-        if (fields.length >= 12)
-        	compressionCustomTileset = CompressionCustom.from(fields[11]);
+        if (fields.length >= 13)
+        	compressionCustomTileset = CompressionCustom.from(fields[12]);
 
         // get custom compression value for tilemap
         CompressionCustom compressionCustomTilemap = CompressionCustom.NONE;
-        if (fields.length >= 13)
-        	compressionCustomTilemap = CompressionCustom.from(fields[12]);
+        if (fields.length >= 14)
+        	compressionCustomTilemap = CompressionCustom.from(fields[13]);
 
         boolean addCompressionField = false;
-        if (fields.length >= 14)
-        	addCompressionField = Boolean.parseBoolean(fields[13]);
+        if (fields.length >= 15)
+        	addCompressionField = Boolean.parseBoolean(fields[14]);
 
         // get map optimization value
         TileOptimization tileOpt = TileOptimization.ALL;
-        if (fields.length >= 15)
-            tileOpt = Util.getTileOpt(fields[14]);
+        if (fields.length >= 16)
+            tileOpt = Util.getTileOpt(fields[15]);
 
         // get map base
         int mapBase = 0;
-        if (fields.length >= 16)
-            mapBase = Integer.parseInt(fields[15]);
+        if (fields.length >= 17)
+            mapBase = Integer.parseInt(fields[16]);
 
         // generate the list of strip files
         List<String> stripsInList = generateFilesInForStrips(baseFileAbsPath, baseFileName, baseFileNameMatcher, strips);
@@ -186,26 +197,30 @@ public class ImageStripsNoPalsProcessor implements Processor
 
         if (splitTileset == 1)
         	return new ImageStripsNoPals(name, stripsInList, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, tileOpt, mapBase, 
-        			compressionCustomTileset, compressionCustomTilemap, addCompressionField, tilesCacheId, tilesetStatsCollectorId);
+        			compressionCustomTileset, compressionCustomTilemap, addCompressionField, tilesCacheId, tilesetStatsCollectorId,
+        			commonTilesRangeId);
         else if (splitTileset == 2)
         	return new ImageStripsNoPalsSplit2(name, stripsInList, splitTilemap, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, 
-        			tileOpt, mapBase, compressionCustomTileset, compressionCustomTilemap, addCompressionField, tilesCacheId, tilesetStatsCollectorId);
+        			tileOpt, mapBase, compressionCustomTileset, compressionCustomTilemap, addCompressionField, tilesCacheId, tilesetStatsCollectorId,
+        			commonTilesRangeId);
         else
         	return new ImageStripsNoPalsSplit3(name, stripsInList, splitTilemap, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, 
-        			tileOpt, mapBase, compressionCustomTileset, compressionCustomTilemap, addCompressionField, tilesCacheId, tilesetStatsCollectorId);
+        			tileOpt, mapBase, compressionCustomTileset, compressionCustomTilemap, addCompressionField, tilesCacheId, tilesetStatsCollectorId,
+        			commonTilesRangeId);
     }
 
 	private List<String> generateFilesInForStrips(String absPath, String baseFileName, Matcher baseFileNameMatcher, int strips)
 	{
-        String prefix = baseFileName.substring(0, baseFileNameMatcher.start(2)); // Extract the prefix part
-        //String middle = baseFile.substring(baseFileNameMatcher.start(2), baseMatcher.end(2)); // Extract the middle number part
-        String suffix = baseFileName.substring(baseFileNameMatcher.end(2), baseFileName.length()); // Extract the suffix (file extension) part
-        int startingStrip = Integer.parseInt(baseFileNameMatcher.group(2));
+		// Eg: mv_frame_47_0_RGB.png
+        String baseName = baseFileName.substring(0, baseFileNameMatcher.start(2)); // mv_frame_47_
+        String middle = baseFileNameMatcher.group(2); // 0
+        String ending = baseFileName.substring(baseFileNameMatcher.end(2), baseFileName.length()); // _RGB.png
+        int startingStrip = Integer.parseInt(middle);
         int length = startingStrip + strips;
 
         List<String> sortedFiles = new ArrayList<>(strips);
         for (int i = startingStrip; i < length; i++) {
-            String newFilename = absPath + prefix + String.format("%d", i) + suffix;
+            String newFilename = absPath + baseName + String.format("%d", i) + ending;
             sortedFiles.add(newFilename);
         }
 

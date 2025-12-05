@@ -14,6 +14,7 @@ import sgdk.rescomp.Resource;
 import sgdk.rescomp.resource.internal.SpriteAnimationMultiPal;
 import sgdk.rescomp.resource.internal.SpriteFrameMultiPal;
 import sgdk.rescomp.resource.internal.VDPSpriteMultiPal;
+import sgdk.rescomp.tool.ImageUtilFast;
 import sgdk.rescomp.tool.SpriteBoundariesPalettes;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.CollisionType;
@@ -57,7 +58,7 @@ public class SpriteMultiPal extends Resource
         this.hf = hf;
 
         // get 8bpp pixels and also check image dimension is aligned to tile
-        final byte[] image = ImageUtil.getImageAs8bpp(imgFile, true, true);
+        final byte[] image = ImageUtilFast.getImageAs8bpp(imgFile, true, true);
 
         // happen when we couldn't retrieve palette data from RGB image
         if (image == null)

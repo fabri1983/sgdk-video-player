@@ -91,6 +91,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/processor/HeaderAppenderCompressionCustomTrackerProcessor.class ^
 	./sgdk/rescomp/processor/HeaderAppenderProcessor.class ^
 	./sgdk/rescomp/processor/ImageNoPalsProcessor.class ^
+	./sgdk/rescomp/processor/ImageStripsCommonTilesRangeProcessor.class ^
 	./sgdk/rescomp/processor/ImageStripsNoPalsProcessor.class ^
 	./sgdk/rescomp/processor/Palette16AllStripsProcessor.class ^
 	./sgdk/rescomp/processor/Palette16Processor.class ^
@@ -111,6 +112,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/HeaderAppenderCompressionCustom.class ^
 	./sgdk/rescomp/resource/HeaderAppenderCompressionCustomTracker.class ^
 	./sgdk/rescomp/resource/ImageNoPals.class ^
+	./sgdk/rescomp/resource/ImageStripsCommonTilesRange.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPals.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPalsSplit2.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPalsSplit3.class ^
@@ -138,8 +140,10 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/internal/SpriteFrameMultiPal$1.class ^
 	./sgdk/rescomp/resource/internal/SpriteFrameMultiPal.class ^
 	./sgdk/rescomp/resource/internal/VDPSpriteMultiPal.class ^
+	./sgdk/rescomp/tool/CommonTilesRangeManager.class ^
 	./sgdk/rescomp/tool/CompressionCustomUsageTracker.class ^
 	./sgdk/rescomp/tool/ExtProperties.class ^
+	./sgdk/rescomp/tool/ImageUtilFast.class ^
 	./sgdk/rescomp/tool/MdComp.class ^
 	./sgdk/rescomp/tool/RLEWCompressor$WordInfo.class ^
 	./sgdk/rescomp/tool/RLEWCompressor.class ^
@@ -149,6 +153,8 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/tool/TilesetStatsCollector.class ^
 	./sgdk/rescomp/type/CompressionCustom$1.class ^
 	./sgdk/rescomp/type/CompressionCustom.class ^
+	./sgdk/rescomp/type/CommonTilesRange.class ^
+	./sgdk/rescomp/type/CommonTilesRangeResData.class ^
 	./sgdk/rescomp/type/CustomDataTypes$1.class ^
 	./sgdk/rescomp/type/CustomDataTypes.class ^
 	./sgdk/rescomp/type/PackedDataCustom.class ^

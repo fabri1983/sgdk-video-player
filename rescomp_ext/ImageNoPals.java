@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import sgdk.rescomp.Resource;
+import sgdk.rescomp.tool.ExtProperties;
+import sgdk.rescomp.tool.ImageUtilFast;
 import sgdk.rescomp.tool.TilesetStatsCollector;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
@@ -30,7 +32,7 @@ public class ImageNoPals extends Resource
         super(id);
 
         // get 8bpp pixels and also check image dimension is aligned to tile
-        final byte[] finalImageData = ImageUtil.getImageAs8bpp(imgFile, true, true);
+        final byte[] finalImageData = ImageUtilFast.getImageAs8bpp(imgFile, true, true);
         checkImageNotNull(imgFile, finalImageData);
         checkImageColorByte(imgFile, finalImageData);
 
@@ -48,17 +50,19 @@ public class ImageNoPals extends Resource
 
         // build TILESET with wanted compression
         tileset = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_tileset", finalImageData, w, h, 0, 0, wt, ht, tileOpt, 
-        		compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField));
+        		compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, null));
 
         System.out.print(" " + id + " -> numTiles: " + tileset.getNumTile() + ". ");
         if (tilesetStatsCollectorId != null && !"".equals(tilesetStatsCollectorId)) {
 	        TilesetStatsCollector.count1chunk(tilesetStatsCollectorId, tileset.getNumTile());
         }
 
+        int maxFrameTilesetTotalSize = ExtProperties.getInt(ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
+
         // build TILEMAP with wanted compression
         tilemap = (TilemapOriginalCustom) addInternalResource(TilemapOriginalCustom.getTilemap(id + "_tilemap", tileset, toggleMapTileBaseIndexFlag, 
         		mapBase, finalImageData, wt, ht, tileOpt, compression, compressionCustomTilemap, mapExtendedWidth, TileOrdering.ROW, tilesCacheId, 
-        		addCompressionField));
+        		addCompressionField, null, maxFrameTilesetTotalSize));
 
         // compute hash code
         hc = tileset.hashCode() ^ tilemap.hashCode();

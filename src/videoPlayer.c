@@ -527,13 +527,13 @@ void playMovie ()
 
 			unpackFrameTileset(data[vFrame]->tileset2);
 			u16 numTile2 = data[vFrame]->tileset2->numTile;
-			queueTilesetData(numTile1 + baseTileIndex, numTile2);
+			queueTilesetData(baseTileIndex + numTile1, numTile2);
 
             waitVInt_AND_flushDMA();
 
 			unpackFrameTileset(data[vFrame]->tileset3);
 			u16 numTile3 = data[vFrame]->tileset3->numTile;
-			queueTilesetData(numTile1 + numTile2 + baseTileIndex, numTile3);
+			queueTilesetData(baseTileIndex + numTile1 + numTile2, numTile3);
 
             waitVInt_AND_flushDMA();
 
@@ -545,7 +545,6 @@ void playMovie ()
 			swapPalsBuffers();
 
 			unpackFrameTilemap(data[vFrame]->tilemap1);
-
 			queueTilemapData();
 
 			// NOTE: first 2 strips' palettes (previously unpacked) will be enqueued in waitVInt_AND_flushDMA()

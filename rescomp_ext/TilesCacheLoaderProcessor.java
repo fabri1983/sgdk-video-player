@@ -59,6 +59,7 @@ public class TilesCacheLoaderProcessor implements Processor
         	throw new IllegalArgumentException("tilesCacheId is invalid");
         String tilesCacheId = originalCacheId_keepCase.toUpperCase();
 
+        // enable value
 		boolean enable = "TRUE".equals(fields[2].toUpperCase());
 
 		int cacheStartIndexInVRAM_var = StringUtil.parseInt(fields[3], 1);

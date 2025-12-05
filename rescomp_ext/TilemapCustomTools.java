@@ -56,8 +56,7 @@ public class TilemapCustomTools {
     		else {
     			System.out.println("");
     			System.out.println("####################################################################################################");
-    			System.out.println("TilemapCustom class by fabri1983.");
-    			System.out.println("ERROR! SOMETHING WRONG WITH YOUR FRAME NUM SETUP! WAS toggleMapTileBaseIndexFlag SET CORRECTLY?");
+    			System.out.println("[ERROR] SOMETHING WRONG WITH YOUR FRAME NUM SETUP! WAS toggleMapTileBaseIndexFlag SET CORRECTLY? " + TilemapCustomTools.class.getSimpleName());
     			System.out.println("####################################################################################################");
     		}
 
@@ -66,7 +65,7 @@ public class TilemapCustomTools {
         		int b = a + ExtProperties.getInt(ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
     			System.out.println("");
 		    	System.out.println("####################################################################################################");
-		    	System.out.println("TilemapCustom class by fabri1983.");
+		    	System.out.println(TilemapCustomTools.class.getSimpleName());
 		    	System.out.println("Parameter toggleMapTileBaseIndexFlag was set to use the frame num for toggling between: ");
 		    	System.out.println("   tile index " + a + " (" + ExtProperties.STARTING_TILESET_ON_SGDK + ")");
 		    	System.out.println("and");
@@ -114,7 +113,7 @@ public class TilemapCustomTools {
     		if (index != -1) // tile found in current tileset
     			return i;
     	}
-    	System.out.print("\nTile not found in any of the " + tilesets.size() + " tilesets");
+    	System.out.print("\n[WARNING] Tile not found in any of the " + tilesets.size() + " tilesets. " + TilemapCustomTools.class.getSimpleName());
     	return 0;
     }
 }

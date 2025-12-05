@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import sgdk.rescomp.Resource;
+import sgdk.rescomp.tool.ExtProperties;
+import sgdk.rescomp.tool.ImageUtilFast;
 import sgdk.rescomp.tool.TilesCacheManager;
 import sgdk.rescomp.tool.TilesetStatsCollector;
 import sgdk.rescomp.tool.Util;
@@ -26,7 +28,8 @@ public class ImageStripsNoPals extends Resource
 
     public ImageStripsNoPals(String id, List<String> stripsFileList, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapExtendedWidth, 
     		Compression compression, TileOptimization tileOpt, int mapBase, CompressionCustom compressionCustomTileset, 
-    		CompressionCustom compressionCustomTilemap, boolean addCompressionField, String tilesCacheId, String tilesetStatsCollectorId) throws Exception
+    		CompressionCustom compressionCustomTilemap, boolean addCompressionField, String tilesCacheId, String tilesetStatsCollectorId, 
+    		String commonTilesRangeId) throws Exception
     {
         super(id);
 
@@ -45,17 +48,19 @@ public class ImageStripsNoPals extends Resource
 
         // build TILESET with wanted compression
         tileset = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_tileset", finalImageData, w, h, 0, 0, wt, ht, tileOpt, 
-        		compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField));
+        		compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId));
 
         System.out.print(" " + id + " -> numTiles: " + tileset.getNumTile() + ". ");
         if (tilesetStatsCollectorId != null && !"".equals(tilesetStatsCollectorId)) {
 	        TilesetStatsCollector.count1chunk(tilesetStatsCollectorId, tileset.getNumTile());
         }
 
+        int maxFrameTilesetTotalSize = ExtProperties.getInt(ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
+
         // build TILEMAP with wanted compression
         tilemap = (TilemapOriginalCustom) addInternalResource(TilemapOriginalCustom.getTilemap(id + "_tilemap", tileset, toggleMapTileBaseIndexFlag, 
         		mapBase, finalImageData, wt, ht, tileOpt, compression, compressionCustomTilemap, mapExtendedWidth, TileOrdering.ROW, tilesCacheId, 
-        		addCompressionField));
+        		addCompressionField, commonTilesRangeId, maxFrameTilesetTotalSize));
 
         if (TilesCacheManager.isStatsEnabledFor(tilesCacheId) 
         		&& tileset.getNumTile() >= TilesCacheManager.getMinTilesetSizeForStatsFor(tilesCacheId)) {
@@ -70,7 +75,7 @@ public class ImageStripsNoPals extends Resource
     private byte[] mergeAllStrips(List<String> stripsFileList) throws Exception
     {
 		// get tile data per pixel (color position in palette), check image dimension is aligned to tile, remove palette info if any
-        byte[] image0 = ImageUtil.getImageAs8bpp(stripsFileList.get(0), true, true);
+        byte[] image0 = ImageUtilFast.getImageAs8bpp(stripsFileList.get(0), true, true);
         int stripLength = image0.length;
         // allocate space for bigger image
         final byte[] finalImage = new byte[stripLength * stripsFileList.size()];
@@ -78,7 +83,7 @@ public class ImageStripsNoPals extends Resource
         // copy all the strips into finalImage
         for (int i = 0; i < stripsFileList.size(); ++i) {
         	String imgFile = stripsFileList.get(i);
-        	byte[] image = ImageUtil.getImageAs8bpp(imgFile, true, true);
+        	byte[] image = ImageUtilFast.getImageAs8bpp(imgFile, true, true);
         	checkImageNotNull(imgFile, image);
             checkImageColorByte(imgFile, image);
             System.arraycopy(image, 0, finalImage, i * stripLength, stripLength);

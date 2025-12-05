@@ -7,16 +7,22 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import sgdk.rescomp.Resource;
+import sgdk.rescomp.tool.CommonTilesRangeManager;
+import sgdk.rescomp.tool.ImageUtilFast;
 import sgdk.rescomp.tool.TilesCacheManager;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileEquality;
 import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.rescomp.type.Basics.TileOrdering;
+import sgdk.rescomp.type.CommonTilesRange;
 import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.CustomDataTypes;
 import sgdk.rescomp.type.Tile;
@@ -28,12 +34,14 @@ import sgdk.tool.ImageUtil.BasicImageInfo;
 
 public class TilesetOriginalCustom extends Resource
 {
+	private static final Pattern imageNameStripsFromResIdPattern = Pattern.compile("^[A-Za-z_]+_(\\d+)(_\\d+)?(_RGB)?(_chunk\\d+)?_tileset$", Pattern.CASE_INSENSITIVE);
+
     public static TilesetOriginalCustom getTileset(String id, String imgFile, Compression compression, CompressionCustom compressionCustom, 
-    		TileOptimization tileOpt, boolean addBlank, boolean temp, TileOrdering order, boolean export, String tilesCacheId, boolean addCompressionField)
-            throws Exception
+    		TileOptimization tileOpt, boolean addBlank, boolean temp, TileOrdering order, boolean export, String tilesCacheId, boolean addCompressionField, 
+    		String commonTilesRangeId) throws Exception
     {
         // get 8bpp pixels and also check image dimension is aligned to tile
-        final byte[] image = ImageUtil.getImageAs8bpp(imgFile, true, true);
+        final byte[] image = ImageUtilFast.getImageAs8bpp(imgFile, true, true);
 
         // happen when we couldn't retrieve palette data from RGB image
         if (image == null)
@@ -47,7 +55,7 @@ public class TilesetOriginalCustom extends Resource
         final int h = image.length / w;
 
         final TilesetOriginalCustom result = new TilesetOriginalCustom(id, image, w, h, 0, 0, w / 8, h / 8, tileOpt, compression, compressionCustom,  addBlank, temp, 
-        		order, tilesCacheId, addCompressionField);
+        		order, tilesCacheId, addCompressionField, commonTilesRangeId);
 
         // export tileset to PNG ?
         if (export)
@@ -90,7 +98,7 @@ public class TilesetOriginalCustom extends Resource
 
     public TilesetOriginalCustom(String id, byte[] image8bpp, int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile,
             TileOptimization opt, Compression compression, CompressionCustom compressionCustom, boolean addBlank, boolean temp, TileOrdering order, 
-            String tilesCacheId, boolean addCompressionField)
+            String tilesCacheId, boolean addCompressionField, String commonTilesRangeId)
     {
         super(id);
 
@@ -100,6 +108,24 @@ public class TilesetOriginalCustom extends Resource
         tileIndexesMap = new HashMap<>();
         tileByHashcodeMap = new HashMap<>();
         this.addCompressionField = addCompressionField;
+
+        // fabri1983:
+        List<Tile> commonTiles = Collections.emptyList();
+        List<CommonTilesRange> commonTilesRanges = CommonTilesRangeManager.getFromResId(commonTilesRangeId);
+        if (!commonTilesRanges.isEmpty()) {
+        	Matcher baseFileNameMatcher = imageNameStripsFromResIdPattern.matcher(id);
+			if (baseFileNameMatcher.matches()) {
+				int imageNum = Integer.parseInt(baseFileNameMatcher.group(1));
+				CommonTilesRange commonTileObj = CommonTilesRangeManager.findRangeForImageNum(commonTilesRanges, imageNum);
+				if (commonTileObj != null) {
+					// Get the list of common tiles for the current range
+					commonTiles = commonTileObj.getTiles();
+				}
+			}
+			else {
+        		System.out.println("[WARNING] Couldn't extract imageNum for CommonTilesRange from " + id + ". " + TilesetOriginalCustom.class.getSimpleName());
+        	}
+        }
 
         // important to always use the **same loop order** when building Tileset and Tilemap/Map object
         if (order == TileOrdering.ROW)
@@ -121,10 +147,26 @@ public class TilesetOriginalCustom extends Resource
                     if (tile.getPlainValue() == 0)
                     	continue;
 
+                    // fabri1983:
                     TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
                 	// found the cached tile? then continue with next one
                 	if (match != null)
                 		continue;
+ 
+                	// fabri1983:
+                	// Test if current tile is one of the common tiles in current range 
+                	if (!commonTiles.isEmpty()) {
+                        // Search for referenceTile in the current tileset
+                		boolean commonTileFoundMatches = false;
+                        for (Tile commonTile : commonTiles) {
+                            if (tile.getEquality(commonTile) != TileEquality.NONE) {
+                                commonTileFoundMatches = true;
+                                break;
+                            }
+                        }
+                        if (commonTileFoundMatches)
+                        	continue;
+                	}
 
             		// not found in the current list of tiles --> add it
                     if (index == -1)
@@ -151,44 +193,31 @@ public class TilesetOriginalCustom extends Resource
                     if (tile.getPlainValue() == 0)
                     	continue;
 
+                    // fabri1983:
                     TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
                 	// found the cached tile? then continue with next one
                 	if (match != null)
                 		continue;
 
+                	// fabri1983:
+                	// Test if current tile is one of the common tiles in current range
+                	if (!commonTiles.isEmpty()) {
+                        // Search for referenceTile in the current tileset
+                		boolean commonTileFound = false;
+                        for (Tile commonTile : commonTiles) {
+                            if (tile.getEquality(commonTile) != TileEquality.NONE) {
+                            	commonTileFound = true;
+                                break;
+                            }
+                        }
+                        if (commonTileFound)
+                        	continue;
+                	}
+
             		// not found in the current list of tiles --> add it
                     if (index == -1)
                         add(tile);
                 }
-            }
-        }
-
-        // important to always use the same loop order when building Tileset and Tilemap/Map object
-        for (int j = 0; j < heightTile; j++)
-        {
-            for (int i = 0; i < widthTile; i++)
-            {
-                // get tile
-                final Tile tile = Tile.getTile(image8bpp, imageWidth, imageHeight, (i + startTileX) * 8, (j + startTileY) * 8, 8);
-                // find if tile already exist
-                final int index = getTileIndex(tile, opt);
-
-                // blank tile
-                hasBlank |= tile.isBlank();
-
-                // fabri1983: tile with all zeros is the first SGDK tile reserved in VRAM at address 0
-                // so we don't need to add it
-                if (tile.getPlainValue() == 0)
-                	continue;
-
-                TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
-            	// found the cached tile? then continue with next one
-            	if (match != null)
-            		continue;
-
-        		// not found in the current list of tiles --> add it
-                if (index == -1)
-                    add(tile);
             }
         }
 

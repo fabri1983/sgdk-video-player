@@ -3,11 +3,13 @@ package sgdk.rescomp.resource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import sgdk.rescomp.Resource;
+import sgdk.rescomp.tool.CommonTilesRangeManager;
 import sgdk.rescomp.tool.ExtProperties;
 import sgdk.rescomp.tool.RLEWCompressor;
 import sgdk.rescomp.tool.TilemapCustomTools;
@@ -17,6 +19,7 @@ import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileEquality;
 import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.rescomp.type.Basics.TileOrdering;
+import sgdk.rescomp.type.CommonTilesRange;
 import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.CustomDataTypes;
 import sgdk.rescomp.type.Tile;
@@ -27,10 +30,12 @@ import sgdk.tool.ArrayUtil;
 
 public class TilemapCustom extends Resource
 {
+	private static final Pattern imageNameStripsFromResIdPattern = Pattern.compile("^[A-Za-z_]+_(\\d+)(_\\d+)?(_RGB)?(_chunk\\d+)?_tilemap$", Pattern.CASE_INSENSITIVE);
+
 	private static TilemapCreationData createTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetPerTilesetChunk,
 			ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int imageWidth, int imageHeight,
 			int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt, Compression compression, 
-			TileOrdering order, int mapExtendedWidth, String tilesCacheId) {
+			TileOrdering order, int mapExtendedWidth, String tilesCacheId, String commonTilesRangeId, int maxFrameTilesetTotalSize) {
 		int w = widthTile;
         int h = heightTile;
 
@@ -39,15 +44,11 @@ public class TilemapCustom extends Resource
         int mapBaseTileInd = mapBase & Tile.TILE_INDEX_MASK;
 
         // fabri1983: get frame num
-        Pattern idNamePattern = Pattern.compile("^[A-Za-z_]+_(\\d+)(_\\d+)?(_RGB)?(_chunk\\d)?_tilemap$", Pattern.CASE_INSENSITIVE);
-        Matcher idNameMatcher = idNamePattern.matcher(id);
         Integer frameNum = null;
+        Matcher idNameMatcher = imageNameStripsFromResIdPattern.matcher(id);
         if (idNameMatcher.matches()) {
         	String group1 = idNameMatcher.group(1);
         	frameNum = TilemapCustomTools.getFrameNum(group1);
-        	if (frameNum == null) {
-        		System.out.println(" ##### frameNum SHOULDN'T BE NULL HERE. TilemapCustom class");
-        	}
         }
 
         // fabri1983: only print message at first frame and only for chunk1
@@ -55,15 +56,40 @@ public class TilemapCustom extends Resource
         	TilemapCustomTools.printMessageForParamToggleMapTileBaseIndexFlag(toggleMapTileBaseIndexFlag, frameNum, id);
 
     	// fabri1983: here we calculate videoFrameBufferOffsetIndex according frameNum
-    	int videoFrameBufferOffsetIndex = 0;
+        int videoFrameBufferOffsetIndex = 0;
     	if (toggleMapTileBaseIndexFlag != ToggleMapTileBaseIndex.NONE) {
     		int tileIndexA = ExtProperties.getInt(ExtProperties.STARTING_TILESET_ON_SGDK);
     		int tileIndexB = tileIndexA + ExtProperties.getInt(ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
     		videoFrameBufferOffsetIndex = TilemapCustomTools.calculateVideoFrameBufferOffsetIndex(
     				toggleMapTileBaseIndexFlag, frameNum, tileIndexA, tileIndexB);
     	}
-    	// fabri1983: add to current mapBaseTileInd value
-    	mapBaseTileInd += videoFrameBufferOffsetIndex;
+
+        // fabri1983:
+        List<Tile> commonTiles = Collections.emptyList();
+        int startingImgNumInName = 0;
+        List<CommonTilesRange> commonTilesRange = CommonTilesRangeManager.getFromResId(commonTilesRangeId);
+        if (!commonTilesRange.isEmpty()) {
+			if (frameNum != null) {
+				CommonTilesRange commonTileObj = CommonTilesRangeManager.findRangeForImageNum(commonTilesRange, frameNum);
+				if (commonTileObj != null) {
+					// Get the list of common tiles for the current range
+					commonTiles = commonTileObj.getTiles();
+					// What's the image num in the name of the starting image of the range?
+					startingImgNumInName = commonTileObj.getStartingImgNumInName();
+				}
+			}
+			else {
+				System.out.println("[WARNING] Couldn't extract frameNum for CommonTilesRange from " + id + ". " + TilemapCustom.class.getSimpleName());
+        	}
+        }
+		// calculate videoFrameBufferOffsetIndex according the startingImgNumInName
+		int videoFrameBufferOffsetIndexOfStartingImg = 0;
+    	if (toggleMapTileBaseIndexFlag != ToggleMapTileBaseIndex.NONE) {
+    		int tileIndexA = ExtProperties.getInt(ExtProperties.STARTING_TILESET_ON_SGDK);
+    		int tileIndexB = tileIndexA + ExtProperties.getInt(ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
+    		videoFrameBufferOffsetIndexOfStartingImg = TilemapCustomTools.calculateVideoFrameBufferOffsetIndex(
+    				toggleMapTileBaseIndexFlag, startingImgNumInName, tileIndexA, tileIndexB);
+    	}
 
 		// we have a base offset --> we can use system plain tiles
         final boolean useSystemTiles = mapBaseTileInd != 0;
@@ -85,7 +111,7 @@ public class TilemapCustom extends Resource
                 int index;
                 TileEquality equality = TileEquality.NONE;
 
-                // if no optimization, just use current offset as index (or the one from the cache)
+                // if no optimization, just use current offset as index (or the one from the cache or from common tiles list)
                 if (opt == TileOptimization.NONE)
                 {
                 	// fabri1983: we only allow index 0 (the black tile) to be used as a plain tile
@@ -93,17 +119,42 @@ public class TilemapCustom extends Resource
                     if (tile.isPlain() && tile.getPlainValue() == 0)
                         index = tile.getPlainValue();
                     else {
-	                	TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
-	                	
-	                	// we found the cached tile
+                    	// fabri1983:
+	                	// Test if the tile is cached
+                    	TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
 	                	if (match != null) {
-	                		Tile existentTile = match.getTile();
-	                        equality = tile.getEquality(existentTile);
+	                		Tile cachedTile = match.getTile();
+	                        equality = tile.getEquality(cachedTile);
 	                        index = match.getIndexInCache();
 	                	}
 	                	else {
-	                		int tilesetsListIdx = TilemapCustomTools.getTilesetIndexFor(tile, opt, tilesets);
-	                		index = offset + mapBaseTileInd + offsetPerTilesetChunk[tilesetsListIdx];
+	                		// fabri1983:
+	                		int indexInCommonTilesList = -1;
+	                        if (!commonTiles.isEmpty()) {
+	                        	// Try to find tile as common tile, and get the index as it is in commonTiles 
+	                    		for (int kk=0; kk < commonTiles.size(); kk++) {
+	                    			Tile commonTile = commonTiles.get(kk);
+	                                if (tile.getEquality(commonTile) != TileEquality.NONE) {
+	                                	equality = tile.getEquality(commonTile);
+	                                	indexInCommonTilesList = kk;
+	                                	break;
+	                                }
+	                            }
+	                        }
+
+                    		// Is tile a common tile?
+							if (indexInCommonTilesList != -1) {
+								// The offset for common tiles is always at the end of the frame buffer
+								int startingImgTilesetSize = maxFrameTilesetTotalSize - commonTiles.size();
+								index = indexInCommonTilesList + mapBaseTileInd + videoFrameBufferOffsetIndexOfStartingImg + startingImgTilesetSize;
+							}
+                        	// No common tile
+                        	else {
+    	                		// fabri1983:
+    	                		int tilesetsListIdx = TilemapCustomTools.getTilesetIndexFor(tile, opt, tilesets);
+                            	int offsetByTilesetChunk = offsetPerTilesetChunk[tilesetsListIdx];
+                        		index = offset + mapBaseTileInd + videoFrameBufferOffsetIndex + offsetByTilesetChunk;
+                        	}
 	                	}
                     }
                 }
@@ -116,37 +167,60 @@ public class TilemapCustom extends Resource
                         index = tile.getPlainValue();
                     else
                     {
+                    	// fabri1983:
+	                	// Test if the tile is cached
                     	TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
-                    	
-                    	// we found the cached tile
                     	if (match != null) {
-                    		Tile existentTile = match.getTile();
-	                        equality = tile.getEquality(existentTile);
+                    		Tile commonTile = match.getTile();
+	                        equality = tile.getEquality(commonTile);
 	                        index = match.getIndexInCache();
                     	}
-                    	// no cached tile
-                    	else {
-                    		// Remember that we support only the tile 0 with all zeroes as plain
-                    		if (tile.isPlain() && tile.getPlainValue() == 0) {
+                    	// Remember that we support only the tile 0 with all zeroes as plain
+                    	else if (tile.isPlain() && tile.getPlainValue() == 0) {
                                 index = tile.getPlainValue();
                     		}
-                    		else {
+                		else {
+	                    	// fabri1983:
+                			int indexInCommonTilesList = -1;
+	                        if (!commonTiles.isEmpty()) {
+	                        	// Try to find tile as common tile, and get the index as it is in commonTiles 
+	                    		for (int kk=0; kk < commonTiles.size(); kk++) {
+	                    			Tile commonTile = commonTiles.get(kk);
+	                                if (tile.getEquality(commonTile) != TileEquality.NONE) {
+	                                	equality = tile.getEquality(commonTile);
+	                                	indexInCommonTilesList = kk;
+	                                	break;
+	                                }
+	                            }
+	                        }
+
+                    		// Is tile a common tile?
+							if (indexInCommonTilesList != -1) {
+								// The offset for common tiles is always at the end of the frame buffer
+								int startingImgTilesetSize = maxFrameTilesetTotalSize - commonTiles.size();
+								index = indexInCommonTilesList + mapBaseTileInd + videoFrameBufferOffsetIndexOfStartingImg + startingImgTilesetSize;
+							}
+                        	// No common tile
+                        	else {
+                    			// fabri1983:
 		                    	int tilesetsListIdx = TilemapCustomTools.getTilesetIndexFor(tile, opt, tilesets);
-		                    	TilesetOriginalCustom tileset = tilesets.get(tilesetsListIdx);
-		
-		                        // otherwise we try to get tile index in the tileset
-		                        index = tileset.getTileIndex(tile, opt);
-		                        // not found ? (should never happen)
-		                        if (index == -1)
-		                            throw new RuntimeException("Can't find tile [" + ti + "," + tj + "] in tileset. Might be a plain tile that wasn't included in the tileset.");
-		
-		                        Tile existentTile = tileset.get(index);
-		                        // get equality info
-		                        equality = tile.getEquality(existentTile);
-		                        // can add base index now
-		                        index += mapBaseTileInd + offsetPerTilesetChunk[tilesetsListIdx];
-                    		}
-                    	}
+		                    	int offsetByTilesetChunk = offsetPerTilesetChunk[tilesetsListIdx];
+	                        	// Tileset holding the tile
+	                        	TilesetOriginalCustom tileset = tilesets.get(tilesetsListIdx);
+
+                        		// otherwise we try to get tile index in the tileset
+	                        	index = tileset.getTileIndex(tile, opt);
+	                        	// not found ? (should never happen)
+	                        	if (index == -1)
+	                        		throw new RuntimeException("Can't find tile [" + ti + "," + tj + "] in tileset. Might be a plain tile that wasn't included in the tileset.");
+	                        	
+	                        	Tile existentTile = tileset.get(index);
+	                        	// get equality info
+	                        	equality = tile.getEquality(existentTile);
+	                        	// can add base index now
+                        		index += mapBaseTileInd + videoFrameBufferOffsetIndex + offsetByTilesetChunk;
+                        	}
+                		}
                     }
                 }
 
@@ -166,10 +240,11 @@ public class TilemapCustom extends Resource
 	public static TilemapCustom getTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetPerTilesetChunk, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, 
 			int mapBase, byte[] image8bpp, int imageWidth, int imageHeight, int startTileX, int startTileY, int widthTile, int heightTile, 
 			TileOptimization opt, Compression compression, CompressionCustom compressionCustom, int mapExtendedWidth, TileOrdering order, String tilesCacheId, 
-			boolean addCompressionField)
+			boolean addCompressionField, String commonTilesRangeId, int maxFrameTilesetTotalSize)
 	{
 		TilemapCreationData tmData = createTilemap(id, tilesets, offsetPerTilesetChunk, toggleMapTileBaseIndexFlag, mapBase, image8bpp,
-				imageWidth, imageHeight, startTileX, startTileY, widthTile, heightTile, opt, compression, order, mapExtendedWidth, tilesCacheId);
+				imageWidth, imageHeight, startTileX, startTileY, widthTile, heightTile, opt, compression, order, mapExtendedWidth, tilesCacheId,
+				commonTilesRangeId, maxFrameTilesetTotalSize);
 
 		if (compression == Compression.NONE && (compressionCustom == CompressionCustom.RLEW_A || compressionCustom == CompressionCustom.RLEW_B)) {
 			tmData.data = RLEWCompressor.extractTilemapDataOnly_short(tmData.data, widthTile, mapExtendedWidth);
@@ -183,11 +258,13 @@ public class TilemapCustom extends Resource
 
 	public static TilemapCustom getTilemap(String id, TilesetOriginalCustom tileset, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapBase, 
 			byte[] image8bpp, int widthTile, int heightTile, TileOptimization opt, Compression compression, CompressionCustom compressionCustom, 
-			int mapExtendedWidth, TileOrdering order, String tilesCacheId, boolean addCompressionField)
+			int mapExtendedWidth, TileOrdering order, String tilesCacheId, boolean addCompressionField, String commonTilesRangeId,
+			int maxFrameTilesetTotalSize)
     {
 		List<TilesetOriginalCustom> tilesets = Arrays.asList(tileset);
 		TilemapCreationData tmData = createTilemap(id, tilesets, new int[]{0}, toggleMapTileBaseIndexFlag, mapBase, image8bpp, widthTile * 8, 
-				heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, order, mapExtendedWidth, tilesCacheId);
+				heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, order, mapExtendedWidth, tilesCacheId, commonTilesRangeId, 
+				maxFrameTilesetTotalSize);
 
 		if (compression == Compression.NONE && (compressionCustom == CompressionCustom.RLEW_A || compressionCustom == CompressionCustom.RLEW_B)) {
 			tmData.data = RLEWCompressor.extractTilemapDataOnly_short(tmData.data, widthTile, mapExtendedWidth);
@@ -240,7 +317,7 @@ public class TilemapCustom extends Resource
     public void setData(short[] data)
     {
         if (data.length != (w * h))
-            throw new RuntimeException("TilemapCustom.setData(..): size do not match !");
+            throw new RuntimeException(TilemapCustom.class.getSimpleName() + ".setData(..): size do not match !");
 
         ArrayUtil.shortToByte(data, 0, bin.data, 0, bin.data.length, false);
     }

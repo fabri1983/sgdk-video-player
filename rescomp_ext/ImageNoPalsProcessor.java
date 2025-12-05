@@ -80,7 +80,7 @@ public class ImageNoPalsProcessor implements Processor
         	String valueId = fields[4].toUpperCase();
         	if (!"NONE".equals(valueId) && !"NULL".equals(valueId)) {
         		tilesCacheId = valueId;
-        		TilesCacheManager.createCacheIfNotExist(tilesCacheId);
+        		TilesCacheManager.createStatsCacheIfNotExist(tilesCacheId);
         	}
         }
 

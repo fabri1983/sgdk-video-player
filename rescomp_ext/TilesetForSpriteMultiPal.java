@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import sgdk.rescomp.Resource;
+import sgdk.rescomp.tool.ImageUtilFast;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileEquality;
@@ -29,7 +30,7 @@ public class TilesetForSpriteMultiPal extends Resource
     		TileOrdering order, boolean export) throws Exception
     {
         // get 8bpp pixels and also check image dimension is aligned to tile
-        final byte[] image = ImageUtil.getImageAs8bpp(imgFile, true, true);
+        final byte[] image = ImageUtilFast.getImageAs8bpp(imgFile, true, true);
 
         // happen when we couldn't retrieve palette data from RGB image
         if (image == null)
