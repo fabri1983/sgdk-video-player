@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.CommonTilesRangeManager;
+import sgdk.rescomp.tool.CommonTilesRangeOptimizerV1;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.CommonTilesRange;
@@ -38,8 +39,12 @@ public class ImageStripsCommonTilesRange extends Resource
 	        	compressionCustomFinal = compressionCustom;
 	        }
 
-        	List<CommonTilesRange> optimizedRangeList = CommonTilesRangeManager.generateOptimizedCommonTiles(id, allStripsInList, tilesCacheId, minCommonTilesNum);
+        	List<CommonTilesRange> optimizedRangeList = CommonTilesRangeOptimizerV1.generateOptimizedCommonTiles(allStripsInList, tilesCacheId, minCommonTilesNum);
+	        //List<CommonTilesRange> optimizedRangeList = CommonTilesRangeOptimizerV2.generateOptimizedCommonTiles(allStripsInList, tilesCacheId, minCommonTilesNum);
+
         	CommonTilesRangeManager.saveForResId(id, optimizedRangeList);
+
+        	// Generates bin resource for each list of tiles
         	commonTilesRangeResData = optimizedRangeList.stream()
         			.map( range -> {
         				String binId = id + "_" + range.getStartingImgIdx() + "_" + range.getEndingImgIdx() + "_bin";
@@ -55,14 +60,7 @@ public class ImageStripsCommonTilesRange extends Resource
         		        final BinCustom binResource = new BinCustom(binId + "_data", data, compression, compressionCustomFinal);
         		        // internal
         		        binResource.global = false;
-    		            // keep track of duplicate bin resource here
-    		            final Resource duplicated = findResource(binResource);
-    		            final BinCustom bin; 
-    		            // add as resource (avoid duplicate)
-    		            if (duplicated != null)
-    		            	bin = (BinCustom) duplicated;
-    		            else
-    		            	bin = (BinCustom) addInternalResource(binResource);
+        		        final BinCustom bin = (BinCustom) addInternalResource(binResource);
         				return new CommonTilesRangeResData(range.getNumTiles(), range.getStartingImgIdx(), range.getEndingImgIdx(), bin);
         			})
         			.collect(Collectors.toList());

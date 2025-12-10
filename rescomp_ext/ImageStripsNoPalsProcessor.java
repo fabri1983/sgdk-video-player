@@ -21,6 +21,7 @@ import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.rescomp.type.CompressionCustom;
+import sgdk.rescomp.type.TilesetSplitStrategyEnum;
 import sgdk.rescomp.type.ToggleMapTileBaseIndex;
 import sgdk.tool.FileUtil;
 import sgdk.tool.ImageUtil;
@@ -43,7 +44,7 @@ public class ImageStripsNoPalsProcessor implements Processor
 		if (fields.length < 4)
 		{
 			System.out.println("Wrong " + resId + " definition");
-			System.out.println(resId + " name \"baseFile\" strips [tilesetStatsCollectorId tilesCacheId commonTilesId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]");
+			System.out.println(resId + " name \"baseFile\" strips [tilesetStatsCollectorId tilesCacheId commonTilesId splitTileset splitTilesetStrategy splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]");
 			System.out.println("  name               Image variable name. Eg: frame_12");
 			System.out.println("  baseFile           Path of the first strip for input RGB image file with palettes (BMP or PNG image). Eg: \"res/rgb/frame_12_0.png\" or \"res/rgb/frame_12_0_RGB.png\"");
 			System.out.println("  strips             How many strips is the final image composed of. Eg: 21. It means there are frame_12_0.png, frame_12_1.png, ... frame_12_20.png");
@@ -57,8 +58,13 @@ public class ImageStripsNoPalsProcessor implements Processor
 			System.out.println("                       Use NONE or NULL to disable the use of the tile cache.");
 			System.out.println("                       You need to declare the processor " + ImageStripsCommonTilesRangeProcessor.resId + " prior to this one in order to populate the common tiles list.");
 			System.out.println("  splitTileset       How many chunks is the tileset splitted into. Default 1 (no split), otherwise 2 or 3.");
+			System.out.println("  splitTilesetStrategy   Choose split tileset strategy:");
+			System.out.println("                       " + TilesetSplitStrategyEnum.SPLIT_NONE.getValue() + " only valid when splitTileset = 1.");
+			System.out.println("                       " + TilesetSplitStrategyEnum.SPLIT_NORMAL.getValue() + " uses distribution of tiles according the height.");
+			System.out.println("                       " + TilesetSplitStrategyEnum.SPLIT_EVENLY.getValue() + " distributes all tiles evenly in all chunks.");
+			System.out.println("                       " + TilesetSplitStrategyEnum.SPLIT_MAX_CAPACITY_FIRST.getValue() + " sets as much tiles as possible in first chunks.");
 			System.out.println("  splitTilemap       How many chunks is the tilemap splitted into. Always less or equal than splitTileset.");
-			System.out.println("  toggleMapTileBaseIndexFlag   This is for a swap buffer mechanism.");
+			System.out.println("  toggleMapTileBaseIndexFlag   This is for a swap buffer mechanism:");
 			System.out.println("                       " + ToggleMapTileBaseIndex.NONE.getValue() + " disabled.");
 			System.out.println("                       " + ToggleMapTileBaseIndex.EVEN.getValue() + " if first frame num is even.");
 			System.out.println("                       " + ToggleMapTileBaseIndex.ODD.getValue() + " if first frame is odd.");
@@ -135,56 +141,64 @@ public class ImageStripsNoPalsProcessor implements Processor
 			splitTileset = Math.min(3, Math.max(1, value)); // clamp(1, 3, value)
         }
 
+        // get the tileset split strategy
+        TilesetSplitStrategyEnum splitTilesetStrategy = TilesetSplitStrategyEnum.SPLIT_NORMAL;
+        if (fields.length >= 9) {
+        	splitTilesetStrategy = TilesetSplitStrategyEnum.from(fields[8]);
+        }
+        if (splitTileset > 1 && splitTilesetStrategy == TilesetSplitStrategyEnum.SPLIT_NONE)
+        	throw new IllegalArgumentException("splitTilesetStrategy can't be " + TilesetSplitStrategyEnum.SPLIT_NONE.getValue() + " when splitTileset > 1.");
+
         // get tilemap split number
         int splitTilemap = 1;
-        if (fields.length >= 9) {
-        	int value = StringUtil.parseInt(fields[8], 1);
+        if (fields.length >= 10) {
+        	int value = StringUtil.parseInt(fields[9], 1);
         	splitTilemap = Math.min(3, Math.max(1, value)); // clamp(1, 3, value)
         	splitTilemap = Math.min(splitTileset, splitTilemap); // can't be bigger than splitTileset value
         }
 
         // get the value for toggling map tile base index for video frame swap buffer
         ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag = ToggleMapTileBaseIndex.NONE;
-        if (fields.length >= 10) {
-        	toggleMapTileBaseIndexFlag = ToggleMapTileBaseIndex.from(fields[9]);
+        if (fields.length >= 11) {
+        	toggleMapTileBaseIndexFlag = ToggleMapTileBaseIndex.from(fields[10]);
         }
 
         // extend map width to 64 tiles
         int mapExtendedWidth = 0;
-        if (fields.length >= 11) {
-        	int value = StringUtil.parseInt(fields[10], 0);
+        if (fields.length >= 12) {
+        	int value = StringUtil.parseInt(fields[11], 0);
         	if (value == 0 || value == 32 || value == 64 || value == 128)
         		mapExtendedWidth = value;
         }
 
         // get packed value
         Compression compression = Compression.NONE;
-        if (fields.length >= 12)
-            compression = Util.getCompression(fields[11]);
+        if (fields.length >= 13)
+            compression = Util.getCompression(fields[12]);
 
         // get custom compression value for tileset
         CompressionCustom compressionCustomTileset = CompressionCustom.NONE;
-        if (fields.length >= 13)
-        	compressionCustomTileset = CompressionCustom.from(fields[12]);
+        if (fields.length >= 14)
+        	compressionCustomTileset = CompressionCustom.from(fields[13]);
 
         // get custom compression value for tilemap
         CompressionCustom compressionCustomTilemap = CompressionCustom.NONE;
-        if (fields.length >= 14)
-        	compressionCustomTilemap = CompressionCustom.from(fields[13]);
+        if (fields.length >= 15)
+        	compressionCustomTilemap = CompressionCustom.from(fields[14]);
 
         boolean addCompressionField = false;
-        if (fields.length >= 15)
-        	addCompressionField = Boolean.parseBoolean(fields[14]);
+        if (fields.length >= 16)
+        	addCompressionField = Boolean.parseBoolean(fields[15]);
 
         // get map optimization value
         TileOptimization tileOpt = TileOptimization.ALL;
-        if (fields.length >= 16)
-            tileOpt = Util.getTileOpt(fields[15]);
+        if (fields.length >= 17)
+            tileOpt = Util.getTileOpt(fields[16]);
 
         // get map base
         int mapBase = 0;
-        if (fields.length >= 17)
-            mapBase = Integer.parseInt(fields[16]);
+        if (fields.length >= 18)
+            mapBase = Integer.parseInt(fields[17]);
 
         // generate the list of strip files
         List<String> stripsInList = generateFilesInForStrips(baseFileAbsPath, baseFileName, baseFileNameMatcher, strips);
@@ -202,11 +216,11 @@ public class ImageStripsNoPalsProcessor implements Processor
         else if (splitTileset == 2)
         	return new ImageStripsNoPalsSplit2(name, stripsInList, splitTilemap, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, 
         			tileOpt, mapBase, compressionCustomTileset, compressionCustomTilemap, addCompressionField, tilesCacheId, tilesetStatsCollectorId,
-        			commonTilesRangeId);
+        			commonTilesRangeId, splitTilesetStrategy);
         else
         	return new ImageStripsNoPalsSplit3(name, stripsInList, splitTilemap, toggleMapTileBaseIndexFlag, mapExtendedWidth, compression, 
         			tileOpt, mapBase, compressionCustomTileset, compressionCustomTilemap, addCompressionField, tilesCacheId, tilesetStatsCollectorId,
-        			commonTilesRangeId);
+        			commonTilesRangeId, splitTilesetStrategy);
     }
 
 	private List<String> generateFilesInForStrips(String absPath, String baseFileName, Matcher baseFileNameMatcher, int strips)
@@ -262,20 +276,21 @@ public class ImageStripsNoPalsProcessor implements Processor
 //		ImageStripsNoPalsProcessor p = new ImageStripsNoPalsProcessor();
 //		String[] fields_test_A = {
 //				resId, "mv_frame_47_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_47_0_RGB.png", "22", "tilesetStats1", 
-//				"TilesCache_Movie1", "2", "2", "ODD", "64", "FAST", "NONE", "NONE", "TRUE", "ALL"
+//				"TilesCache_Movie1", "NONE", "2", TilesetSplitStrategyEnum.SPLIT_NORMAL.getValue(), "2", "ODD", "64", "FAST", "NONE", "NONE", "TRUE", "ALL"
 //			};
 //		String[] fields_test_B = {
 //				resId, "mv_frame_161_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_161_0_RGB.png", "22", "tilesetStats1", 
-//				"TilesCache_Movie1", "3", "1", "ODD", "64", "NONE", "NONE", "RLEW_B", "TRUE", "ALL"
+//				"TilesCache_Movie1", "NONE", "3", TilesetSplitStrategyEnum.SPLIT_NORMAL.getValue(), "1", "ODD", "64", "NONE", "NONE", "RLEW_B", "TRUE", "ALL"
 //			};
 //		String[] fields_test_Titan = {
 //				resId, "titanRGB", "C:\\MyProjects\\VSCode\\sgdk\\titan256c\\res\\titan256c\\titan_0_0_RGB.png", "28", "tilesetStats1", 
-//				"NULL", "1", "1", "NONE", "0", "FAST", "NONE", "NONE", "TRUE", "ALL"
+//				"NULL", "NONE", "1", TilesetSplitStrategyEnum.SPLIT_NORMAL.getValue(), "1", "NONE", "0", "FAST", "NONE", "NONE", "TRUE", "ALL"
 //			};
 //		String[] fields_test_doom_bg_shifted = {
 //				resId, "img_title_bg_full_shifted", "C:\\MyProjects\\VSCode\\sgdk\\raycasting_anael\\res\\title\\doom_title_screen_full_shifted_0_0_RGB.png",
-//				"28", "stats_strips_2", "cache_titleBGfullTiles", "1", "1", "NONE", "0", "APLIB", "NONE", "NONE", "TRUE", "ALL"
+//				"28", "stats_strips_2", "cache_titleBGfullTiles", "NONE", "1", TilesetSplitStrategyEnum.SPLIT_NORMAL.getValue(), "1", "NONE", "0",
+//				"APLIB", "NONE", "NONE", "TRUE", "ALL"
 //			};
-//		p.execute(fields_test_doom_bg_shifted);
+//		p.execute(fields_test_B);
 //	}
 }

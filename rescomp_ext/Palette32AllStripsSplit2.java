@@ -106,6 +106,7 @@ public class Palette32AllStripsSplit2 extends Resource
         	compression = CompressionCustom.getSgdkCompression(compressionCustom);
         	compressionCustom = CompressionCustom.NONE;
         }
+        // We allow each of them to go into near position in rom
         bin1 = (BinCustom) addInternalResource(new BinCustom(id + "_chunk1_data", chunk1, compression, compressionCustom, false));
         bin2 = (BinCustom) addInternalResource(new BinCustom(id + "_chunk2_data", chunk2, compression, compressionCustom, false));
 

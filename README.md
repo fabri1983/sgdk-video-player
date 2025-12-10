@@ -1,4 +1,5 @@
 ## sgdk-video-player
+
 A video converter and video player made with the [SGDK v2.12](https://github.com/Stephane-D/SGDK) for the Megadrive/Genesis system consoles.  
 Originally inspired by [sgdk-video-player](https://github.com/haroldo-ok/sgdk-video-player) made by _haroldo-ok_.  
 
@@ -13,6 +14,7 @@ You can find me in the SGDK Discord server: https://discord.gg/xmnBWQS
 
 
 ### Features
+
 - Supports up to 256+ colors per frame.
 - Currently running at 10-15 FPS in NTSC and 10-12 FPS in PAL, with a frame size of 272 x 192 pixels (34 x 24 tiles).
 - Uses custom extensions for [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
@@ -20,6 +22,7 @@ You can find me in the SGDK Discord server: https://discord.gg/xmnBWQS
 
 
 ### Config theese first:
+
 - You need *Image Magick v7.x* tools set in _PATH_.
 - You need *ffmpeg* set in the _PATH_.
 - Set `ENABLE_BANK_SWITCH` 1 in _SGDK_'s `config.h` for rom size bigger than 4MB, and re build the _SGDK_ lib.
@@ -27,11 +30,13 @@ You can find me in the SGDK Discord server: https://discord.gg/xmnBWQS
 
 
 ### Instructions using custom tiledpalettequant app
+
 1) `env.bat`
 Sets NodeJs env var.
 
 2) By default we use resolution 272 x 192 pixels for the video processing and displaying.
-If you change that resolution you need to update constant `VIDEO_FRAME_PLANE_ADDRESS`. See `checkCorrectPlaneAddress()` in `videoPlayer.c`.
+If you change that resolution you need to update constant `VIDEO_FRAME_PLANE_ADDRESS` at `videoPlayer.h`. 
+See `checkCorrectPlaneAddress()` in `videoPlayer.c` to get in context.
 Then edit accordingly while going through next steps.
 
 3) `extract.bat video.mp4 tmpmv 272 192 8 15 n`
@@ -47,7 +52,7 @@ Once rgb images with palettes were generated and before saving them ensure the n
     - In _SGDK settings_ section:
         - check _Switch 2 Palettes positions_
         - check _Start at [PAL0,PAL1] first_
-        - enter 24 (192/8=24 strips per frame) at input _Reset every N strips (This only needed if strips per frame is an odd number)_
+        - enter 24 (192/8=24 strips per frame) (This only needed if strips per frame is an odd number)_
     - Download the images and move them into `res\rgb` folder.
 
 5) Edit cache tiles configuration to analyze new tiles
@@ -73,13 +78,15 @@ Run it once to catch rescomp output to know tileset stats (resource TILESET_STAT
 
 
 ### NOTES
-- I recommend to use a video resize and filter program like *VirtualDub 2*, which allows you to keep a crips image when resizing, 
+
+- I recommend to use a video resize and filter program like *VirtualDub 2*, which allows you to keep a crisp image when resizing, 
 uses custom ratio with black regions when resizing, lets you crop the video, and also comes with all kind of useful filters. 
 That way the `extract.bat` script, which calls ffmpeg, will only extract the frames without any resizing, and then extract the audio 
 in correct format for the SGDK rescomp tool.
 
 
 ### TODO
+
 - Update joy like in raycasting project.
 - Try Enigma on tilemaps and check if the optimized decompressor is faster than current timings.
 - Pre load frame 0 before starting music and see how does result with sound timing/sync.
@@ -109,6 +116,7 @@ in correct format for the SGDK rescomp tool.
 
 ----
 ### (OLD/OUTDATED) Instructions using custom quantization lua script
+
 1) env.bat
 
 2) extract.bat "video.mp4" tmpmv 16

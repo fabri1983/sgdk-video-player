@@ -93,11 +93,12 @@ public class Palette32AllStrips extends Resource
         	System.arraycopy(palette, 0, palettesAll, i * 32, 32);
         }
 
-        // build BIN (we never compress palette)
+        // build BIN
         if (CompressionCustom.isOneOfSgdkCompression(compressionCustom)) {
         	compression = CompressionCustom.getSgdkCompression(compressionCustom);
         	compressionCustom = CompressionCustom.NONE;
         }
+        // We allow it to go into near position in rom
         bin = (BinCustom) addInternalResource(new BinCustom(id + "_data", palettesAll, compression, compressionCustom, false));
 
         // compute hash code

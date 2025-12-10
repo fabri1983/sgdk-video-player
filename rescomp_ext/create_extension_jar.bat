@@ -97,6 +97,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/processor/Palette16Processor.class ^
 	./sgdk/rescomp/processor/Palette32AllStripsProcessor.class ^
 	./sgdk/rescomp/processor/Palette32Processor.class ^
+	./sgdk/rescomp/processor/Palette64Processor.class ^
 	./sgdk/rescomp/processor/SpriteMultiPalNoPalProcessor.class ^
 	./sgdk/rescomp/processor/SpriteMultiPalProcessor.class ^
 	./sgdk/rescomp/processor/SpriteNoPalProcessor.class ^
@@ -124,6 +125,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/Palette32AllStrips.class ^
 	./sgdk/rescomp/resource/Palette32AllStripsSplit2.class ^
 	./sgdk/rescomp/resource/Palette32AllStripsSplit3.class ^
+	./sgdk/rescomp/resource/Palette64.class ^
 	./sgdk/rescomp/resource/SpriteMultiPal.class ^
 	./sgdk/rescomp/resource/SpriteMultiPalNoPal.class ^
 	./sgdk/rescomp/resource/SpriteNoPal.class ^
@@ -141,6 +143,8 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/internal/SpriteFrameMultiPal.class ^
 	./sgdk/rescomp/resource/internal/VDPSpriteMultiPal.class ^
 	./sgdk/rescomp/tool/CommonTilesRangeManager.class ^
+	./sgdk/rescomp/tool/CommonTilesRangeOptimizerV1.class ^
+	./sgdk/rescomp/tool/CommonTilesRangeOptimizerV2.class ^
 	./sgdk/rescomp/tool/CompressionCustomUsageTracker.class ^
 	./sgdk/rescomp/tool/ExtProperties.class ^
 	./sgdk/rescomp/tool/ImageUtilFast.class ^
@@ -150,6 +154,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/tool/SpriteBoundariesPalettes.class ^
 	./sgdk/rescomp/tool/TilemapCustomTools.class ^
 	./sgdk/rescomp/tool/TilesCacheManager.class ^
+	./sgdk/rescomp/tool/TilesetSizeSplitCalculator.class ^
 	./sgdk/rescomp/tool/TilesetStatsCollector.class ^
 	./sgdk/rescomp/type/CompressionCustom$1.class ^
 	./sgdk/rescomp/type/CompressionCustom.class ^
@@ -161,6 +166,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/type/PalettesPositionEnum.class ^
 	./sgdk/rescomp/type/TileCacheMatch.class ^
 	./sgdk/rescomp/type/TilemapCreationData.class ^
+	./sgdk/rescomp/type/TilesetSplitStrategyEnum.class ^
 	./sgdk/rescomp/type/ToggleMapTileBaseIndex.class
 ::	-C tempClassesDir/ .
 RMDIR /S /Q tempClassesDir 2>NUL

@@ -32,7 +32,7 @@ public class TilemapOriginalCustom extends Resource
 {
 	private static final Pattern imageNameStripsFromResIdPattern = Pattern.compile("^[A-Za-z_]+_(\\d+)(_\\d+)?(_RGB)?(_chunk\\d+)?_tilemap$", Pattern.CASE_INSENSITIVE);
 
-	private static TilemapCreationData createTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetPerTilesetChunk,
+	private static TilemapCreationData createTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetAccumPerTilesetChunk,
 			ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int imageWidth, int imageHeight,
 			int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt, Compression compression, 
 			TileOrdering order, int mapExtendedWidth, String tilesCacheId, String commonTilesRangeId, int maxFrameTilesetTotalSize) {
@@ -152,7 +152,7 @@ public class TilemapOriginalCustom extends Resource
                         	else {
     	                		// fabri1983:
     	                		int tilesetsListIdx = TilemapCustomTools.getTilesetIndexFor(tile, opt, tilesets);
-                            	int offsetByTilesetChunk = offsetPerTilesetChunk[tilesetsListIdx];
+                            	int offsetByTilesetChunk = offsetAccumPerTilesetChunk[tilesetsListIdx];
                         		index = offset + mapBaseTileInd + videoFrameBufferOffsetIndex + offsetByTilesetChunk;
                         	}
 	                	}
@@ -204,7 +204,7 @@ public class TilemapOriginalCustom extends Resource
                         	else {
                     			// fabri1983:
 		                    	int tilesetsListIdx = TilemapCustomTools.getTilesetIndexFor(tile, opt, tilesets);
-		                    	int offsetByTilesetChunk = offsetPerTilesetChunk[tilesetsListIdx];
+		                    	int offsetByTilesetChunk = offsetAccumPerTilesetChunk[tilesetsListIdx];
 	                        	// Tileset holding the tile
 	                        	TilesetOriginalCustom tileset = tilesets.get(tilesetsListIdx);
 
@@ -237,13 +237,13 @@ public class TilemapOriginalCustom extends Resource
         return new TilemapCreationData(id, data, w, h, compression);
 	}
 
-	public static TilemapOriginalCustom getTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetPerTilesetChunk, 
+	public static TilemapOriginalCustom getTilemap(String id, List<TilesetOriginalCustom> tilesets, int[] offsetAccumPerTilesetChunk, 
 			ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, int mapBase, byte[] image8bpp, int imageWidth, int imageHeight, 
 			int startTileX, int startTileY, int widthTile, int heightTile, TileOptimization opt, Compression compression, 
 			CompressionCustom compressionCustom, int mapExtendedWidth, TileOrdering order, String tilesCacheId, boolean addCompressionField, 
 			String commonTilesRangeId, int maxFrameTilesetTotalSize)
 	{
-		TilemapCreationData tmData = createTilemap(id, tilesets, offsetPerTilesetChunk, toggleMapTileBaseIndexFlag, mapBase, image8bpp,
+		TilemapCreationData tmData = createTilemap(id, tilesets, offsetAccumPerTilesetChunk, toggleMapTileBaseIndexFlag, mapBase, image8bpp,
 				imageWidth, imageHeight, startTileX, startTileY, widthTile, heightTile, opt, compression, order, mapExtendedWidth, tilesCacheId,
 				commonTilesRangeId, maxFrameTilesetTotalSize);
 
@@ -261,9 +261,10 @@ public class TilemapOriginalCustom extends Resource
 			String commonTilesRangeId, int maxFrameTilesetTotalSize)
     {
 		List<TilesetOriginalCustom> tilesets = Arrays.asList(tileset);
-		TilemapCreationData tmData = createTilemap(id, tilesets, new int[]{0}, toggleMapTileBaseIndexFlag, mapBase, image8bpp, widthTile * 8, 
-				heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, order, mapExtendedWidth, tilesCacheId, commonTilesRangeId, 
-				maxFrameTilesetTotalSize);
+		int[] offsetAccumPerTilesetChunk = new int[]{0};
+		TilemapCreationData tmData = createTilemap(id, tilesets, offsetAccumPerTilesetChunk, toggleMapTileBaseIndexFlag, mapBase, image8bpp, 
+				widthTile * 8, heightTile * 8, 0, 0, widthTile, heightTile, opt, compression, order, mapExtendedWidth, tilesCacheId, 
+				commonTilesRangeId, maxFrameTilesetTotalSize);
 
 		if (compression == Compression.NONE && (compressionCustom == CompressionCustom.RLEW_A || compressionCustom == CompressionCustom.RLEW_B)) {
 			tmData.data = RLEWCompressor.extractTilemapDataOnly_short(tmData.data, widthTile, mapExtendedWidth);

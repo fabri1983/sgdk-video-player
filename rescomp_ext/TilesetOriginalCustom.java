@@ -34,7 +34,7 @@ import sgdk.tool.ImageUtil.BasicImageInfo;
 
 public class TilesetOriginalCustom extends Resource
 {
-	private static final Pattern imageNameStripsFromResIdPattern = Pattern.compile("^[A-Za-z_]+_(\\d+)(_\\d+)?(_RGB)?(_chunk\\d+)?_tileset$", Pattern.CASE_INSENSITIVE);
+	public static final Pattern imageNameStripsFromResIdPattern = Pattern.compile("^[A-Za-z_]+_(\\d+)(_\\d+)?(_RGB)?(_chunk\\d+)?_tileset$", Pattern.CASE_INSENSITIVE);
 
     public static TilesetOriginalCustom getTileset(String id, String imgFile, Compression compression, CompressionCustom compressionCustom, 
     		TileOptimization tileOpt, boolean addBlank, boolean temp, TileOrdering order, boolean export, String tilesCacheId, boolean addCompressionField, 
@@ -54,8 +54,8 @@ public class TilesetOriginalCustom extends Resource
         // we determine 'h' from data length and 'w' as we can crop image vertically to remove palette data
         final int h = image.length / w;
 
-        final TilesetOriginalCustom result = new TilesetOriginalCustom(id, image, w, h, 0, 0, w / 8, h / 8, tileOpt, compression, compressionCustom,  addBlank, temp, 
-        		order, tilesCacheId, addCompressionField, commonTilesRangeId);
+        final TilesetOriginalCustom result = new TilesetOriginalCustom(id, image, w, h, 0, 0, w / 8, h / 8, tileOpt, compression, compressionCustom, 
+        		addBlank, temp, order, tilesCacheId, addCompressionField, commonTilesRangeId);
 
         // export tileset to PNG ?
         if (export)
@@ -142,8 +142,7 @@ public class TilesetOriginalCustom extends Resource
                     // blank tile
                     hasBlank |= tile.isBlank();
 
-                    // fabri1983: tile with all zeros is the first SGDK tile reserved in VRAM at address 0
-                    // so we don't need to add it
+                    // fabri1983: tile with all zeros is the first SGDK tile reserved in VRAM at address 0 so we don't need to add it
                     if (tile.getPlainValue() == 0)
                     	continue;
 
@@ -188,8 +187,7 @@ public class TilesetOriginalCustom extends Resource
                     // blank tile
                     hasBlank |= tile.isBlank();
 
-                    // fabri1983: tile with all zeros is the first SGDK tile reserved in VRAM at address 0
-                    // so we don't need to add it
+                    // fabri1983: tile with all zeros is the first SGDK tile reserved in VRAM at address 0 so we don't need to add it
                     if (tile.getPlainValue() == 0)
                     	continue;
 
@@ -219,6 +217,115 @@ public class TilesetOriginalCustom extends Resource
                         add(tile);
                 }
             }
+        }
+
+        // add a blank tile if not already present
+        if (!hasBlank && addBlank)
+            add(new Tile(new int[8], 8, 0, false, 0));
+
+        // build the binary bloc
+        final int[] data = new int[tiles.size() * 8];
+
+        int offset = 0;
+        for (Tile t : tiles)
+        {
+            System.arraycopy(t.data, 0, data, offset, 8);
+            offset += 8;
+        }
+
+        // build BIN (tiles data) with wanted compression
+        if (CompressionCustom.isOneOfSgdkCompression(compressionCustom)) {
+        	compression = CompressionCustom.getSgdkCompression(compressionCustom);
+        	compressionCustom = CompressionCustom.NONE;
+        }
+        final BinCustom binResource = new BinCustom(id + "_data", data, compression, compressionCustom);
+        // internal
+        binResource.global = false;
+
+        // temporary tileset --> don't store the bin data
+        if (temp)
+        {
+            isDuplicate = false;
+            bin = binResource;
+        }
+        else
+        {
+            // keep track of duplicate bin resource here
+            isDuplicate = findResource(binResource) != null;
+            // add as resource (avoid duplicate)
+            bin = (BinCustom) addInternalResource(binResource);
+        }
+
+        // compute hash code
+        hc = bin.hashCode();
+    }
+
+    public TilesetOriginalCustom(String id, List<Tile> tilesSource, TileOptimization opt, Compression compression, CompressionCustom compressionCustom, 
+    		boolean addBlank, boolean temp, TileOrdering order, String tilesCacheId, boolean addCompressionField, String commonTilesRangeId)
+    {
+        super(id);
+
+        boolean hasBlank = false;
+
+        tiles = new ArrayList<>();
+        tileIndexesMap = new HashMap<>();
+        tileByHashcodeMap = new HashMap<>();
+        this.addCompressionField = addCompressionField;
+
+        // fabri1983:
+        List<Tile> commonTiles = Collections.emptyList();
+        List<CommonTilesRange> commonTilesRanges = CommonTilesRangeManager.getFromResId(commonTilesRangeId);
+        if (!commonTilesRanges.isEmpty()) {
+        	Matcher baseFileNameMatcher = imageNameStripsFromResIdPattern.matcher(id);
+			if (baseFileNameMatcher.matches()) {
+				int imageNum = Integer.parseInt(baseFileNameMatcher.group(1));
+				CommonTilesRange commonTileObj = CommonTilesRangeManager.findRangeForImageNum(commonTilesRanges, imageNum);
+				if (commonTileObj != null) {
+					// Get the list of common tiles for the current range
+					commonTiles = commonTileObj.getTiles();
+				}
+			}
+			else {
+        		System.out.println("[WARNING] Couldn't extract imageNum for CommonTilesRange from " + id + ". " + TilesetOriginalCustom.class.getSimpleName());
+        	}
+        }
+
+        for (Tile tile : tilesSource)
+        {
+            // find if tile already exist
+            final int index = getTileIndex(tile, opt);
+
+            // blank tile
+            hasBlank |= tile.isBlank();
+
+            // fabri1983: tile with all zeros is the first SGDK tile reserved in VRAM at address 0 so we don't need to add it
+            if (tile.getPlainValue() == 0)
+            	continue;
+
+            // fabri1983:
+            TileCacheMatch match = TilesCacheManager.getCachedTile(tilesCacheId, tile);
+        	// found the cached tile? then continue with next one
+        	if (match != null)
+        		continue;
+
+        	// fabri1983:
+        	// Test if current tile is one of the common tiles in current range
+        	if (!commonTiles.isEmpty()) {
+                // Search for referenceTile in the current tileset
+        		boolean commonTileFound = false;
+                for (Tile commonTile : commonTiles) {
+                    if (tile.getEquality(commonTile) != TileEquality.NONE) {
+                    	commonTileFound = true;
+                        break;
+                    }
+                }
+                if (commonTileFound)
+                	continue;
+        	}
+
+    		// not found in the current list of tiles --> add it
+            if (index == -1)
+                add(tile);
         }
 
         // add a blank tile if not already present

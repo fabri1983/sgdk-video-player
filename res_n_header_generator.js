@@ -71,6 +71,8 @@ const commonTilesRangeId = "commonTilesRange_movie1";
 const minCommonTilesNum = 20;
 const useCommonTilesRange = false;
 
+// Tileset split startegy: SPLIT_MAX_CAPACITY_FIRST or SPLIT_EVENLY
+const tilesetSplitStrategy = "SPLIT_MAX_CAPACITY_FIRST"
 // split tileset in N chunks. Current valid values are [1, 2, 3]
 const tilesetSplit = 3;
 // split tilemap in N chunks. Current values are [1, 2, 3]. Always <= tilesetSplit
@@ -81,8 +83,8 @@ const imageAddCompressionField = true;
 // Next data got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
 var videoFrameTilesetChunkSize = resPropertiesMap.get('MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX');
 var videoFrameTilesetTotalSize = resPropertiesMap.get('MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX');
-
 var type_ImageNoPals = "ImageNoPals";
+
 if (tilesetSplit == 2) {
     if (tilemapSplit == 1)
 	    type_ImageNoPals = "ImageNoPalsSplit21";
@@ -271,11 +273,11 @@ const commonTilesRangeStr = `IMAGE_STRIPS_COMMON_TILES_RANGE  ${commonTilesRange
         + `  "${FRAMES_DIR}${sortedFileNamesOnlyEveryFirstStrip[0]}"  ${stripsPerFrame}`
         + `  ${sortedFileNamesOnlyEveryFirstStrip.length}  "LZ4W"  ${tilesCacheId}  ${minCommonTilesNum}` + '\n\n';
 
-// IMAGE_STRIPS_NO_PALS name "baseFile" strips [tilesetStatsCollectorId tilesCacheId commonTilesRangeId splitTileset splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]
+// IMAGE_STRIPS_NO_PALS name "baseFile" strips [tilesetStatsCollectorId tilesCacheId commonTilesRangeId splitTileset splitTilesetStrategy splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]
 // Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesetStats1  tilesCache_movie1  commonTilesRange_movie1  3  1  ODD  64  NONE  LZ4W  RLEW_A  TRUE  ALL
 const imageResListStr = sortedFileNamesOnlyEveryFirstStrip
 	.map(s => `IMAGE_STRIPS_NO_PALS  mv_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${tilesetStatsId}`
-			+ `  ${tilesCacheId}  ${commonTilesRangeId}  ${tilesetSplit}  ${tilemapSplit}`
+			+ `  ${tilesCacheId}  ${commonTilesRangeId}  ${tilesetSplit}  ${tilesetSplitStrategy}  ${tilemapSplit}`
             + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth_forResource}  NONE  LZ4W  LZ4W`
 			+ `  ` + (imageAddCompressionField ? 'TRUE' : 'FALSE')
 			+ `  ALL`)

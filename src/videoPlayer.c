@@ -101,7 +101,7 @@ static FORCE_INLINE void waitVInt_AND_flushDMA ()
 {
 	// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
 	// We have to enqueue the first 2 strips' pals on every active display period so when on Blank period the data is DMAed into CRAM
-	//PAL_setColors(0, (const u16*) palsForRender, 64, DMA_QUEUE); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
+	//PAL_setColors(0, (const u16*) unpackedPalsRender, 64, DMA_QUEUE); // First strip palettes at [PAL0,PAL1], second at [PAL2,PAL3]
 
 	// From Discord:
 	// ctr001: It would be better to just turn display off in vblank and then turn it on later, since then the z80 vblank interrupt will be better synchronized.

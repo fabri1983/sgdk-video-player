@@ -129,7 +129,7 @@ public class ImageStripsCommonTilesRangeProcessor implements Processor
 //		ImageStripsCommonTilesRangeProcessor p = new ImageStripsCommonTilesRangeProcessor();
 //		String[] fields_test_A = {
 //				resId, "mv_frames_common_tiles", "TRUE", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_1_0_RGB.png", 
-//				"24", "154", "LZ4W", "TilesCache_Movie1", "20"
+//				"24", "254", "LZ4W", "TilesCache_Movie1", "10"
 //			};
 //		p.execute(fields_test_A);
 //	}

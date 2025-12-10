@@ -25,6 +25,7 @@ public enum CustomDataTypes {
 	ImageNoPalsSplit33CompField("ImageNoPalsSplit33CompField"),
 	Palette16("Palette16"),
 	Palette32("Palette32"),
+	Palette64("Palette64"),
 	Palette16AllStrips("Palette16AllStrips"),
 	Palette16AllStripsSplit2("Palette16AllStripsSplit2"),
 	Palette16AllStripsSplit3("Palette16AllStripsSplit3"),
@@ -96,9 +97,9 @@ public enum CustomDataTypes {
 					+ "} " + TileMapCustomCompField.getValue() + ";\n";
 		case ImageCommonTilesRange:
 			return "typedef struct {\n"
-					+ "    u16 numTiles;\n"
 					+ "    u16 startingIdx;\n"
 					+ "    u16 endingIdx;\n"
+					+ "    u16 numTiles;\n"
 					+ "    u32* data;\n"
 					+ "} " + ImageCommonTilesRange.getValue() + ";\n";
 		case ImageNoPals:
@@ -193,6 +194,10 @@ public enum CustomDataTypes {
 			return "typedef struct {\n"
 					+ "    u16* data;\n"
 					+ "} " + Palette32.getValue() + ";\n";
+		case Palette64:
+			return "typedef struct {\n"
+					+ "    u16* data;\n"
+					+ "} " + Palette64.getValue() + ";\n";
 		case Palette16AllStrips:
 			return "typedef struct {\n"
 					+ "    u16* data;\n"

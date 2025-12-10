@@ -3,12 +3,14 @@ package sgdk.rescomp.resource;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.ExtProperties;
 import sgdk.rescomp.tool.ImageUtilFast;
 import sgdk.rescomp.tool.TilesCacheManager;
+import sgdk.rescomp.tool.TilesetSizeSplitCalculator;
 import sgdk.rescomp.tool.TilesetStatsCollector;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
@@ -16,6 +18,8 @@ import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.rescomp.type.Basics.TileOrdering;
 import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.CustomDataTypes;
+import sgdk.rescomp.type.Tile;
+import sgdk.rescomp.type.TilesetSplitStrategyEnum;
 import sgdk.rescomp.type.ToggleMapTileBaseIndex;
 import sgdk.tool.ImageUtil;
 import sgdk.tool.ImageUtil.BasicImageInfo;
@@ -30,7 +34,7 @@ public class ImageStripsNoPalsSplit3 extends Resource
     public ImageStripsNoPalsSplit3(String id, List<String> stripsFileList, int splitTilemap, ToggleMapTileBaseIndex toggleMapTileBaseIndexFlag, 
     		int mapExtendedWidth, Compression compression, TileOptimization tileOpt, int mapBase, CompressionCustom compressionCustomTileset, 
     		CompressionCustom compressionCustomTilemap, boolean addCompressionField, String tilesCacheId, String tilesetStatsCollectorId, 
-    		String commonTilesRangeId) throws Exception
+    		String commonTilesRangeId, TilesetSplitStrategyEnum splitStrategy) throws Exception
     {
         super(id);
 
@@ -52,19 +56,44 @@ public class ImageStripsNoPalsSplit3 extends Resource
         		compressionCustomTileset, false, isTempTileset, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId);
         checkTilesetMaxSizeForSplitIn2(tilesetTemp.getNumTile());
 
-        int ht_1 = ht/3;
-        int ht_2 = ht/3;
-        int ht_3 = ht/3 + (ht % 3); // tileset3 height in tiles is calculated considering the reminder
+		// Calculate height for each tileset/tilemap
+		int ht_1 = ht / 3;
+		int ht_2 = ht / 3;
+		int ht_3 = ht / 3 + (ht % 3); // tileset3 height in tiles is calculated considering the reminder
 
-    	tileset1 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk1_tileset", finalImageData, w, h, 0, 0, wt, ht_1, 
-    			tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId));
+		if (splitStrategy == TilesetSplitStrategyEnum.SPLIT_NORMAL) {
+	    	tileset1 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk1_tileset", finalImageData, w, h, 0, 0, wt, ht_1, 
+	    			tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId));
+	    	tileset2 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk2_tileset", finalImageData, w, h, 0, ht_1, 
+	    			wt, ht_2, tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW ,tilesCacheId, addCompressionField, commonTilesRangeId));
+	    	tileset3 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk3_tileset", finalImageData, w, h, 0, ht_1 + ht_2, 
+	    			wt, ht_3, tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId));
+		}
+		else {
+			List<List<Tile>> splitTiles = Collections.emptyList();
+
+        	if (splitStrategy == TilesetSplitStrategyEnum.SPLIT_MAX_CAPACITY_FIRST) {
+        		splitTiles = TilesetSizeSplitCalculator.splitWithMaxTilesFirst(tilesetTemp.tiles, 3,
+        				ExtProperties.getInt(ExtProperties.MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_3));
+        	}
+        	else if (splitStrategy == TilesetSplitStrategyEnum.SPLIT_EVENLY) {
+        		splitTiles = TilesetSizeSplitCalculator.splitWithMaxEvenlyDistribution(tilesetTemp.tiles, 3,
+        				ExtProperties.getInt(ExtProperties.MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_3));
+        	}
+			
+			tileset1 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk1_tileset", splitTiles.get(0),
+					tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId));
+			tileset2 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk2_tileset", splitTiles.get(1),
+					tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW ,tilesCacheId, addCompressionField, commonTilesRangeId));
+			tileset3 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk3_tileset", splitTiles.get(2),
+					tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId));
+		}
+
     	checkTilesetMaxChunkSize(tileset1.getNumTile());
-    	tileset2 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk2_tileset", finalImageData, w, h, 0, ht_1, 
-    			wt, ht_2, tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW ,tilesCacheId, addCompressionField, commonTilesRangeId));
     	checkTilesetMaxChunkSize(tileset2.getNumTile());
-    	tileset3 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk3_tileset", finalImageData, w, h, 0, ht_1 + ht_2, 
-    			wt, ht_3, tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId));
     	checkTilesetMaxChunkSize(tileset3.getNumTile());
+
+    	List<TilesetOriginalCustom> tilesetsList = Arrays.asList(tileset1, tileset2, tileset3);
 
     	System.out.print(" " + id + " -> numTiles (chunk1 + chunk2 + chunk3): " + tileset1.getNumTile() + " + " + tileset2.getNumTile() + " + " + tileset3.getNumTile() + " = " + 
     			(tileset1.getNumTile() + tileset2.getNumTile() + tileset3.getNumTile()) + ". ");
@@ -73,13 +102,12 @@ public class ImageStripsNoPalsSplit3 extends Resource
     	}
 
     	int maxFrameTilesetTotalSize = ExtProperties.getInt(ExtProperties.MAX_TILESET_TOTAL_SIZE_FOR_SPLIT_IN_3);
-        int[] offsetPerTilesetChunk = {0, tileset1.getNumTile(), tileset1.getNumTile() + tileset2.getNumTile()};
-//    	int[] offsetPerTilesetChunk = {0, ExtProperties.getInt(ExtProperties.MAX_TILESET_CHUNK_1_SIZE_FOR_SPLIT_IN_3), 
+        int[] offsetAccumPerTilesetChunk = {0, tileset1.getNumTile(), tileset1.getNumTile() + tileset2.getNumTile()};
+//    	int[] offsetAccumPerTilesetChunk = {0, ExtProperties.getInt(ExtProperties.MAX_TILESET_CHUNK_1_SIZE_FOR_SPLIT_IN_3), 
 //    			ExtProperties.getInt(ExtProperties.MAX_TILESET_CHUNK_1_SIZE_FOR_SPLIT_IN_3) + ExtProperties.getInt(ExtProperties.MAX_TILESET_CHUNK_2_SIZE_FOR_SPLIT_IN_3)};
 
         if (splitTilemap == 1) {
-        	List<TilesetOriginalCustom> tilesetsList = Arrays.asList(tileset1, tileset2, tileset3);
-        	tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList, offsetPerTilesetChunk, 
+        	tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList, offsetAccumPerTilesetChunk, 
 	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, 0, wt, ht, tileOpt, compression, compressionCustomTilemap, 
 	        		mapExtendedWidth, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId, maxFrameTilesetTotalSize));
         	tilemap2 = null;
@@ -88,29 +116,22 @@ public class ImageStripsNoPalsSplit3 extends Resource
         else if (splitTilemap == 2) {
             int new_ht_1 = ht/2;
             int new_ht_2 = ht/2 + (ht % 2);
-        	List<TilesetOriginalCustom> tilesetsList_t1 = Arrays.asList(tileset1);
-        	tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList_t1, offsetPerTilesetChunk, 
+        	tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList, offsetAccumPerTilesetChunk, 
 	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, 0, wt, new_ht_1, tileOpt, compression, compressionCustomTilemap, 
 	        		mapExtendedWidth, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId, maxFrameTilesetTotalSize));
-        	List<TilesetOriginalCustom> tilesetsList_t2 = Arrays.asList(tileset1, tileset2);
-	        tilemap2 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tilesetsList_t2, offsetPerTilesetChunk, 
+	        tilemap2 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tilesetsList, offsetAccumPerTilesetChunk, 
 	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, new_ht_1, wt, new_ht_2, tileOpt, compression, compressionCustomTilemap, 
 	        		mapExtendedWidth, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId, maxFrameTilesetTotalSize));
         	tilemap3 = null;
         }
         else {
-	        List<TilesetOriginalCustom> tilesetsList_t1 = Arrays.asList(tileset1);
-	        tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList_t1, offsetPerTilesetChunk, 
+	        tilemap1 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk1_tilemap", tilesetsList, offsetAccumPerTilesetChunk, 
 	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, 0, wt, ht_1, tileOpt, compression, compressionCustomTilemap, 
 	        		mapExtendedWidth, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId, maxFrameTilesetTotalSize));
-	
-			List<TilesetOriginalCustom> tilesetsList_t2 = Arrays.asList(tileset1, tileset2);
-	        tilemap2 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tilesetsList_t2, offsetPerTilesetChunk, 
+	        tilemap2 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk2_tilemap", tilesetsList, offsetAccumPerTilesetChunk, 
 	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, ht_1, wt, ht_2, tileOpt, compression, compressionCustomTilemap, 
 	        		mapExtendedWidth, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId, maxFrameTilesetTotalSize));
-	
-	        List<TilesetOriginalCustom> tilesetsList_t3 = Arrays.asList(tileset1, tileset2, tileset3);
-	        tilemap3 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk3_tilemap", tilesetsList_t3, offsetPerTilesetChunk, 
+	        tilemap3 = (TilemapCustom) addInternalResource(TilemapCustom.getTilemap(id + "_chunk3_tilemap", tilesetsList, offsetAccumPerTilesetChunk, 
 	        		toggleMapTileBaseIndexFlag, mapBase, finalImageData, w, h, 0, ht_1 + ht_2, wt, ht_3, tileOpt, compression, compressionCustomTilemap, 
 	        		mapExtendedWidth, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId, maxFrameTilesetTotalSize));
         }
