@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import sgdk.rescomp.Resource;
+import sgdk.rescomp.tool.RLEWCompressor;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.CompressionCustom;
@@ -104,6 +105,11 @@ public class Palette16AllStrips extends Resource
         }
         // We allow it to go into near position in rom
         bin = (BinCustom) addInternalResource(new BinCustom(id + "_data", palettesAll, compression, compressionCustom, false));
+
+        // set the amount of colors in words as a property so the compressor uses the correct settings
+        if (compressionCustom == CompressionCustom.RLEW_A || compressionCustom == CompressionCustom.RLEW_B) {
+        	System.setProperty(bin.id + RLEWCompressor.RLE_PROPERTY_SUFFIX_WORDS_PER_ROW, String.valueOf(16));
+        }
 
         // compute hash code
         hc = bin.hashCode();

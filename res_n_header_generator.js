@@ -21,8 +21,9 @@ const IMAGE_FILES_REGEX = /^[A-Za-z_]+_(\d+)_(\d+)(_RGB|_rgb)?\.(png|PNG|bmp|BMP
 
 const widthTiles = parseInt(args[0])/8;
 const heightTiles = parseInt(args[1])/8;
-const stripsPerFrame = parseInt(args[1])/parseInt(args[2]);
+const stripsPerFrame = parseInt(args[2]) === 0 ? 1 : parseInt(args[1])/parseInt(args[2]);
 const frameRate = parseInt(args[3]);
+const colorsPerStrip = stripsPerFrame === 1 ? 64 : 32;
 
 const fileNames = fs.readdirSync(RES_DIR + FRAMES_DIR)
 	.filter(s => IMAGE_FILES_REGEX.test(s));
@@ -36,8 +37,7 @@ const sortedFileNames = fileNames
 	.map(o => o.name);
 
 // Keeps only every stripsPerFrame elements
-const sortedFileNamesOnlyEveryFirstStrip = sortedFileNames
-	.filter((_, index) => index % stripsPerFrame === 0);
+const sortedFileNamesOnlyEveryFirstStrip = sortedFileNames.filter((_, index) => index % stripsPerFrame === 0);
 
 const resPropertiesMap = loadResourceProperties("res/ext.resource.properties");
 
@@ -57,6 +57,8 @@ const tilesCacheId = "tilesCache_movie1"; // this is also the name of the variab
 const tilesCacheFile_countLines = countTilesCacheLines("res/" + tilesCacheId + ".txt");
 const cacheFixedTilesNum = 127;
 const cacheTilesNum_var = (tilesCacheFile_countLines - cacheFixedTilesNum);
+if (cacheTilesNum_var <= 0)
+    throw new Error("cacheTilesNum_var can't be <= 0");
 const cacheStartIndexInVRAM_var = 1792 - cacheTilesNum_var;
 const cacheRangesInVRAM_fixed = [ {start: 0xF020/32, length: cacheFixedTilesNum} ];
 const cacheRangesInVRAM_fixed_str = cacheRangesInVRAM_fixed
@@ -68,7 +70,7 @@ checkCacheStartIndexAfterTilesets(loadTilesCache, cacheStartIndexInVRAM_var, res
 
 // Id for the common tiles range resource
 const commonTilesRangeId = "commonTilesRange_movie1";
-const minCommonTilesNum = 20;
+const minCommonTilesNum = 10;
 const useCommonTilesRange = false;
 
 // Tileset split startegy: SPLIT_MAX_CAPACITY_FIRST or SPLIT_EVENLY
@@ -77,7 +79,8 @@ const tilesetSplitStrategy = "SPLIT_MAX_CAPACITY_FIRST"
 const tilesetSplit = 3;
 // split tilemap in N chunks. Current values are [1, 2, 3]. Always <= tilesetSplit
 const tilemapSplit = 1;
-// add compression field if you know some tilesets and tilemaps won't be compressed (by rescomp rules) or if you plan to test different compression algorithms
+// Add compression field if you know some tilesets and tilemaps won't be compressed (by rescomp rules) or if you plan to test different compression algorithms.
+// You might need to modify unpackFrameTileset() and unpackFrameTilemap() at videoPlayer.c
 const imageAddCompressionField = true;
 
 // Next data got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
@@ -109,17 +112,25 @@ if (imageAddCompressionField == true)
 
 // split palettes in N chunks. Current valid values are [1, 2, 3]
 const palette32Split = 1;
-// add compression field if you know some palettes are not compressed (by rescomp rules) or if you plan to test different compression algorithms
-const paletteAddCompressionField = false;
+// Add compression field if you know some palettes are not compressed (by rescomp rules) or if you plan to test different compression algorithms.
+// You might need to modify unpackFramePalettes() at videoPlayer.c
+var paletteAddCompressionField = true;
 
-var type_Palette32AllStrips = "Palette32AllStrips";
-if (palette32Split == 2)
-	type_Palette32AllStrips = "Palette32AllStripsSplit2";
-else if (palette32Split == 3)
-	type_Palette32AllStrips = "Palette32AllStripsSplit3";
+var type_Palettes = "";
+if (stripsPerFrame === 1) {
+    type_Palettes = "Palette64";
+    paletteAddCompressionField = false;
+}
+else {
+    type_Palettes = "Palette32AllStrips";
+    if (palette32Split == 2)
+        type_Palettes = "Palette32AllStripsSplit2";
+    else if (palette32Split == 3)
+        type_Palettes = "Palette32AllStripsSplit3";
+}
 
 if (paletteAddCompressionField == true)
-	type_Palette32AllStrips += "CompField";
+    type_Palettes += "CompField";
 
 // This activates the use of a map base tile index which sets the initial tile index for the tilemap of the resource.
 // As the video player uses a buffer to allocate next frame's tilemaps (among tilesets and palettes) whilst current frame 
@@ -203,7 +214,7 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 #define MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES ${widthTilesExt_forVideoPlayer}
 #define MOVIE_FRAME_STRIPS ${stripsPerFrame}
 
-#define MOVIE_FRAME_COLORS_PER_STRIP 32
+#define MOVIE_FRAME_COLORS_PER_STRIP ${colorsPerStrip}
 // In case you were to split any calculation over the colors of strip by an odd divisor n
 #define MOVIE_FRAME_COLORS_PER_STRIP_REMAINDER(n) (MOVIE_FRAME_COLORS_PER_STRIP % n)
 
@@ -242,7 +253,7 @@ const ${type_ImageNoPals}* data[MOVIE_FRAME_COUNT] = {
 	${sortedFileNamesOnlyEveryFirstStrip.map(s => `&mv_${removeExtension(s)}`).join(',\n	')}
 };
 
-const ${type_Palette32AllStrips}* pals_data[MOVIE_FRAME_COUNT] = {
+const ${type_Palettes}* pals_data[MOVIE_FRAME_COUNT] = {
 	${sortedFileNamesOnlyEveryFirstStrip.map(s => `&pal_${removeExtension(s)}`).join(',\n	')}
 };
 
@@ -259,19 +270,19 @@ const headerAppenderAllCustom = `HEADER_APPENDER_ALL_CUSTOM  headerAllCustomType
 // TILES_CACHE_LOADER tilesCacheId enable cacheStartIndexInVRAM_var cacheVarTilesNum cacheRangesInVRAM_fixed filename compression compressionCustom
 // Eg: TILES_CACHE_LOADER  movieFrames_cache  TRUE  1576  216  1921-127  movieFrames_cache.txt  APLIB  NONE
 // Flag 'enable' possible values: FALSE, TRUE
-const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache? "TRUE":"FALSE"}`
+const loadTilesCacheStr = `TILES_CACHE_LOADER  ${tilesCacheId}  ${loadTilesCache? 'TRUE':'FALSE'}`
 		+ `  ${cacheStartIndexInVRAM_var}  ${cacheTilesNum_var}  ${cacheRangesInVRAM_fixed_str}  ${tilesCacheId}.txt  APLIB  NONE` + '\n\n';
 
 // TILES_CACHE_STATS_ENABLER tilesCacheId enable minTilesetSize
 // Eg: TILES_CACHE_STATS_ENABLER  movieFrames_cache  TRUE  500
 // Flag 'enable' possible values: FALSE, TRUE
-const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${enableTilesCacheStats? "TRUE":"FALSE"}  500` + '\n\n';
+const enableTilesCacheStatsStr = `TILES_CACHE_STATS_ENABLER  ${tilesCacheId}  ${enableTilesCacheStats? 'TRUE':'FALSE'}  500` + '\n\n';
 
 // IMAGE_STRIPS_COMMON_TILES_RANGE commonTilesRangeId enable "baseFile" stripsPerImg baseImgsNum compressionCustom [tilesCacheId minCommonTilesNum]
 // Eg: IMAGE_STRIPS_COMMON_TILES_RANGE  commonTilesRange_movie1  TRUE  "rgb/frame_1_0_RGB.png"  22  454  tilesCache_movie1  20
-const commonTilesRangeStr = `IMAGE_STRIPS_COMMON_TILES_RANGE  ${commonTilesRangeId}  ${useCommonTilesRange? "TRUE":"FALSE"}`
+const commonTilesRangeStr = `IMAGE_STRIPS_COMMON_TILES_RANGE  ${commonTilesRangeId}  ${useCommonTilesRange? 'TRUE':'FALSE'}`
         + `  "${FRAMES_DIR}${sortedFileNamesOnlyEveryFirstStrip[0]}"  ${stripsPerFrame}`
-        + `  ${sortedFileNamesOnlyEveryFirstStrip.length}  "LZ4W"  ${tilesCacheId}  ${minCommonTilesNum}` + '\n\n';
+        + `  ${sortedFileNamesOnlyEveryFirstStrip.length}  LZ4W  ${tilesCacheId}  ${minCommonTilesNum}` + '\n\n';
 
 // IMAGE_STRIPS_NO_PALS name "baseFile" strips [tilesetStatsCollectorId tilesCacheId commonTilesRangeId splitTileset splitTilesetStrategy splitTilemap toggleMapTileBaseIndexFlag mapExtendedWidth compression compressionCustomTileSet compressionCustomTileMap addCompressionField map_opt map_base]
 // Eg: IMAGE_STRIPS_NO_PALS  mv_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  tilesetStats1  tilesCache_movie1  commonTilesRange_movie1  3  1  ODD  64  NONE  LZ4W  RLEW_A  TRUE  ALL
@@ -279,16 +290,23 @@ const imageResListStr = sortedFileNamesOnlyEveryFirstStrip
 	.map(s => `IMAGE_STRIPS_NO_PALS  mv_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${tilesetStatsId}`
 			+ `  ${tilesCacheId}  ${commonTilesRangeId}  ${tilesetSplit}  ${tilesetSplitStrategy}  ${tilemapSplit}`
             + `  ${toggleMapTileBaseIndexFlag}  ${mapExtendedWidth_forResource}  NONE  LZ4W  LZ4W`
-			+ `  ` + (imageAddCompressionField ? 'TRUE' : 'FALSE')
-			+ `  ALL`)
+			+ `  ${imageAddCompressionField? 'TRUE':'FALSE'}  ALL`
+    )
 	.join('\n') + '\n\n';
 
 // PALETTE_32_COLORS_ALL_STRIPS name baseFile strips palsPosition palsPosition addCompressionField compression compressionCustom addCompressionField
 // Eg: PALETTE_32_COLORS_ALL_STRIPS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"  22  3  PAL0PAL1  TRUE  LZ4W  NONE  FALSE
-const paletteResListStr = sortedFileNamesOnlyEveryFirstStrip
+const palette32ResListStr = sortedFileNamesOnlyEveryFirstStrip
 	.map(s => `PALETTE_32_COLORS_ALL_STRIPS  pal_${removeExtension(s)}  "${FRAMES_DIR}${s}"  ${stripsPerFrame}  ${palette32Split}`
-			+ `  PAL0PAL1  TRUE  LZ4W  NONE`
-			+ `  ` + (paletteAddCompressionField ? 'TRUE' : 'FALSE'))
+			+ `  PAL0PAL1  TRUE  NONE  LZ4W  ${paletteAddCompressionField? 'TRUE':'FALSE'}`
+    )
+	.join('\n') + '\n\n';
+
+// PALETTE_64_COLORS name baseFile strips palsPosition palsPosition addCompressionField compression compressionCustom addCompressionField
+// Eg: PALETTE_64_COLORS  pal_frame_46_0_RGB  "rgb/frame_46_0_RGB.png"
+const palette64ResListStr = sortedFileNamesOnlyEveryFirstStrip
+	.map(s => `PALETTE_64_COLORS  pal_${removeExtension(s)}  "${FRAMES_DIR}${s}"`
+    )
 	.join('\n') + '\n\n';
 
 // This resource runs only if a tile stats id was set in previous rresources
@@ -307,7 +325,8 @@ fs.writeFileSync(`${RES_DIR}/movie_frames.res`,
         loadTilesCacheStr + 
         enableTilesCacheStatsStr + 
         commonTilesRangeStr +
-        imageResListStr + paletteResListStr + 
+        imageResListStr + 
+        (stripsPerFrame === 1? palette64ResListStr : palette32ResListStr) + 
         printTilesCacheStatsStr + 
 		printTilesetStatsCollector +
 		customCompressorTracker);
@@ -355,5 +374,5 @@ function checkCacheStartIndexAfterTilesets (loadTilesCache, cacheStartIndexInVRA
 	const startingTilesetIndex = resPropertiesMap.get('STARTING_TILESET_ON_SGDK');
 	const finalTilesetIndex = startingTilesetIndex + (2 * maxTilesetNum);
 	if (cacheStartIndexInVRAM <= finalTilesetIndex)
-		throw new Error("Starting Tiles Cache Index in VRAM overlaps the last movie tileset location. Try to reduce the number of cache tiles.");
+		throw new Error("Starting Tiles Cache Index in VRAM overlaps the last movie tileset location. Reduce the number of cache tiles by " + (finalTilesetIndex - cacheStartIndexInVRAM + 1) + " tiles");
 }

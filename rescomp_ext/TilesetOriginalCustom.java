@@ -155,7 +155,7 @@ public class TilesetOriginalCustom extends Resource
                 	// fabri1983:
                 	// Test if current tile is one of the common tiles in current range 
                 	if (!commonTiles.isEmpty()) {
-                        // Search for referenceTile in the current tileset
+                        // Search for the reference tile in the common tiles list
                 		boolean commonTileFoundMatches = false;
                         for (Tile commonTile : commonTiles) {
                             if (tile.getEquality(commonTile) != TileEquality.NONE) {
@@ -200,7 +200,7 @@ public class TilesetOriginalCustom extends Resource
                 	// fabri1983:
                 	// Test if current tile is one of the common tiles in current range
                 	if (!commonTiles.isEmpty()) {
-                        // Search for referenceTile in the current tileset
+                        // Search for the reference tile in the common tiles list
                 		boolean commonTileFound = false;
                         for (Tile commonTile : commonTiles) {
                             if (tile.getEquality(commonTile) != TileEquality.NONE) {
@@ -311,7 +311,7 @@ public class TilesetOriginalCustom extends Resource
         	// fabri1983:
         	// Test if current tile is one of the common tiles in current range
         	if (!commonTiles.isEmpty()) {
-                // Search for referenceTile in the current tileset
+                // Search for the reference tile in the common tiles list
         		boolean commonTileFound = false;
                 for (Tile commonTile : commonTiles) {
                     if (tile.getEquality(commonTile) != TileEquality.NONE) {

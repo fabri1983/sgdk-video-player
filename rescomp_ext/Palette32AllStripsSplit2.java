@@ -6,6 +6,7 @@ import java.util.List;
 
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.MdComp;
+import sgdk.rescomp.tool.RLEWCompressor;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.CompressionCustom;
@@ -109,6 +110,12 @@ public class Palette32AllStripsSplit2 extends Resource
         // We allow each of them to go into near position in rom
         bin1 = (BinCustom) addInternalResource(new BinCustom(id + "_chunk1_data", chunk1, compression, compressionCustom, false));
         bin2 = (BinCustom) addInternalResource(new BinCustom(id + "_chunk2_data", chunk2, compression, compressionCustom, false));
+
+        // set the amount of colors in words as a property so the compressor uses the correct settings
+        if (compressionCustom == CompressionCustom.RLEW_A || compressionCustom == CompressionCustom.RLEW_B) {
+        	System.setProperty(bin1.id + RLEWCompressor.RLE_PROPERTY_SUFFIX_WORDS_PER_ROW, String.valueOf(32));
+        	System.setProperty(bin2.id + RLEWCompressor.RLE_PROPERTY_SUFFIX_WORDS_PER_ROW, String.valueOf(32));
+        }
 
         // compute hash code
         hc = bin1.hashCode() ^ bin2.hashCode();

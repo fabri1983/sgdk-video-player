@@ -131,7 +131,7 @@ public class TilemapOriginalCustom extends Resource
 	                		// fabri1983:
 	                		int indexInCommonTilesList = -1;
 	                        if (!commonTiles.isEmpty()) {
-	                        	// Try to find tile as common tile, and get the index as it is in commonTiles 
+	                        	// Try to match tile with a common tile, and get the index as it is in commonTiles
 	                    		for (int kk=0; kk < commonTiles.size(); kk++) {
 	                    			Tile commonTile = commonTiles.get(kk);
 	                                if (tile.getEquality(commonTile) != TileEquality.NONE) {
@@ -183,7 +183,7 @@ public class TilemapOriginalCustom extends Resource
 	                    	// fabri1983:
                 			int indexInCommonTilesList = -1;
 	                        if (!commonTiles.isEmpty()) {
-	                        	// Try to find tile as common tile, and get the index as it is in commonTiles 
+	                        	// Try to match tile with a common tile, and get the index as it is in commonTiles
 	                    		for (int kk=0; kk < commonTiles.size(); kk++) {
 	                    			Tile commonTile = commonTiles.get(kk);
 	                                if (tile.getEquality(commonTile) != TileEquality.NONE) {
@@ -297,13 +297,13 @@ public class TilemapOriginalCustom extends Resource
         }
         final BinCustom binResource = new BinCustom(id + "_data", data, compression, compressionCustom);
 
-        // set the tilemap width in words as a property so the compressor uses the correct settings
-        if (compressionCustom == CompressionCustom.RLEW_A || compressionCustom == CompressionCustom.RLEW_B) {
-        	System.setProperty(binResource.id + RLEWCompressor.RLE_PROPERTY_SUFFIX_WORDS_PER_ROW, String.valueOf(w));
-        }
-
         // add as resource (avoid duplicate)
         bin = (BinCustom) addInternalResource(binResource);
+
+        // set the tilemap width in words as a property so the compressor uses the correct settings
+        if (compressionCustom == CompressionCustom.RLEW_A || compressionCustom == CompressionCustom.RLEW_B) {
+        	System.setProperty(bin.id + RLEWCompressor.RLE_PROPERTY_SUFFIX_WORDS_PER_ROW, String.valueOf(w));
+        }
 
         // compute hash code
         hc = bin.hashCode() ^ (w << 8) ^ (h << 16);

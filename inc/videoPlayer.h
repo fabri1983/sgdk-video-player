@@ -10,9 +10,10 @@
 
 #define VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET 0
 #define VIDEO_PLAYER_DMA_ELEM_TYPE_TILEMAP 1
+#define VIDEO_PLAYER_DMA_ELEM_TYPE_PALETTE 2
 
-/// If TRUE then it will add Joy plling logic and user can exit the video playback at any time. FALSE otherwise.
-/// The JOY polling logic is a bit heavy and it adds some overhead. So test it.
+// If TRUE then it will add Joy plling logic and user can exit the video playback at any time. FALSE otherwise.
+// The JOY polling logic is a bit heavy and it adds some overhead. So test it.
 #define EXIT_PLAYER_WITH_JOY_START FALSE
 
 /// If TRUE then it will display every video frame. Might cause audio desync if video frames takes more than 60/MOVIE_FRAME_RATE for NTSC or 50/MOVIE_FRAME_RATE for PAL.
@@ -28,17 +29,9 @@
 // Using DMA adds some pressure to the Z80 due to bus contention, or something like that.
 #define HINT_USE_DMA FALSE
 
-/// If you are 100% sure ALL the tilemaps were compressed by rescomp tool (see console output) then set it TRUE
-#define ALL_TILEMAPS_COMPRESSED FALSE
-/// If you are 100% sure ALL the tilemaps were NOT compressed by rescomp tool (see console output) then set it TRUE
-#define ALL_TILEMAPS_UNCOMPRESSED FALSE
-
-/// If you are 100% sure ALL the palettes were compressed by rescomp tool (see console output) then set it TRUE
-#define ALL_PALETTES_COMPRESSED TRUE
-
-#define VIDEO_FRAME_PALS_NUM (MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP)
-#define VIDEO_FRAME_PALS_CHUNK_SIZE (VIDEO_FRAME_PALS_NUM / 3)
-#define VIDEO_FRAME_PALS_CHUNK_SIZE_LAST ((VIDEO_FRAME_PALS_NUM / 3) + (VIDEO_FRAME_PALS_NUM % 3))
+#define VIDEO_FRAME_PALS_COLORS_NUM (MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP)
+#define VIDEO_FRAME_PALS_CHUNK_SIZE (VIDEO_FRAME_PALS_COLORS_NUM / 3)
+#define VIDEO_FRAME_PALS_CHUNK_SIZE_LAST ((VIDEO_FRAME_PALS_COLORS_NUM / 3) + (VIDEO_FRAME_PALS_COLORS_NUM % 3))
 
 // 64 for 320p. 32 for 256p.
 #define VIDEO_PLANE_COLUMNS 64
@@ -50,17 +43,17 @@
 // This is the fixed RAM address for the tilemap buffer.
 #define RAM_FIXED_MOVIE_FRAME_UNPACKED_TILEMAP_ADDRESS (MEMORY_HIGH - (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES * 2))
 
-/// NOT USED ANYMORE! We now have splitted every frame's tileset in 3 chunks and using VIDEO_FRAME_TILESET_CHUNK_SIZE instead.
-/// LEGACY.
-/// Number of Tiles to be transferred by DMA_flushQueue() with mandatory off/on VDP setting to speed up the transfer (otherwise it glitches up).
-/// NOTE: this has to be enough to support VIDEO_FRAME_TILESET_TOTAL_SIZE / 3 which is the buffer size that holds the unpack of half a tileset.
-/// 320 tiles * 32 bytes = 10240 as maxTransferPerFrame. 
-/// 368 tiles * 32 bytes = 11776 as maxTransferPerFrame. 
-/// 384 tiles * 32 bytes = 12282 as maxTransferPerFrame. 
-/// Disabling VDP before DMA_flushQueue() helps to effectively increase the max transfer limit.
-/// If number is bigger then you will notice some flickering on top of image meaning the transfer takes more time than Vertical retrace.
-/// The flickering still exists but is not noticeable due to lower image Y position in plane. 
-/// Using bigger image height or locating it at upper Y values will reveal the flickering.
+// NOT USED ANYMORE! We now have splitted every frame's tileset in 3 chunks and using VIDEO_FRAME_TILESET_CHUNK_SIZE instead.
+// LEGACY.
+// Number of Tiles to be transferred by DMA_flushQueue() with mandatory off/on VDP setting to speed up the transfer (otherwise it glitches up).
+// NOTE: this has to be enough to support VIDEO_FRAME_TILESET_TOTAL_SIZE / 3 which is the buffer size that holds the unpack of half a tileset.
+// 320 tiles * 32 bytes = 10240 as maxTransferPerFrame. 
+// 368 tiles * 32 bytes = 11776 as maxTransferPerFrame. 
+// 384 tiles * 32 bytes = 12282 as maxTransferPerFrame. 
+// Disabling VDP before DMA_flushQueue() helps to effectively increase the max transfer limit.
+// If number is bigger then you will notice some flickering on top of image meaning the transfer takes more time than Vertical retrace.
+// The flickering still exists but is not noticeable due to lower image Y position in plane. 
+// Using bigger image height or locating it at upper Y values will reveal the flickering.
 #define TILES_PER_DMA_TRANSFER 368
 
 #define FADE_TO_BLACK_STEPS 7 // How many steps needs to be applied as much to reach black color. Max is 7.

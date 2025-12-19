@@ -276,11 +276,15 @@ public class ImageStripsNoPalsProcessor implements Processor
 //		ImageStripsNoPalsProcessor p = new ImageStripsNoPalsProcessor();
 //		String[] fields_test_A = {
 //				resId, "mv_frame_47_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_47_0_RGB.png", "22", "tilesetStats1", 
-//				"TilesCache_Movie1", "NONE", "2", TilesetSplitStrategyEnum.SPLIT_NORMAL.getValue(), "2", "ODD", "64", "FAST", "NONE", "NONE", "TRUE", "ALL"
+//				"TilesCache_Movie1", "NONE", "2", TilesetSplitStrategyEnum.SPLIT_NORMAL.getValue(), "2", "ODD", "0", "FAST", "NONE", "NONE", "TRUE", "ALL"
 //			};
 //		String[] fields_test_B = {
 //				resId, "mv_frame_161_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_161_0_RGB.png", "22", "tilesetStats1", 
-//				"TilesCache_Movie1", "NONE", "3", TilesetSplitStrategyEnum.SPLIT_NORMAL.getValue(), "1", "ODD", "64", "NONE", "NONE", "RLEW_B", "TRUE", "ALL"
+//				"TilesCache_Movie1", "NONE", "3", TilesetSplitStrategyEnum.SPLIT_NORMAL.getValue(), "1", "ODD", "0", "NONE", "NONE", "RLEW_B", "TRUE", "ALL"
+//			};
+//		String[] fields_test_one_strip = {
+//				resId, "mv_frame_161_0_RGB", "C:\\MyProjects\\VSCode\\sgdk\\sgdk-video-player-main\\res\\rgb\\frame_1_0_RGB.png", "1", "tilesetStats1", 
+//				"TilesCache_Movie1", "NONE", "3", TilesetSplitStrategyEnum.SPLIT_NORMAL.getValue(), "1", "ODD", "0", "NONE", "FAST", "FAST", "TRUE", "ALL"
 //			};
 //		String[] fields_test_Titan = {
 //				resId, "titanRGB", "C:\\MyProjects\\VSCode\\sgdk\\titan256c\\res\\titan256c\\titan_0_0_RGB.png", "28", "tilesetStats1", 
@@ -291,6 +295,7 @@ public class ImageStripsNoPalsProcessor implements Processor
 //				"28", "stats_strips_2", "cache_titleBGfullTiles", "NONE", "1", TilesetSplitStrategyEnum.SPLIT_NORMAL.getValue(), "1", "NONE", "0",
 //				"APLIB", "NONE", "NONE", "TRUE", "ALL"
 //			};
-//		p.execute(fields_test_B);
+//
+//		p.execute(fields_test_one_strip);
 //	}
 }

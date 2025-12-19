@@ -40,10 +40,11 @@ See `checkCorrectPlaneAddress()` in `videoPlayer.c` to get in context.
 Then edit accordingly while going through next steps.
 
 3) `extract.bat video.mp4 tmpmv 272 192 8 15 n`
+This extract frames from the input video and then generates the strips per frame with the correct color depth.
 tmpmv: output folder
 272: frame width (multiple of 8)
 192: frame height (multiple of 8)
-8: rows per strip
+8: height per strip. Use 0 or frame height to skip strips creation
 15: frame rate
 n: color reduction (optional parameter). Max value 256 (for PNGs).
 
@@ -60,10 +61,10 @@ Open file `res_n_header_generator.js` and edit variables `enableTilesCacheStats`
 Read the comments to get an idea of how they work.
 
 6) `node res_n_header_generator.js 272 192 8 15`
-frame width: 272 (multiple of 8)
-frame height: 192 (multiple of 8)
-rows per strip: 8
-frame rate: 15
+272: frame width (multiple of 8)
+192: frame height (multiple of 8)
+8: height per strip. Use 0 or frame height to skip strips creation
+15: frame rate
 
 7) `compile_n_run.bat release`
 Run it once to catch rescomp output to know tileset stats (resource TILESET_STATS_COLLECTOR). Then:
@@ -88,27 +89,22 @@ in correct format for the SGDK rescomp tool.
 ### TODO
 
 - Update joy like in raycasting project.
-- Try Enigma on tilemaps and check if the optimized decompressor is faster than current timings.
 - Pre load frame 0 before starting music and see how does result with sound timing/sync.
-- The Tileset chunk decompression worst case using LZ4W takes 47423 cycles (approx 97 scanlines). Includes all the delays added by VInt and Hint interrupts.
 - Try new video from VirtualDub2 project. Better definition and correct dimensions. Frame size: 272 x 200 px (34 x 25 tiles).
 - Idea to avoid sending the first 2 strips'pals (64 colors) and send only first strip's pals (32 colors):
-	- DMA_QUEUE the first 2 pals (32 colors) at VInt.
-	- Use flushQueue from Stef's: flushQueue(DMA_getQueueSize())
+	- DMA_ELEMS_queue the first 2 pals (32 colors) at VInt.
 	- Add +32 and -32 accordingly in VInt and videoPlayer.c.
 	- Set HINT_PALS_CMD_ADDRR_RESET_VALUE to 32 in movieHVInterrupts.h.
 	- Hint now starts 1 row of tiles more than the already calculated in movieHVInterrupts.h.
-	- DMA_init() needs more capacity now.
 - Once the unpack/load of tileset/tilemap/pals happen during the time of an active display loop we can:
-	- discard palInFrameRootPtr and just use the setPalsPointer() call made in waitVInt_AND_flushDMA() without the bool parameter resetPalsPtrsForHInt.
+	- discard palInFrameRootPtr and just use the setPalsPointer() as it currently is.
 	- remove #define #if FORCE_NO_MISSING_FRAMES
 	- remove the condition if (!((prevFrame ^ vFrame) & 1))
 	- search for TODO PALS_1 and act accordingly.
-	- If the first 2 strips' pals are DMA_QUEUE in waitVInt_AND_flushDMA() then use flushQueue from Stef's: flushQueue(DMA_getQueueSize())
 - Try final frame size: 288 x 208 px (36 x 26 tiles).
 - Could declaring the arrays data[] and pals_data[] directly in ASM reduce rom size and/or speed access?
 - Clear mem used by sound when exiting the video loop?
-- Try to change from H40 to H32 (or was it viceversa?) on HInt Callback, and hope for any any speed gain?
+- Try to change from H40 to H32 (or was it viceversa?) on Horizontal Blank (that tiny time outbounds the screen), and hope for any speed gain?
 	- See https://plutiedev.com/mirror/kabuto-hardware-notes#h40-mode-tricks
 	- See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
 	- This technique: https://gendev.spritesmind.net/forum/viewtopic.php?f=22&t=2964&sid=395ed554dbdeb24d2a5b64c29a0abd03&start=15#p35118

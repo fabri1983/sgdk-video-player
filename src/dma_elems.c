@@ -7,19 +7,24 @@
 #include "utils.h"
 
 static DMAOpInfo dmaElemTileset;
-#if (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES != MOVIE_FRAME_WIDTH_IN_TILES)
+static bool dmaElemTileset_ready;
+#if MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES > MOVIE_FRAME_WIDTH_IN_TILES
 static DMAOpInfo dmaElemTilemap;
 #endif
-static bool dmaElemTileset_ready;
 static bool dmaElemTilemap_ready;
+#if MOVIE_FRAME_STRIPS == 1
+// TODO PALS_1: this is going to be useful when first 2 strips' palettes (previously unpacked) will be enqueued
+static DMAOpInfo dmaElemPalette;
+static bool dmaElemPalette_ready;
+#endif
 
 FORCE_INLINE void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, u8 dmaElemType)
 {
-    if (VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET == dmaElemType)
+    if (dmaElemType == VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET)
     {
         // $13:len L  $14:len H (DMA length in word)
         dmaElemTileset.regLenL = 0x9300 | (len & 0xFF);
-        dmaElemTileset.regLenH = 0x9400 | ((len >> 8) & 0xFF);
+        dmaElemTileset.regLenH = 0x9400 | (len >> 8);
         // $16:M  $f:step (DMA address M and Step register)
         dmaElemTileset.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // VDP step = 2
         // $17:H  $15:L (DMA address H & L)
@@ -29,12 +34,12 @@ FORCE_INLINE void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, u8 dmaElemType
 
         dmaElemTileset_ready = TRUE;
     }
-    else if (VIDEO_PLAYER_DMA_ELEM_TYPE_TILEMAP == dmaElemType)
+    else if (dmaElemType == VIDEO_PLAYER_DMA_ELEM_TYPE_TILEMAP)
     {
-        #if (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES != MOVIE_FRAME_WIDTH_IN_TILES)
+        #if MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES > MOVIE_FRAME_WIDTH_IN_TILES
         // $13:len L  $14:len H (DMA length in word)
         dmaElemTilemap.regLenL = 0x9300 | (len & 0xFF);
-        dmaElemTilemap.regLenH = 0x9400 | ((len >> 8) & 0xFF);
+        dmaElemTilemap.regLenH = 0x9400 | (len >> 8);
         // $16:M  $f:step (DMA address M and Step register)
         dmaElemTilemap.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // VDP step = 2
         // $17:H  $15:L (DMA address H & L)
@@ -45,11 +50,28 @@ FORCE_INLINE void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, u8 dmaElemType
 
         dmaElemTilemap_ready = TRUE;
     }
+    #if MOVIE_FRAME_STRIPS == 1
+    // TODO PALS_1: this is going to be useful when first 2 strips' palettes (previously unpacked) will be enqueued
+    else if (dmaElemType == VIDEO_PLAYER_DMA_ELEM_TYPE_PALETTE)
+    {
+        // $13:len L  $14:len H (DMA length in word)
+        dmaElemPalette.regLenL = 0x9300 | (len & 0xFF);
+        dmaElemPalette.regLenH = 0x9400 | (len >> 8);
+        // $16:M  $f:step (DMA address M and Step register)
+        dmaElemPalette.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // VDP step = 2
+        // $17:H  $15:L (DMA address H & L)
+        dmaElemPalette.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
+        // VDP command
+        dmaElemPalette.regCtrlWrite = VDP_DMA_CRAM_ADDR((u32)to);
+
+        dmaElemPalette_ready = TRUE;
+    }
+    #endif
 
     #ifdef DEBUG_VIDEO_PLAYER
-    // if transfer size above max transfer then warn it
+    // if transfer size above max transfer (which is the tileset chunk) then warn it
     if ((len << 1) > (VIDEO_FRAME_TILESET_CHUNK_SIZE * 32))
-        KLog_U2("dma_1elem.c: Max DMA transfer limit exceeded: ", (len << 1), ". Max is ", (VIDEO_FRAME_TILESET_CHUNK_SIZE * 32));
+        KLog_U2("dma_elems.c: Max DMA transfer limit exceeded: ", (len << 1), ". Max is ", (VIDEO_FRAME_TILESET_CHUNK_SIZE * 32));
     #endif
 }
 
@@ -57,7 +79,22 @@ void DMA_ELEMS_flush ()
 {
     vu32* vdpCtrl_ptr_l = (vu32*) VDP_CTRL_PORT;
 
-    #if (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES == MOVIE_FRAME_WIDTH_IN_TILES)
+    if (dmaElemTileset_ready) {
+        dmaElemTileset_ready = FALSE;
+        DMAOpInfo* elem_ptr = &dmaElemTileset;
+        __asm volatile (
+            "move.l   (%0)+, (%1)\n\t"
+            "move.l   (%0)+, (%1)\n\t"
+            "move.l   (%0)+, (%1)\n\t"
+            "move.w   (%0)+, (%1)\n\t"
+            "move.w   (%0)+, (%1)"      // Stef: important to use word write for command triggering DMA (see SEGA notes)
+            : "+a" (elem_ptr)
+            : "a" (vdpCtrl_ptr_l)
+            :
+        );
+    }
+
+    #if MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES == MOVIE_FRAME_WIDTH_IN_TILES
     if (dmaElemTilemap_ready) {
         dmaElemTilemap_ready = FALSE;
 
@@ -96,9 +133,10 @@ void DMA_ELEMS_flush ()
     }
     #endif
 
-    if (dmaElemTileset_ready) {
-        dmaElemTileset_ready = FALSE;
-        DMAOpInfo* elem_ptr = &dmaElemTileset;
+    #if MOVIE_FRAME_STRIPS == 1
+    if (dmaElemPalette_ready) {
+        dmaElemPalette_ready = FALSE;
+        DMAOpInfo* elem_ptr = &dmaElemPalette;
         __asm volatile (
             "move.l   (%0)+, (%1)\n\t"
             "move.l   (%0)+, (%1)\n\t"
@@ -110,4 +148,5 @@ void DMA_ELEMS_flush ()
             :
         );
     }
+    #endif
 }
