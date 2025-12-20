@@ -16,7 +16,7 @@ You can find me in the SGDK Discord server: https://discord.gg/xmnBWQS
 ### Features
 
 - Supports up to 256+ colors per frame.
-- Currently running at 10-15 FPS in NTSC and 10-12 FPS in PAL, with a frame size of 272 x 192 pixels (34 x 24 tiles).
+- Currently running at 14-15 FPS in NTSC and 11-12 FPS in PAL, with a frame size of 272 x 192 pixels (34 x 24 tiles).
 - Uses custom extensions for [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
 - Uses custom tiledpalettequant app (not public yet).
 
@@ -26,7 +26,7 @@ You can find me in the SGDK Discord server: https://discord.gg/xmnBWQS
 - You need *Image Magick v7.x* tools set in _PATH_.
 - You need *ffmpeg* set in the _PATH_.
 - Set `ENABLE_BANK_SWITCH` 1 in _SGDK_'s `config.h` for rom size bigger than 4MB, and re build the _SGDK_ lib.
-- You need *NodeJs* and its *NODEJS_HOME* env var set as user/system variable.
+- You need *NodeJs* and its *NODEJS_HOME* env var properly set on user/system variables. This is required for `env.bat`.
 
 
 ### Instructions using custom tiledpalettequant app
@@ -91,15 +91,16 @@ in correct format for the SGDK rescomp tool.
 - Update joy like in raycasting project.
 - Pre load frame 0 before starting music and see how does result with sound timing/sync.
 - Try new video from VirtualDub2 project. Better definition and correct dimensions. Frame size: 272 x 200 px (34 x 25 tiles).
-- Idea to avoid sending the first 2 strips'pals (64 colors) and send only first strip's pals (32 colors):
+- Idea to avoid sending the first 2 strips palettes (64 colors) in the HInt and send only first strip palettes (32 colors):
 	- DMA_ELEMS_queue the first 2 pals (32 colors) at VInt.
 	- Add +32 and -32 accordingly in VInt and videoPlayer.c.
 	- Set HINT_PALS_CMD_ADDRR_RESET_VALUE to 32 in movieHVInterrupts.h.
-	- Hint now starts 1 row of tiles more than the already calculated in movieHVInterrupts.h.
+	- Effective Hint now starts 1 strip ahead than the already used in the first conditions on the many hint callbacks in movieHVInts.h.
 - Once the unpack/load of tileset/tilemap/pals happen during the time of an active display loop we can:
 	- discard palInFrameRootPtr and just use the setPalsPointer() as it currently is.
 	- remove #define #if FORCE_NO_MISSING_FRAMES
 	- remove the condition if (!((prevFrame ^ vFrame) & 1))
+    - Effective Hint now starts 2 strips ahead than the already used in the first conditions on the many hint callbacks in movieHVInts.h.
 	- search for TODO PALS_1 and act accordingly.
 - Try final frame size: 288 x 208 px (36 x 26 tiles).
 - Could declaring the arrays data[] and pals_data[] directly in ASM reduce rom size and/or speed access?

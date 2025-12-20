@@ -12,7 +12,7 @@
 
 #define MOVIE_MIN_TILE_Y_POS_AVOID_DMA_FLICKER 3 // 0 based (starts at the top of the screen). Update calculatePlaneAddress() and cacheStartIndexInVRAM at res_n_header_generator.js
 
-// For NTSC systems: example ONLY VALID IF STRIP HEIGHT IS 8
+// For NTSC systems: next example ONLY VALID IF STRIP HEIGHT IS 8
 // Example for a frame 22 tiles height:
 //   Screen has 224/8=28 tiles height, and the video is 22 tiles height centered in Y axis.
 //   So starts at (28-22)/2=3rd tile row. But we start loading pals 1 strip earlier. So -1 strip => starts at 2th row of tiles => 2*8=16th scanline.
@@ -28,7 +28,7 @@
 #define MOVIE_HINT_COLORS_SWAP_END_SCANLINE_NTSC \
     (28 - ((28 - MOVIE_FRAME_STRIPS) / 2) + TILES_HEIGHT_OFFSET_DUE_TO_MIN_TILE_Y_POS_NTSC) * 8 - 2*8 - 1
 
-// For PAL systems: example ONLY VALID IF STRIP HEIGHT IS 8
+// For PAL systems: next example ONLY VALID IF STRIP HEIGHT IS 8
 // Example for a frame 22 tiles height:
 //   Screen has 240/8=30 tiles height, and the video is 22 tiles height centered in Y axis.
 //   So starts at (30-22)/2=4th tile row. But we start loading pals 1 strip earlier. So -1 strip => starts at 3th row of tiles => 3*8=24th scanline.

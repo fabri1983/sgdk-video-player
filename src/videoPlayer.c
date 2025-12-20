@@ -101,9 +101,9 @@ static FORCE_INLINE void waitVInt_AND_flushDMA ()
 {
     #if MOVIE_FRAME_STRIPS > 1
 	// TODO PALS_1: uncomment when unpacking/load happens in the current active display loop
-	// We have to enqueue the first 2 strips' pals on every active display period so when on Blank period the data is DMAed into CRAM
+	// We have to enqueue the first 2 strips palettes on every active display period so when on Blank period the data is DMAed into CRAM.
 	// First strip palettes at [PAL0,PAL1], second strip palettes at [PAL2,PAL3]
-    //DMA_ELEMS_queue(unpackedPalsRender, 0, 2*MOVIE_FRAME_COLORS_PER_STRIP, VIDEO_PLAYER_DMA_ELEM_TYPE_PALETTE);
+    //DMA_ELEMS_queue((u32) unpackedPalsRender, 0, 2*MOVIE_FRAME_COLORS_PER_STRIP, VIDEO_PLAYER_DMA_ELEM_TYPE_PALETTE);
     #endif
 
 	// From Discord:
@@ -537,8 +537,9 @@ void playMovie ()
             #if MOVIE_FRAME_STRIPS > 1
 			unpackFramePalettes(pals_data[vFrame]->compression, pals_data[vFrame]->data, VIDEO_FRAME_PALS_COLORS_NUM, 0);
 			swapPalsBuffers();
+            // TODO PALS_1: add 2 strips palettes with pointer arithmetic
             setMoviePalsPointer(unpackedPalsRender);
-            // TODO PALS_1: first 2 strips' palettes (previously unpacked) will be enqueued in waitVInt_AND_flushDMA()
+            // TODO PALS_1: First 2 strips palettes (previously unpacked) will be enqueued in waitVInt_AND_flushDMA()
             #else
             unpackFramePalettes(0, pals_data[vFrame]->data, VIDEO_FRAME_PALS_COLORS_NUM, 0);
             DMA_ELEMS_queue((u32) unpackedPalsRender, 0*2, MOVIE_FRAME_COLORS_PER_STRIP, VIDEO_PLAYER_DMA_ELEM_TYPE_PALETTE);
