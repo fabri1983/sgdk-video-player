@@ -27,11 +27,12 @@ public class CommonTilesRangeOptimizerV2 {
 	 * @param allStripsInList
 	 * @param tilesCacheId
 	 * @param minCommonTilesNum
+	 * @param maxCommonTilesNum
 	 * @return
 	 * @throws Exception
 	 */
 	public static List<CommonTilesRange> generateOptimizedCommonTiles (List<List<String>> allStripsInList, String tilesCacheId,
-			int minCommonTilesNum) throws Exception
+			int minCommonTilesNum, int maxCommonTilesNum) throws Exception
 	{
 		final int minRange = 3; // Use odd number >= 3 due to the nature of two-buffers swapping solution used by the video player
 		
@@ -66,6 +67,11 @@ public class CommonTilesRangeOptimizerV2 {
 
 			// If a tileset has less than the minimum tiles expected then we just ignore it
 			if (tilesetTemp.getNumTile() < minCommonTilesNum)
+				//return Collections.emptyList();
+				continue;
+
+			// If a tileset has morethan the maximum tiles expected then we just ignore it
+			if (tilesetTemp.getNumTile() > maxCommonTilesNum)
 				//return Collections.emptyList();
 				continue;
 

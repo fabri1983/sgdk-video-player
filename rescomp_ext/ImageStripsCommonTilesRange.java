@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import sgdk.rescomp.Resource;
 import sgdk.rescomp.tool.CommonTilesRangeManager;
 import sgdk.rescomp.tool.CommonTilesRangeOptimizerV1;
+import sgdk.rescomp.tool.ExtProperties;
 import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.CommonTilesRange;
@@ -39,8 +40,11 @@ public class ImageStripsCommonTilesRange extends Resource
 	        	compressionCustomFinal = compressionCustom;
 	        }
 
-        	List<CommonTilesRange> optimizedRangeList = CommonTilesRangeOptimizerV1.generateOptimizedCommonTiles(allStripsInList, tilesCacheId, minCommonTilesNum);
-	        //List<CommonTilesRange> optimizedRangeList = CommonTilesRangeOptimizerV2.generateOptimizedCommonTiles(allStripsInList, tilesCacheId, minCommonTilesNum);
+	        final int maxCommonTilesNum = ExtProperties.getInt(ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
+        	List<CommonTilesRange> optimizedRangeList = CommonTilesRangeOptimizerV1.generateOptimizedCommonTiles(
+        			allStripsInList, tilesCacheId, minCommonTilesNum, maxCommonTilesNum);
+//	        List<CommonTilesRange> optimizedRangeList = CommonTilesRangeOptimizerV2.generateOptimizedCommonTiles(
+//	        		allStripsInList, tilesCacheId, minCommonTilesNum, maxCommonTilesNum);
 
         	CommonTilesRangeManager.saveForResId(id, optimizedRangeList);
 

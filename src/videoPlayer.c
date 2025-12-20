@@ -420,11 +420,11 @@ void playMovie ()
 
 	// If we want to use up to 1791 tiles (remember we keep the reserved tile at address 0) then we need to move BG_B 
 	// and Window planes into BG_A so we can use the space otherwise used by BG_B by default. So:
-	// - 0xE000 is where BG_A plane (its tilemap) address starts.
-	// - Move BG_B and Window planes addresses into BG_A plane address, achieving up to 1791 tiles.
+	// - 0xE000 is where BG_A plane (the tilemap) address starts.
+	// - Move BG_B and Window planes addresses into BG_A plane address, claiming so up to 1791 tiles.
     // - Move the SAT (Sprite Allocation Table) where the HScroll table is located: 0xF000. This allows us to setup next thing.
     // - Now SAT and HScroll table are at 0xF000 and it seems only first 32 bytes (0x20) have an effect in the image, 
-    //   hence we have additional free VRAM from 0xF020 to 0xFFFF -> 4064 bytes = 127 tiles.
+    //   therefor we have additional free VRAM from 0xF020 to 0xFFFF -> 4064 bytes = 127 tiles.
     VDP_setBGBAddress(VDP_getBGAAddress());
     VDP_setWindowAddress(VDP_getBGAAddress());
     VDP_setWindowOff();

@@ -80,7 +80,7 @@ public class ImageStripsNoPalsSplit3 extends Resource
         		splitTiles = TilesetSizeSplitCalculator.splitWithMaxEvenlyDistribution(tilesetTemp.tiles, 3,
         				ExtProperties.getInt(ExtProperties.MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_3));
         	}
-			
+
 			tileset1 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk1_tileset", splitTiles.get(0),
 					tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId));
 			tileset2 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk2_tileset", splitTiles.get(1),

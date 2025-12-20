@@ -16,7 +16,7 @@ You can find me in the SGDK Discord server: https://discord.gg/xmnBWQS
 ### Features
 
 - Supports up to 256+ colors per frame.
-- Currently running at 14-15 FPS in NTSC and 11-12 FPS in PAL, with a frame size of 272 x 192 pixels (34 x 24 tiles).
+- Currently running at 11-15 FPS in NTSC and 11-12 FPS in PAL, with a frame size of 272 x 192 pixels (34 x 24 tiles).
 - Uses custom extensions for [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
 - Uses custom tiledpalettequant app (not public yet).
 

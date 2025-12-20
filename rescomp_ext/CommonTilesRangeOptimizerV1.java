@@ -31,9 +31,8 @@ import sgdk.tool.ImageUtil.BasicImageInfo;
 public class CommonTilesRangeOptimizerV1 {
 
 	public static List<CommonTilesRange> generateOptimizedCommonTiles (List<List<String>> allStripsInList, String tilesCacheId,
-			int minCommonTilesNum) throws InterruptedException, ExecutionException
+			int minCommonTilesNum, int maxCommonTilesNum) throws InterruptedException, ExecutionException
 	{
-		// final int maxCommonTilesNum = ExtProperties.getInt(ExtProperties.MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX);
 		// Min number of consecutive images we grab to analyze
 		final int minRange = 3; // Use odd number >= 3 due to the nature of two-buffers swapping solution used by the video player
 		// Max number of consecutive images we grab to analyze
@@ -71,7 +70,7 @@ public class CommonTilesRangeOptimizerV1 {
 						continue;
 
 					// calculate common tiles between startingImgIdx and endingImgIdx (inclusive)
-					List<Tile> tiles = getCommonTiles(startIdx, endIdx, allStripsInList, tilesCacheId, minCommonTilesNum);
+					List<Tile> tiles = getCommonTiles(startIdx, endIdx, allStripsInList, tilesCacheId, minCommonTilesNum, maxCommonTilesNum);
 					int commonTilesNum = tiles.size();
 					if (commonTilesNum >= minCommonTilesNum) {
 
@@ -144,7 +143,7 @@ public class CommonTilesRangeOptimizerV1 {
 		// num of ranges
 		int totalRanges_strat_A = optimizedRanges_strat_A.size();
 		int totalRanges_strat_B = optimizedRanges_strat_B.size();
-		// Choose the better solution
+		// Choose the best solution
 		List<CommonTilesRange> optimizedRanges = null;
 		if (sum_numTiles_strat_A < sum_numTiles_strat_B)
 			optimizedRanges = optimizedRanges_strat_A;
@@ -185,7 +184,7 @@ public class CommonTilesRangeOptimizerV1 {
 	}
 
     private static List<Tile> getCommonTiles (int startingImgIdx, int endingImgIdx, List<List<String>> allStripsInList, 
-    		String tilesCacheId, int minCommonTilesNum) throws Exception
+    		String tilesCacheId, int minCommonTilesNum, int maxCommonTilesNum) throws Exception
     {
     	// Step 1: Create all the tilesets in the given range
 
@@ -218,6 +217,11 @@ public class CommonTilesRangeOptimizerV1 {
 
 			// If a tileset has less than the minimum tiles expected then we just ignore it
 			if (tilesetTemp.getNumTile() < minCommonTilesNum)
+				//return Collections.emptyList();
+				continue;
+
+			// If a tileset has more than the maximum tiles expected then we just ignore it
+			if (tilesetTemp.getNumTile() > maxCommonTilesNum)
 				//return Collections.emptyList();
 				continue;
 
