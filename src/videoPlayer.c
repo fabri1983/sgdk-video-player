@@ -79,7 +79,7 @@ static FORCE_INLINE void render_DMA_flushQueue ()
 }
 
 /**
- * Waits until SGDK's vtimer is updated, which is done in the VInt handler. See boot/sega.s.
+ * Waits until SGDK's vtimer is updated, which is done in the _VInt handler. See boot/sega.s.
  */
 static FORCE_INLINE void waitVInt ()
 {
