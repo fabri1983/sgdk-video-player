@@ -5,8 +5,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.stream.Collectors;
 
 import sgdk.rescomp.Resource;
+import sgdk.rescomp.tool.CommonTilesRangeManager;
 import sgdk.rescomp.tool.ExtProperties;
 import sgdk.rescomp.tool.ImageUtilFast;
 import sgdk.rescomp.tool.TilesCacheManager;
@@ -16,6 +19,7 @@ import sgdk.rescomp.tool.Util;
 import sgdk.rescomp.type.Basics.Compression;
 import sgdk.rescomp.type.Basics.TileOptimization;
 import sgdk.rescomp.type.Basics.TileOrdering;
+import sgdk.rescomp.type.CommonTilesRange;
 import sgdk.rescomp.type.CompressionCustom;
 import sgdk.rescomp.type.CustomDataTypes;
 import sgdk.rescomp.type.Tile;
@@ -60,23 +64,32 @@ public class ImageStripsNoPalsSplit2 extends Resource
         int ht_1 = ht/2;
         int ht_2 = ht/2 + (ht % 2); // tileset2 height in tiles is calculated considering if ht is even or odd
 
-        if (splitStrategy == TilesetSplitStrategyEnum.SPLIT_NORMAL) {
+        if (splitStrategy == TilesetSplitStrategyEnum.SPLIT_NORMAL || splitStrategy == TilesetSplitStrategyEnum.SPLIT_NONE) {
 	    	tileset1 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk1_tileset", finalImageData, w, h, 0, 0, wt, ht_1, 
 	    			tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId));
 	    	tileset2 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk2_tileset", finalImageData, w, h, 0, ht_1, wt, ht_2, 
 	    			tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId));
         }
         else {
-        	List<List<Tile>> splitTiles = Collections.emptyList();
+			List<List<Tile>> splitTiles = new ArrayList<>(2);
+			splitTiles.add(Collections.emptyList());
+			splitTiles.add(Collections.emptyList());
 
-        	if (splitStrategy == TilesetSplitStrategyEnum.SPLIT_MAX_CAPACITY_FIRST) {
-        		splitTiles = TilesetSizeSplitCalculator.splitWithMaxTilesFirst(tilesetTemp.tiles, 2,
-        				ExtProperties.getInt(ExtProperties.MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_2));
+        	int maxTilesetChunkSize = ExtProperties.getInt(ExtProperties.MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_2);
+
+			if (splitStrategy == TilesetSplitStrategyEnum.SPLIT_MAX_CAPACITY_FIRST) {
+        		splitTiles = TilesetSizeSplitCalculator.splitWithMaxTilesFirst(tilesetTemp.tiles, 2, maxTilesetChunkSize);
         	}
         	else if (splitStrategy == TilesetSplitStrategyEnum.SPLIT_EVENLY) {
-        		splitTiles = TilesetSizeSplitCalculator.splitWithMaxEvenlyDistribution(tilesetTemp.tiles, 2,
-        				ExtProperties.getInt(ExtProperties.MAX_TILESET_CHUNK_SIZE_FOR_SPLIT_IN_2));
+        		splitTiles = TilesetSizeSplitCalculator.splitWithMaxEvenlyDistribution(tilesetTemp.tiles, 2, maxTilesetChunkSize);
         	}
+
+    		// If there is common tiles for this image and is also the first image of the range 
+			// then we have to accommodate the tiles in such a way that common tiles go at the end
+    		List<Tile> commonTilesFirstImage = needsTilesAccomodationForCommonTiles(commonTilesRangeId, stripsFileList.get(0));
+			if (!commonTilesFirstImage.isEmpty()) {
+				splitTiles = accomodateTilesWithCommonTiles(splitTiles, maxTilesetChunkSize, commonTilesFirstImage);
+			}
 
 	    	tileset1 = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_chunk1_tileset", splitTiles.get(0),
 					tileOpt, compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId));
@@ -129,6 +142,61 @@ public class ImageStripsNoPalsSplit2 extends Resource
         	hcTemp ^= tilemap2.hashCode();
         hc = hcTemp;
     }
+
+    private List<Tile> needsTilesAccomodationForCommonTiles(String commonTilesRangeId, String firstImageStripName) {
+        List<CommonTilesRange> commonTilesRanges = CommonTilesRangeManager.getFromResId(commonTilesRangeId);
+        if (commonTilesRanges.isEmpty())
+        	return Collections.emptyList();
+
+    	Matcher baseFileNameMatcher = CommonTilesRangeManager.stripsBaseFileNamePattern.matcher(firstImageStripName);
+		if (baseFileNameMatcher.matches()) {
+			int imageNum = Integer.parseInt(baseFileNameMatcher.group(1));
+			CommonTilesRange commonTileObj = CommonTilesRangeManager.findRangeForImageNum(commonTilesRanges, imageNum);
+			if (commonTileObj != null && commonTileObj.getStartingImgNumInName() == imageNum)
+				return commonTileObj.getTiles();
+		}
+		else {
+    		System.out.println("[WARNING] Couldn't extract imageNum for CommonTilesRange from " + firstImageStripName + ". " 
+    				+ ImageStripsNoPalsSplit2.class.getSimpleName());
+    	}
+		
+		return Collections.emptyList();
+	}
+
+	private List<List<Tile>> accomodateTilesWithCommonTiles(List<List<Tile>> splitTiles, int maxTilesetChunkSize, List<Tile> commonTilesFirstImage) {
+		// Merge all tiles preserving order
+		List<Tile> mergedTiles = splitTiles.stream().flatMap(List::stream).collect(Collectors.toList());
+
+		// Now, those lists at the beginning, if possible, will hold up to maxTilesetChunkSize.
+		List<List<Tile>> newSplitTiles = new ArrayList<>(3);
+		int index = 0;
+		int totalTiles = mergedTiles.size();
+		for (int i = 0; i < 3; i++) {
+			if (index < totalTiles) {
+				int end = Math.min(index + maxTilesetChunkSize, totalTiles);
+				newSplitTiles.add(new ArrayList<>(mergedTiles.subList(index, end)));
+				index = end;
+			} else {
+				newSplitTiles.add(new ArrayList<>());
+			}
+		}
+		splitTiles = newSplitTiles;
+
+		// Now, add common tiles after current tiles by filling existing lists that
+		// didn't cope up with maxTilesetChunkSize elements in previous step
+		int commonIndex = 0;
+		for (List<Tile> chunk : splitTiles) {
+			if (commonIndex >= commonTilesFirstImage.size())
+				break;
+			int spaceLeft = maxTilesetChunkSize - chunk.size();
+			if (spaceLeft > 0) {
+				int end = Math.min(commonIndex + spaceLeft, commonTilesFirstImage.size());
+				chunk.addAll(commonTilesFirstImage.subList(commonIndex, end));
+				commonIndex = end;
+			}
+		}
+		return splitTiles;
+	}
 
     private void checkTilesetMaxSizeForSplitIn2(int numTile) {
     	int max = ExtProperties.getInt(ExtProperties.MAX_TILESET_TOTAL_SIZE_FOR_SPLIT_IN_2);

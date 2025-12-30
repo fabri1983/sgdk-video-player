@@ -53,7 +53,7 @@ static FORCE_INLINE void render_Z80_releaseBus()
 static FORCE_INLINE void render_Z80_setBusProtection (bool value)
 {
     render_Z80_requestBus(FALSE);
-	u16 busProtectSignalAddress = (u16)(Z80_DRV_PARAMS + 0x0D); //& 0xFFFF; // point to Z80 PROTECT parameter
+	u16 busProtectSignalAddress = (u16)(Z80_DRV_PARAMS + 0x0D); //& 0xFFFF; // points to Z80 PROTECT parameter
     vu8* pb = (u8*) (Z80_RAM + busProtectSignalAddress); // See Z80_useBusProtection() reference in z80_ctrl.c
     *pb = value?1:0;
 	render_Z80_releaseBus();
@@ -78,6 +78,9 @@ static FORCE_INLINE void render_DMA_flushQueue ()
     // VDP_setAutoInc(autoInc); // restore autoInc
 }
 
+/**
+ * Waits until SGDK's vtimer is updated, which is done in the VInt handler. See boot/sega.s.
+ */
 static FORCE_INLINE void waitVInt ()
 {
 	// Casting to u8* allows to use cmp.b instead of cmp.l, by using vtimerPtr+3 which is where the first byte of vtimer is located
@@ -209,7 +212,7 @@ static FORCE_INLINE void unpackFrameTileset (TileSet* src)
 
 	const u16 lenBytes = src->numTile * 32;
 	if (src->compression != COMPRESSION_NONE) {
-        const u8 additionalArg = 0;
+        const u16 additionalArg = 0;
         unpackSelector(src->compression, (u8*) FAR_SAFE(src->tiles, lenBytes), (u8*) unpackedTilesetChunk, additionalArg);
     }
 	else
@@ -234,11 +237,15 @@ static FORCE_INLINE void unpackFrameTilemap (TileMapCustomCompField* src)
     const u16 lenBytes = MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES * MOVIE_FRAME_HEIGHT_IN_TILES * 2; // bytes
 
 	if (src->compression != COMPRESSION_NONE) {
+        #if defined(USING_RLEW_A) || defined(USING_RLEW_B)
         #if MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES > MOVIE_FRAME_WIDTH_IN_TILES
         // This is the jump gap value, and is only useful for RLEW
-        const u8 additionalArg = 2 * (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES - MOVIE_FRAME_WIDTH_IN_TILES);
+        const u16 additionalArg = 2 * (MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES - MOVIE_FRAME_WIDTH_IN_TILES);
         #else
-		const u8 additionalArg = 0;
+        const u16 additionalArg = 0; // no jump gap value
+        #endif
+        #else
+		const u16 additionalArg = lenBytes;
         #endif
         unpackSelector(src->compression, (u8*) FAR_SAFE(src->tilemap, lenBytes), (u8*) unpackedTilemap, additionalArg);
 	}
@@ -271,7 +278,7 @@ static FORCE_INLINE void unpackFramePalettes (u16 compression, u16* data, u16 le
     // No need to use FAR_SAFE() macro here because palette data is always stored at NEAR region by rescomp
 	const u16 lenBytes = len * 2;
 	if (compression != COMPRESSION_NONE) {
-        const u8 additionalArg = 0;
+        const u16 additionalArg = 0;
         unpackSelector(compression, (u8*) data, (u8*)(unpackedPalsBuffer + offset), additionalArg);
     }
 	else {
@@ -299,7 +306,7 @@ static void freePalettesBuffer ()
 	MEM_free((void*) unpackedPalsBuffer);
 }
 
-static FORCE_INLINE void queueTilesetData (u16 startTileIndex, u16 length)
+static FORCE_INLINE void queueTilesetData (u16 startTileIndex, u16 length, u8 dmaElemType)
 {
     // We need to check due to empty tilesets
 	if (length == 0)
@@ -308,7 +315,7 @@ static FORCE_INLINE void queueTilesetData (u16 startTileIndex, u16 length)
 	// VDP_loadTileData(unpackedTilesetChunk, startTileIndex, length, DMA_QUEUE);
 	// Now we use custom DMA_queueDmaFast() because the data is in RAM, so no 128KB bank boundary check is needed
     const u16 lenInWords = length * 16;
-	DMA_ELEMS_queue((u32) unpackedTilesetChunk, startTileIndex * 32, lenInWords, VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET);
+	DMA_ELEMS_queue((u32) unpackedTilesetChunk, startTileIndex * 32, lenInWords, dmaElemType);
 }
 
 static FORCE_INLINE void queueTilemapData ()
@@ -511,25 +518,102 @@ void playMovie ()
 
 		bool exitPlayer = FALSE;
 
+        #ifdef COMMON_TILES_IN_RANGE
+        ImageCommonTilesRange* commonTilesRange_ptr = (ImageCommonTilesRange*) commonTilesRange_movie1;
+        #endif
+
 		while (vFrame < MOVIE_FRAME_COUNT)
 		{
-			unpackFrameTileset(data[vFrame]->tileset1);
-			u16 numTile1 = data[vFrame]->tileset1->numTile;
-			queueTilesetData(baseTileIndex, numTile1);
+            #ifdef COMMON_TILES_IN_RANGE
+            bool isAtFirstImageOfRange = vFrame == commonTilesRange_ptr->startingIdx;
+            #else
+            bool isAtFirstImageOfRange = FALSE;
+            #endif
+            if (isAtFirstImageOfRange) {
+                #ifdef COMMON_TILES_IN_RANGE
+                const ImageNoPalsSplit31CompField* imageSplit = data[vFrame];
+                u16 totalTiles = imageSplit->tileset1->numTile + imageSplit->tileset2->numTile + imageSplit->tileset3->numTile;
+                u16 totalCommonTiles = commonTilesRange_ptr->numTiles;
+                s16 totalNormalTiles = totalTiles - totalCommonTiles;
+                u16 commonTilesOffsetVRAM = baseTileIndex + (VIDEO_FRAME_TILESET_TOTAL_SIZE - totalCommonTiles);
+                u16 normalTilesOffsetVRAM = baseTileIndex;
+                // Advance to next common tiles range element
+                commonTilesRange_ptr++;
 
-            waitVInt_AND_flushDMA();
+                unpackFrameTileset(imageSplit->tileset1);
+                if (totalNormalTiles > 0) {
+                    u16 normal_numTile1 = min(imageSplit->tileset1->numTile, totalNormalTiles);
+                    queueTilesetData(normalTilesOffsetVRAM, normal_numTile1, VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_1);
+                    normalTilesOffsetVRAM += normal_numTile1;
+                }
+                totalNormalTiles -= imageSplit->tileset1->numTile;
+                if (totalNormalTiles < 0) {
+                    u16 commonTilesNum = -1*totalNormalTiles;
+                    totalNormalTiles = 0; // no more normal tiles
+                    queueTilesetData(commonTilesOffsetVRAM, commonTilesNum, VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_2);
+                    commonTilesOffsetVRAM += commonTilesNum;
+                }
 
-			unpackFrameTileset(data[vFrame]->tileset2);
-			u16 numTile2 = data[vFrame]->tileset2->numTile;
-			queueTilesetData(baseTileIndex + numTile1, numTile2);
+                waitVInt_AND_flushDMA();
 
-            waitVInt_AND_flushDMA();
+                unpackFrameTileset(imageSplit->tileset2);
+                if (totalNormalTiles > 0) {
+                    u16 normal_numTile2 = min(imageSplit->tileset2->numTile, totalNormalTiles);
+                    queueTilesetData(normalTilesOffsetVRAM, normal_numTile2, VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_1);
+                    normalTilesOffsetVRAM += normal_numTile2;
+                }
+                totalNormalTiles -= imageSplit->tileset2->numTile;
+                if (totalNormalTiles < 0) {
+                    u16 commonTilesNum = -1*totalNormalTiles;
+                    totalNormalTiles = 0; // no more normal tiles
+                    queueTilesetData(commonTilesOffsetVRAM, commonTilesNum, VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_2);
+                    commonTilesOffsetVRAM += commonTilesNum;
+                }
 
-			unpackFrameTileset(data[vFrame]->tileset3);
-			u16 numTile3 = data[vFrame]->tileset3->numTile;
-			queueTilesetData(baseTileIndex + numTile1 + numTile2, numTile3);
+                waitVInt_AND_flushDMA();
 
-            waitVInt_AND_flushDMA();
+                unpackFrameTileset(imageSplit->tileset3);
+                if (totalNormalTiles > 0) {
+                    u16 normal_numTile3 = min(imageSplit->tileset3->numTile, totalNormalTiles);
+                    queueTilesetData(normalTilesOffsetVRAM, normal_numTile3, VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_1);
+                    normalTilesOffsetVRAM += normal_numTile3;
+                }
+                totalNormalTiles -= imageSplit->tileset3->numTile;
+                if (totalNormalTiles < 0) {
+                    u16 commonTilesNum = -1*totalNormalTiles;
+                    totalNormalTiles = 0; // no more normal tiles
+                    queueTilesetData(commonTilesOffsetVRAM, commonTilesNum, VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_2);
+                    commonTilesOffsetVRAM += commonTilesNum;
+                }
+
+                waitVInt_AND_flushDMA();
+                #endif
+            }
+            else {
+                const ImageNoPalsSplit31CompField* imageSplit = data[vFrame];
+                u16 tilesOffsetVRAM = baseTileIndex;
+
+                unpackFrameTileset(imageSplit->tileset1);
+                u16 numTile1 = imageSplit->tileset1->numTile;
+                queueTilesetData(tilesOffsetVRAM, numTile1, VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_1);
+                tilesOffsetVRAM += numTile1;
+
+                waitVInt_AND_flushDMA();
+
+                unpackFrameTileset(imageSplit->tileset2);
+                u16 numTile2 = imageSplit->tileset2->numTile;
+                queueTilesetData(tilesOffsetVRAM, numTile2, VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_1);
+                tilesOffsetVRAM += numTile2;
+
+                waitVInt_AND_flushDMA();
+
+                unpackFrameTileset(imageSplit->tileset3);
+                u16 numTile3 = imageSplit->tileset3->numTile;
+                queueTilesetData(tilesOffsetVRAM, numTile3, VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_1);
+                tilesOffsetVRAM += numTile3;
+
+                waitVInt_AND_flushDMA();
+            }
 
 			// Toggles between TILE_USER_INDEX_CUSTOM (initial mandatory value) and TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE
 			baseTileIndex ^= (TILE_USER_INDEX_CUSTOM ^ (TILE_USER_INDEX_CUSTOM + VIDEO_FRAME_TILESET_TOTAL_SIZE)); // a ^= (x1 ^ x2)
@@ -569,17 +653,20 @@ void playMovie ()
 
 			#if VIDEO_PLAYER_DEBUG_FIXED_VFRAME
 			vFrame = VIDEO_PLAYER_DEBUG_FIXED_VFRAME;
-			#else
-			#if FORCE_NO_MISSING_FRAMES
+			#elif FORCE_NO_MISSING_FRAMES
 			// A frame is missed when the overal unpacking and loading is eating more than 60/15=4 NTSC (50/15=3.33 PAL) active display periods (for MOVIE_FRAME_RATE = 15)
 			vFrame = prevFrame + 1;
 			#else
 			// IMPORTANT: next frame must be counter parity from previous frame. If same parity (both even or both odd) then we will mistakenly 
 			// override the tileset VRAM region that is currently being used for display the recently loaded frame.
-			if (!((prevFrame ^ vFrame) & 1))
-			   ++vFrame; // move into next frame so parity is not shared with previous frame
+            vFrame += !((prevFrame ^ vFrame) & 1); // Adjusts frame value depending on the parity with previous one
 			#endif
-			#endif
+
+            #ifdef COMMON_TILES_IN_RANGE
+            // TODO: if vFrame is in a different range than prevFrame, then ensure vFrame is the starting frame of the new range (if any),
+            // otherwise we need to accomodate vFrame such it points at the start of the range so next loop we load its common tiles.
+            // IDEA: loop with ++vFrame and waitVInt() while vFrame != commonTilesRange_ptr->startingIdx
+            #endif
 
 			#if VIDEO_PLAYER_DEBUG_LOG_DIFF_BETWEEN_VIDEO_FRAMES
 			u16 frmCntr = (u16) vtimer;

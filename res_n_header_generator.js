@@ -73,8 +73,6 @@ const commonTilesRangeId = "commonTilesRange_movie1";
 const minCommonTilesNum = 10;
 const useCommonTilesRange = false;
 
-// Tileset split startegy: SPLIT_MAX_CAPACITY_FIRST or SPLIT_EVENLY
-const tilesetSplitStrategy = "SPLIT_MAX_CAPACITY_FIRST"
 // split tileset in N chunks. Current valid values are [1, 2, 3]
 const tilesetSplit = 3;
 // split tilemap in N chunks. Current values are [1, 2, 3]. Always <= tilesetSplit
@@ -82,6 +80,8 @@ const tilemapSplit = 1;
 // Add compression field if you know some tilesets and tilemaps won't be compressed (by rescomp rules) or if you plan to test different compression algorithms.
 // You might need to modify unpackFrameTileset() and unpackFrameTilemap() at videoPlayer.c
 const imageAddCompressionField = true;
+// Tileset split strategy: SPLIT_MAX_CAPACITY_FIRST or SPLIT_EVENLY
+var tilesetSplitStrategy = useCommonTilesRange ? "SPLIT_MAX_CAPACITY_FIRST" : "SPLIT_EVENLY";
 
 // Next data got experimentally from rescomp output (using resource TILESET_STATS_COLLECTOR). If odd then use next even number.
 var videoFrameTilesetChunkSize = resPropertiesMap.get('MAX_TILESET_NUM_FOR_MAP_BASE_TILE_INDEX');
@@ -225,9 +225,6 @@ fs.writeFileSync(`${GEN_INC_DIR}/movie_data_consts.h`,
 
 #define VIDEO_FRAME_TILESET_CHUNK_SIZE ${videoFrameTilesetChunkSize}
 #define VIDEO_FRAME_TILESET_TOTAL_SIZE ${videoFrameTilesetTotalSize}
-#define VIDEO_FRAME_TILESET_MAX_CHUNK_1_SIZE ${tilesetMaxChunk1Size}
-#define VIDEO_FRAME_TILESET_MAX_CHUNK_2_SIZE ${tilesetMaxChunk2Size}
-#define VIDEO_FRAME_TILESET_MAX_CHUNK_3_SIZE ${tilesetMaxChunk3Size}
 
 #endif // _MOVIE_DATA_CONSTS_H
 `);

@@ -98,9 +98,9 @@ public enum CustomDataTypes {
 		case ImageCommonTilesRange:
 			return "typedef struct {\n"
 					+ "    u16 startingIdx;\n"
-					+ "    u16 endingIdx;\n"
+//					+ "    u16 endingIdx;\n"
 					+ "    u16 numTiles;\n"
-					+ "    u32* data;\n"
+//					+ "    u32* data;\n"
 					+ "} " + ImageCommonTilesRange.getValue() + ";\n";
 		case ImageNoPals:
 			return "typedef struct {\n"

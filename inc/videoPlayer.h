@@ -8,7 +8,8 @@
 #define VIDEO_PLAYER_DEBUG_FIXED_VFRAME 0 // Always use an even frame number due to the map base tile index statically set on each frame by our custom rescomp extension
 #define VIDEO_PLAYER_DEBUG_LOG_DIFF_BETWEEN_VIDEO_FRAMES FALSE
 
-#define VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET 0
+#define VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_1 0
+#define VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_2 0
 #define VIDEO_PLAYER_DMA_ELEM_TYPE_TILEMAP 1
 #define VIDEO_PLAYER_DMA_ELEM_TYPE_PALETTE 2
 

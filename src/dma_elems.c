@@ -6,8 +6,10 @@
 #include "videoPlayer.h"
 #include "utils.h"
 
-static DMAOpInfo dmaElemTileset;
-static bool dmaElemTileset_ready;
+static DMAOpInfo dmaElemTileset1;
+static bool dmaElemTileset1_ready;
+static DMAOpInfo dmaElemTileset2;
+static bool dmaElemTileset2_ready;
 #if MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES > MOVIE_FRAME_WIDTH_IN_TILES
 static DMAOpInfo dmaElemTilemap;
 #endif
@@ -20,19 +22,33 @@ static bool dmaElemPalette_ready;
 
 FORCE_INLINE void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, u8 dmaElemType)
 {
-    if (dmaElemType == VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET)
+    if (dmaElemType == VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_1)
     {
         // $13:len L  $14:len H (DMA length in word)
-        dmaElemTileset.regLenL = 0x9300 | (len & 0xFF);
-        dmaElemTileset.regLenH = 0x9400 | (len >> 8);
+        dmaElemTileset1.regLenL = 0x9300 | (len & 0xFF);
+        dmaElemTileset1.regLenH = 0x9400 | (len >> 8);
         // $16:M  $f:step (DMA address M and Step register)
-        dmaElemTileset.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // VDP step = 2
+        dmaElemTileset1.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // VDP step = 2
         // $17:H  $15:L (DMA address H & L)
-        dmaElemTileset.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
+        dmaElemTileset1.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
         // VDP command
-        dmaElemTileset.regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
+        dmaElemTileset1.regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
 
-        dmaElemTileset_ready = TRUE;
+        dmaElemTileset1_ready = TRUE;
+    }
+    else if (dmaElemType == VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_2)
+    {
+        // $13:len L  $14:len H (DMA length in word)
+        dmaElemTileset2.regLenL = 0x9300 | (len & 0xFF);
+        dmaElemTileset2.regLenH = 0x9400 | (len >> 8);
+        // $16:M  $f:step (DMA address M and Step register)
+        dmaElemTileset2.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // VDP step = 2
+        // $17:H  $15:L (DMA address H & L)
+        dmaElemTileset2.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
+        // VDP command
+        dmaElemTileset2.regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
+
+        dmaElemTileset2_ready = TRUE;
     }
     else if (dmaElemType == VIDEO_PLAYER_DMA_ELEM_TYPE_TILEMAP)
     {
@@ -79,9 +95,23 @@ void DMA_ELEMS_flush ()
 {
     vu32* vdpCtrl_ptr_l = (vu32*) VDP_CTRL_PORT;
 
-    if (dmaElemTileset_ready) {
-        dmaElemTileset_ready = FALSE;
-        DMAOpInfo* elem_ptr = &dmaElemTileset;
+    if (dmaElemTileset1_ready) {
+        dmaElemTileset1_ready = FALSE;
+        DMAOpInfo* elem_ptr = &dmaElemTileset1;
+        __asm volatile (
+            "move.l   (%0)+, (%1)\n\t"
+            "move.l   (%0)+, (%1)\n\t"
+            "move.l   (%0)+, (%1)\n\t"
+            "move.w   (%0)+, (%1)\n\t"
+            "move.w   (%0)+, (%1)"      // Stef: important to use word write for command triggering DMA (see SEGA notes)
+            : "+a" (elem_ptr)
+            : "a" (vdpCtrl_ptr_l)
+            :
+        );
+    }
+    if (dmaElemTileset2_ready) {
+        dmaElemTileset2_ready = FALSE;
+        DMAOpInfo* elem_ptr = &dmaElemTileset2;
         __asm volatile (
             "move.l   (%0)+, (%1)\n\t"
             "move.l   (%0)+, (%1)\n\t"

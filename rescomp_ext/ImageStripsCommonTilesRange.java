@@ -64,7 +64,8 @@ public class ImageStripsCommonTilesRange extends Resource
         		        final BinCustom binResource = new BinCustom(binId + "_data", data, compression, compressionCustomFinal);
         		        // internal
         		        binResource.global = false;
-        		        final BinCustom bin = (BinCustom) addInternalResource(binResource);
+//        		        final BinCustom bin = (BinCustom) addInternalResource(binResource);
+        		        final BinCustom bin = binResource;
         				return new CommonTilesRangeResData(range.getNumTiles(), range.getStartingImgIdx(), range.getEndingImgIdx(), bin);
         			})
         			.collect(Collectors.toList());
@@ -103,7 +104,8 @@ public class ImageStripsCommonTilesRange extends Resource
     @Override
     public int shallowSize()
     {
-    	return (2 + 2 + 2 + 4) * commonTilesRangeResData.size();
+//    	return (2 + 2 + 2 + 4) * commonTilesRangeResData.size();
+    	return (2 + 2 + 0 + 0) * commonTilesRangeResData.size();
     }
 
     @Override
@@ -125,16 +127,18 @@ public class ImageStripsCommonTilesRange extends Resource
 			Util.declArray(outS, outH, CustomDataTypes.ImageCommonTilesRange.getValue(), id, commonTilesRangeResData.size(), 2, global);
 			commonTilesRangeResData.forEach( range -> {
 				outS.append("    dc.w    " + range.getStartingIdx() + "\n");
-				outS.append("    dc.w    " + range.getEndingIdx() + "\n");
+				// When uncomment, adjust shallowSize(), and uncomment also for struct CustomDataTypes.ImageCommonTilesRange
+//				outS.append("    dc.w    " + range.getEndingIdx() + "\n");
 				outS.append("    dc.w    " + range.getNumTiles() + "\n");
-				outS.append("    dc.l    " + range.getBin().id + "\n");
+				// When uncomment, remember to use correct bin instance at constructor, adjust shallowSize(), and uncomment also for struct CustomDataTypes.ImageCommonTilesRange
+//				outS.append("    dc.l    " + range.getBin().id + "\n");
 			});
 			Util.declArrayEnd(outS, outH, CustomDataTypes.ImageCommonTilesRange.getValue(), id, commonTilesRangeResData.size(), 2, global);
 			
 			outS.append("\n");
 			
 			// Declare as a constant how many elements the array holds
-			String arraySizeDeclarationConstant = "#define " + id + "_NUM_ELEMS " + commonTilesRangeResData.size() + "\n\n";
+			String arraySizeDeclarationConstant = "#define " + id.toUpperCase() + "_NUM_ELEMS " + commonTilesRangeResData.size() + "\n\n";
 			outH.append(arraySizeDeclarationConstant);
 			
 			// Declare as a constant the use of this resource

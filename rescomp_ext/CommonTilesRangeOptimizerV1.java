@@ -377,7 +377,7 @@ public class CommonTilesRangeOptimizerV1 {
 			- Maximize total numTiles
 			- Works even when some ranges are inside others
 			- Produces an optimal subset (no redundant or dominated ranges)
-		If your intended meaning of “maximize use of tiles” is select non-overlapping ranges whose total numTiles is maximum, this is the right algorithm.
+		If your intended meaning of "maximize use of tiles" is select non-overlapping ranges whose total numTiles is maximum, this is the right algorithm.
 		*/
 
 		// 1. Sort by ending index (required for weighted interval scheduling)

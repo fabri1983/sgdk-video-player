@@ -1,9 +1,10 @@
 @ECHO OFF
+setlocal EnableDelayedExpansion
 
 :: Locate this script at %GDK_WIN%\tools\rescomp
 
 SET JAVA_SOURCE=8
-SET JAVA_TARGET=17
+SET JAVA_TARGET=21
 
 IF "%JAVA_HOME%"=="" (
     echo ERROR: JAVA_HOME environment variable is not set!
@@ -11,12 +12,26 @@ IF "%JAVA_HOME%"=="" (
 	GOTO FINISHED
 )
 
-:: Check directory
+:: Check Java's installed directory
 IF NOT EXIST "%JAVA_HOME%" (
     echo ERROR: JAVA_HOME path does not exist: %JAVA_HOME%
 	PAUSE
 	GOTO FINISHED
 )
+
+:: Detect Java major version
+for /f "tokens=2 delims==" %%A in ('java -XshowSettings:properties -version 2^>^&1 ^| findstr "java.specification.version"') do (
+    set JAVA_SPEC=%%A
+)
+
+:: Normalize version (8 vs 11+)
+if "%JAVA_SPEC%"=="1.8" (
+    set JAVA_MAJOR=8
+) else (
+    set JAVA_MAJOR=%JAVA_SPEC%
+)
+
+echo Java version found: %JAVA_MAJOR%
 
 IF "%~dp0" == "%GDK_WIN%\tools\rescomp\" (
 	GOTO COMPILE_DEPENDENCIES
@@ -28,11 +43,17 @@ IF "%~dp0" == "%GDK_WIN%\tools\rescomp\" (
 
 :COMPILE_DEPENDENCIES
 
+set "javac_source_target_flags=-source %JAVA_SOURCE% -target %JAVA_TARGET%"
+:: Java 9+ accepts -release flag
+if %JAVA_MAJOR% GEQ 9 (
+    set "javac_source_target_flags=--release %JAVA_TARGET%"
+)
+
 IF EXIST "../apj/src" (
 	ECHO Compiling apj project...
     IF NOT EXIST "../apj/bin" MD "../apj/bin"
     dir /s /b "../apj/src\*.java" > apj_sources.txt
-    javac -source %JAVA_SOURCE% -target %JAVA_TARGET% -d "../apj/bin" @apj_sources.txt
+    javac %javac_source_target_flags% -d "../apj/bin" @apj_sources.txt
     del apj_sources.txt
 )
 
@@ -40,7 +61,7 @@ IF EXIST "../commons/src" (
 	ECHO Compiling commons project...
     IF NOT EXIST "../commons/bin" MD "../commons/bin"  
     dir /s /b "../commons/src\*.java" > commons_sources.txt
-    javac -source %JAVA_SOURCE% -target %JAVA_TARGET% -d "../commons/bin" @commons_sources.txt
+    javac %javac_source_target_flags% -d "../commons/bin" @commons_sources.txt
     del commons_sources.txt
 )
 
@@ -48,7 +69,7 @@ IF EXIST "../lz4w/src" (
 	ECHO Compiling lz4w project...
     IF NOT EXIST "../lz4w/bin" MD "../lz4w/bin"
     dir /s /b "../lz4w/src\*.java" > lz4w_sources.txt
-    javac -source %JAVA_SOURCE% -target %JAVA_TARGET% -d "../lz4w/bin" @lz4w_sources.txt
+    javac %javac_source_target_flags% -d "../lz4w/bin" @lz4w_sources.txt
     del lz4w_sources.txt
 )
 
@@ -64,7 +85,7 @@ IF NOT EXIST src\ (
 
 :: Create list of all Java files
 dir /s /b src\*.java > rescomp_sources.txt
-javac -source %JAVA_SOURCE% -target %JAVA_TARGET% -d bin -cp "../apj/bin;../commons/bin;../lz4w/bin" @rescomp_sources.txt
+javac %javac_source_target_flags% -d bin -cp "../apj/bin;../commons/bin;../lz4w/bin" @rescomp_sources.txt
 del rescomp_sources.txt
 
 IF EXIST bin\ (
@@ -85,6 +106,7 @@ CD tempClassesDir
 ::RMDIR /S /Q META-INF 2>NUL
 ::DEL /Q LICENSE 2>NUL
 CD ..
+
 jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/processor/HeaderAppenderAllCustomProcessor.class ^
 	./sgdk/rescomp/processor/HeaderAppenderCompressionCustomProcessor.class ^
@@ -156,11 +178,9 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/tool/TilesCacheManager.class ^
 	./sgdk/rescomp/tool/TilesetSizeSplitCalculator.class ^
 	./sgdk/rescomp/tool/TilesetStatsCollector.class ^
-	./sgdk/rescomp/type/CompressionCustom$1.class ^
 	./sgdk/rescomp/type/CompressionCustom.class ^
 	./sgdk/rescomp/type/CommonTilesRange.class ^
 	./sgdk/rescomp/type/CommonTilesRangeResData.class ^
-	./sgdk/rescomp/type/CustomDataTypes$1.class ^
 	./sgdk/rescomp/type/CustomDataTypes.class ^
 	./sgdk/rescomp/type/PackedDataCustom.class ^
 	./sgdk/rescomp/type/PalettesPositionEnum.class ^

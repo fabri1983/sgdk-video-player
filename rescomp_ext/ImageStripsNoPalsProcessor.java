@@ -128,7 +128,7 @@ public class ImageStripsNoPalsProcessor implements Processor
         // commonTilesId
         String commonTilesRangeId = null; // null or empty string is considered as an invalid common tiles id
         if (fields.length >= 7) {
-        	String valueId = fields[6].toUpperCase();
+        	String valueId = fields[6];
         	if (!"NONE".equals(valueId) && !"NULL".equals(valueId)) {
         		commonTilesRangeId = valueId;
         	}

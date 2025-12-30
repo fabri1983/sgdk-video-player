@@ -39,13 +39,14 @@ public enum CompressionCustom {
 	ROCKET(					"ROCKET",				"rockcmp",				36),
 	SAXMAN(					"SAXMAN",				"saxcmp",				37),
 	SBZ(					"SBZ",					"sbz",					38),
-	SNKRLE(					"SNKRLE",				"snkcmp",				39),
-	TWIZZLER(				"TWIZZLER",				"twizzler",				40),
-	TWIZZLERMOD(			"TWIZZLERMOD",			"twizmod",				41),
-	UFTC(					"UFTC",					"uftc",					42),
-	UFTC15(					"UFTC15",				"uftc",					43),
-	UNAPLIB(				"UNAPLIB",				"",						44),
-	ZX0(					"ZX0",					"salvador",				45);
+	SHRINKLER(				"SHRINKLER",			"shrinkler",			39),
+	SNKRLE(					"SNKRLE",				"snkcmp",				40),
+	TWIZZLER(				"TWIZZLER",				"twizzler",				41),
+	TWIZZLERMOD(			"TWIZZLERMOD",			"twizmod",				42),
+	UFTC(					"UFTC",					"uftc",					43),
+	UFTC15(					"UFTC15",				"uftc",					44),
+	UNAPLIB(				"UNAPLIB",				"",						45),
+	ZX0(					"ZX0",					"salvador",				46);
 
     private final String value;
     private final String exeName;

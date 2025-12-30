@@ -114,11 +114,14 @@ public class MdComp {
 				// -b: binary output; -t: Try to output tiny model data if possible
 				flags = Arrays.asList(compression.getExeName(), "-b", "-t", infile, outfile);
 			}
-			else if (compression == CompressionCustom.RNC1 || compression == CompressionCustom.RNC2) {
-				if (compression == CompressionCustom.RNC1)
-					flags = Arrays.asList(compression.getExeName(), "p", infile, outfile, "-m=1");
-				else
-					flags = Arrays.asList(compression.getExeName(), "p", infile, outfile, "-m=2");
+			else if (compression == CompressionCustom.RNC1) {
+				flags = Arrays.asList(compression.getExeName(), "p", infile, outfile, "-m=1");
+			}
+			else if (compression == CompressionCustom.RNC2) {
+				flags = Arrays.asList(compression.getExeName(), "p", infile, outfile, "-m=2");
+			}
+			else if (compression == CompressionCustom.SHRINKLER) {
+				flags = Arrays.asList(compression.getExeName(), "--data", "--bytes", "--no-progress", "-6", infile, outfile);
 			}
 			else if (compression == CompressionCustom.TWIZZLER || compression == CompressionCustom.TWIZZLERMOD) {
 				flags = Arrays.asList(compression.getExeName(), infile);

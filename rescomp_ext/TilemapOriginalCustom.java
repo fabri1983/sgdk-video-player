@@ -90,6 +90,8 @@ public class TilemapOriginalCustom extends Resource
     		videoFrameBufferOffsetIndexOfStartingImg = TilemapCustomTools.calculateVideoFrameBufferOffsetIndex(
     				toggleMapTileBaseIndexFlag, startingImgNumInName, tileIndexA, tileIndexB);
     	}
+		// The offset for common tiles is always at the end of the frame buffer
+		int startingImgTilesetSize = maxFrameTilesetTotalSize - commonTiles.size();
 
 		// we have a base offset --> we can use system plain tiles
         final boolean useSystemTiles = mapBaseTileInd != 0;
@@ -144,8 +146,6 @@ public class TilemapOriginalCustom extends Resource
 
                     		// Is tile a common tile?
 							if (indexInCommonTilesList != -1) {
-								// The offset for common tiles is always at the end of the frame buffer
-								int startingImgTilesetSize = maxFrameTilesetTotalSize - commonTiles.size();
 								index = indexInCommonTilesList + mapBaseTileInd + videoFrameBufferOffsetIndexOfStartingImg + startingImgTilesetSize;
 							}
                         	// No common tile
@@ -196,8 +196,6 @@ public class TilemapOriginalCustom extends Resource
 
                     		// Is tile a common tile?
 							if (indexInCommonTilesList != -1) {
-								// The offset for common tiles is always at the end of the frame buffer
-								int startingImgTilesetSize = maxFrameTilesetTotalSize - commonTiles.size();
 								index = indexInCommonTilesList + mapBaseTileInd + videoFrameBufferOffsetIndexOfStartingImg + startingImgTilesetSize;
 							}
                         	// No common tile

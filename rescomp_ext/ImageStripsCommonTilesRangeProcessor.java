@@ -49,10 +49,9 @@ public class ImageStripsCommonTilesRangeProcessor implements Processor
 		}
 
         // get the commonTilesId as the resource id
-        String originalCommonTilesId_keepCase = fields[1];
-        if (originalCommonTilesId_keepCase == null || originalCommonTilesId_keepCase.isEmpty() || originalCommonTilesId_keepCase.isBlank())
+        String commonTilesRangeId = fields[1];
+        if (commonTilesRangeId == null || commonTilesRangeId.isEmpty() || commonTilesRangeId.isBlank())
         	throw new IllegalArgumentException("commonTilesId is invalid");
-        String commonTilesRangeId = originalCommonTilesId_keepCase.toUpperCase();
 
         // enable value
  		boolean enable = "TRUE".equals(fields[2].toUpperCase());

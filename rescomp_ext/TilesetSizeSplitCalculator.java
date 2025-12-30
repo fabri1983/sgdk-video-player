@@ -37,7 +37,7 @@ public class TilesetSizeSplitCalculator {
 
 		for (int i = 0; i < numChunks; i++) {
 			if (index >= totalTiles) {
-				// No tiles left – add empty chunk
+				// No tiles left - add empty chunk
 				result.add(Collections.emptyList());
 				continue;
 			}
@@ -109,7 +109,7 @@ public class TilesetSizeSplitCalculator {
 				remainder--;
 			}
 
-			// Make sure we don’t read past the available tiles
+			// Make sure we don't read past the available tiles
 			int end = Math.min(index + size, totalTiles);
 
 			result.add(tileset.subList(index, end));
