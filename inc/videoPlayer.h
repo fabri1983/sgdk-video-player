@@ -28,6 +28,7 @@
 
 // Enables HInt callback implementation using DMA (TRUE) or pure CPU (FALSE).
 // Using DMA adds some pressure to the Z80 due to bus contention, or something like that.
+// Using CPU it makes the audio more in sync with the frames.
 #define HINT_USE_DMA FALSE
 
 #define VIDEO_FRAME_PALS_COLORS_NUM (MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP)
@@ -57,7 +58,7 @@
 // Using bigger image height or locating it at upper Y values will reveal the flickering.
 #define TILES_PER_DMA_TRANSFER 368
 
-#define FADE_TO_BLACK_STEPS 7 // How many steps needs to be applied as much to reach black color. Max is 7.
+#define FADE_TO_BLACK_STEPS 7 // How many steps needs to be applied in order to reach black color. Max is 7.
 #define FADE_TO_BLACK_STEP_FREQ 4 // Every N frames we apply one fade to black step.
 
 void playMovie ();
