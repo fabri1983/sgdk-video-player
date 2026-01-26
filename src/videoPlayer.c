@@ -130,8 +130,8 @@ static FORCE_INLINE void waitVInt_AND_flushDMA ()
 
 	render_Z80_setBusProtection(TRUE);
     // delay enabled ? --> wait a bit (10 ticks) to improve PCM playback (test on SOR2)
-    //if (Z80_getForceDelayDMA())
-	//    waitSubTick_(10);
+    if (Z80_getForceDelayDMA())
+	    waitSubTick_(10);
 
 	render_DMA_flushQueue();
 

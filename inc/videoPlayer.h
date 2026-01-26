@@ -27,8 +27,8 @@
 #define VIDEO_FRAME_ADVANCE_STRATEGY 4
 
 // Enables HInt callback implementation using DMA (TRUE) or pure CPU (FALSE).
-// Using DMA adds some pressure to the Z80 due to bus contention, or something like that.
-// Using CPU it makes the audio more in sync with the frames.
+// Using DMA adds some pressure on the Z80 due to bus contention (or something like that), and introduces some delay in audio sync.
+// Using CPU allows the audio to be in sync with the displayed video frames.
 #define HINT_USE_DMA FALSE
 
 #define VIDEO_FRAME_PALS_COLORS_NUM (MOVIE_FRAME_STRIPS * MOVIE_FRAME_COLORS_PER_STRIP)
