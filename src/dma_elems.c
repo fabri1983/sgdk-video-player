@@ -24,12 +24,12 @@ FORCE_INLINE void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, u8 dmaElemType
 {
     if (dmaElemType == VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_1)
     {
-        // $13:len L  $14:len H (DMA length in word)
+        // DMA length Low and High
         dmaElemTileset1.regLenL = 0x9300 | (len & 0xFF);
         dmaElemTileset1.regLenH = 0x9400 | (len >> 8);
-        // $16:M  $f:step (DMA address M and Step register)
+        // DMA address Mid and VDP Step register
         dmaElemTileset1.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // VDP step = 2
-        // $17:H  $15:L (DMA address H & L)
+        // DMA address High and Low
         dmaElemTileset1.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
         // VDP command
         dmaElemTileset1.regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
@@ -38,12 +38,12 @@ FORCE_INLINE void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, u8 dmaElemType
     }
     else if (dmaElemType == VIDEO_PLAYER_DMA_ELEM_TYPE_TILESET_2)
     {
-        // $13:len L  $14:len H (DMA length in word)
+        // DMA length Low and High
         dmaElemTileset2.regLenL = 0x9300 | (len & 0xFF);
         dmaElemTileset2.regLenH = 0x9400 | (len >> 8);
-        // $16:M  $f:step (DMA address M and Step register)
+        // DMA address Mid and VDP Step register
         dmaElemTileset2.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // VDP step = 2
-        // $17:H  $15:L (DMA address H & L)
+        // DMA address High and Low
         dmaElemTileset2.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
         // VDP command
         dmaElemTileset2.regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
@@ -53,12 +53,12 @@ FORCE_INLINE void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, u8 dmaElemType
     else if (dmaElemType == VIDEO_PLAYER_DMA_ELEM_TYPE_TILEMAP)
     {
         #if MOVIE_FRAME_EXTENDED_WIDTH_IN_TILES > MOVIE_FRAME_WIDTH_IN_TILES
-        // $13:len L  $14:len H (DMA length in word)
+        // DMA length Low and High
         dmaElemTilemap.regLenL = 0x9300 | (len & 0xFF);
         dmaElemTilemap.regLenH = 0x9400 | (len >> 8);
-        // $16:M  $f:step (DMA address M and Step register)
+        // DMA address Mid and VDP Step register
         dmaElemTilemap.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // VDP step = 2
-        // $17:H  $15:L (DMA address H & L)
+        // DMA address High and Low
         dmaElemTilemap.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
         // VDP command
         dmaElemTilemap.regCtrlWrite = VDP_DMA_VRAM_ADDR((u32)to);
@@ -67,15 +67,15 @@ FORCE_INLINE void DMA_ELEMS_queue (u32 fromAddr, u16 to, u16 len, u8 dmaElemType
         dmaElemTilemap_ready = TRUE;
     }
     #if MOVIE_FRAME_STRIPS == 1
-    // TODO PALS_1: this is going to be useful when first 2 strips' palettes (previously unpacked) will be enqueued
+    // TODO PALS_1: this is going to be useful when first 2 strips' palettes (previously unpacked) be enqueued
     else if (dmaElemType == VIDEO_PLAYER_DMA_ELEM_TYPE_PALETTE)
     {
-        // $13:len L  $14:len H (DMA length in word)
+        // DMA length Low and High
         dmaElemPalette.regLenL = 0x9300 | (len & 0xFF);
         dmaElemPalette.regLenH = 0x9400 | (len >> 8);
-        // $16:M  $f:step (DMA address M and Step register)
+        // DMA address Mid and VDP Step register
         dmaElemPalette.regAddrMStep = 0x96008F00 | ((fromAddr << 7) & 0xFF0000) | 2; // VDP step = 2
-        // $17:H  $15:L (DMA address H & L)
+        // DMA address High and Low
         dmaElemPalette.regAddrHAddrL = 0x97009500 | ((fromAddr >> 1) & 0x7F00FF);
         // VDP command
         dmaElemPalette.regCtrlWrite = VDP_DMA_CRAM_ADDR((u32)to);
