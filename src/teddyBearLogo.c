@@ -3,19 +3,19 @@
  * https://github.com/fabri1983
 */
 #include <types.h>
+#include <sys.h>
 #include <vdp.h>
 #include <vdp_bg.h>
 #include <vdp_tile.h>
 #include <memory.h>
 #include <joy.h>
-#include <sys.h>
 #include <sprite_eng.h>
 #include <string.h>
 #include "teddyBearLogo.h"
 #include "logos_res.h"
 #include "utils.h"
 
-#define STR_VERSION "v2.12 (Nov 2025)"
+#define STR_VERSION "v2.12 (May 2026)"
 #define STR_VERSION_LEN 17 // String version length including \0
 
 void displayTeddyBearLogo ()

@@ -27,9 +27,9 @@
         "move.w  %[_addr_high],(%[_ctrl_port])\n\t" /* *((vu32*) VDP_CTRL_PORT) = (0x9700 | ((fromAddr >> 17) & 0x7f)); */ \
         /* Trigger DMA */ \
         /* Force storing and issuing DMA command into and from memory (avoid possible failure on some MD) */ \
-        "move.l  %[_cmdAddr],-4(%%sp)\n\t" \
-        "move.w  -4(%%sp),(%[_ctrl_port])\n\t" \
-        "move.w  -2(%%sp),(%[_ctrl_port])" \
+        "move.l  %[_cmdAddr],-(%%sp)\n\t" \
+        "move.w  (%%sp)+,(%[_ctrl_port])\n\t" \
+        "move.w  (%%sp)+,(%[_ctrl_port])" \
         /* Faster but may fail in some MD */ \
         /*"move.l  %[_cmdAddr],(%[_ctrl_port])"*/ /* *((vu32*) VDP_CTRL_PORT) = cmdAddr; */ \
         : \
@@ -54,9 +54,9 @@
         "move.w  %[_len_low],(%[_ctrl_port])\n\t" /* *((vu16*) VDP_CTRL_PORT) = 0x9300 | (u8)len; */ \
         /* Trigger DMA */ \
         /* Force storing and issuing DMA command into and from memory (avoid possible failure on some MD) */ \
-        "move.l  %[_cmdAddr],-4(%%sp)\n\t" \
-        "move.w  -4(%%sp),(%[_ctrl_port])\n\t" \
-        "move.w  -2(%%sp),(%[_ctrl_port])" \
+        "move.l  %[_cmdAddr],-(%%sp)\n\t" \
+        "move.w  (%%sp)+,(%[_ctrl_port])\n\t" \
+        "move.w  (%%sp)+,(%[_ctrl_port])" \
         /* Faster but may fail in some MD */ \
         /*"move.l  %[_cmdAddr],(%[_ctrl_port])"*/ /* *((vu32*) VDP_CTRL_PORT) = cmdAddr; */ \
         : \

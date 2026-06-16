@@ -91,16 +91,12 @@ public class BinCustom extends Bin
         if (wantedCompressionCustom != CompressionCustom.NONE) {
             System.out.print("'" + id + "' ");
 
-            switch (doneCompressionCustom)
-            {
-                case NONE:
-                    System.out.println("not packed (size = " + baseSize + ")");
-                    break;
-
-                default: 
-                    System.out.print("packed with " + doneCompressionCustom.getValue() + ", ");
-                    break;
-            }
+        	// NOTE: do not use switch-case statements in order to avoid creation of inner class $1
+			if (doneCompressionCustom == CompressionCustom.NONE) {
+				System.out.println("not packed (size = " + baseSize + ")");
+			} else {
+				System.out.print("packed with " + doneCompressionCustom.getValue() + ", ");
+			}
 
             if (doneCompressionCustom != CompressionCustom.NONE) {
             	CompressionCustomUsageTracker.markUsed(doneCompressionCustom);
@@ -112,26 +108,18 @@ public class BinCustom extends Bin
         {
             System.out.print("'" + id + "' ");
 
-            switch (doneCompression)
-            {
-                case NONE:
-                    System.out.println("not packed (size = " + baseSize + ")");
-                    break;
-
-                case APLIB:
-                	CompressionCustomUsageTracker.markUsed(CompressionCustom.APLIB);
-                    System.out.print("packed with APLIB, ");
-                    break;
-
-                case LZ4W:
-                	CompressionCustomUsageTracker.markUsed(CompressionCustom.LZ4W);
-                    System.out.print("packed with LZ4W, ");
-                    break;
-
-                default: 
-                    System.out.print("packed with UNKNOW, ");
-                    break;
-            }
+			// NOTE: do not use switch-case statements in order to avoid creation of inner class $1
+			if (doneCompression == Compression.NONE) {
+				System.out.println("not packed (size = " + baseSize + ")");
+			} else if (doneCompression == Compression.APLIB) {
+				CompressionCustomUsageTracker.markUsed(CompressionCustom.APLIB);
+				System.out.print("packed with APLIB, ");
+			} else if (doneCompression == Compression.LZ4W) {
+				CompressionCustomUsageTracker.markUsed(CompressionCustom.LZ4W);
+				System.out.print("packed with LZ4W, ");
+			} else {
+				System.out.print("packed with UNKNOW, ");
+			}
 
             if (doneCompression != Compression.NONE)
                 System.out.println("size = " + packedSize + " (" + Math.round((packedSize * 100f) / baseSize) + "% - origin size = " + baseSize + ")");

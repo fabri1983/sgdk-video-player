@@ -3,7 +3,6 @@
 A video converter and video player made with the [SGDK v2.12](https://github.com/Stephane-D/SGDK) for the Megadrive/Genesis system consoles.  
 Originally inspired by [sgdk-video-player](https://github.com/haroldo-ok/sgdk-video-player) made by _haroldo-ok_.  
 
-
 **Work In Progress. Tested on Blastem, Nuked-MD, and real hardware.**
 
 For convenience testing you can directly try the last compiled rom [videoplayer_rom.bin](videoplayer_rom.bin?raw=true "videoplayer_rom.bin").
@@ -12,25 +11,28 @@ For convenience testing you can directly try the last compiled rom [videoplayer_
 
 You can find me in the SGDK Discord server: https://discord.gg/xmnBWQS
 
+### SGDK lib config
+---
+Before you compile this project, make sure your SGDK library was built with next switches in `config.h`:
+- `ENABLE_BANK_SWITCH      1`
 
 ### Features
-
+---
 - Supports up to 256+ colors per frame.
 - Currently running at 11-15 FPS in NTSC and 11-12 FPS in PAL, with a frame size of 272 x 192 pixels (34 x 24 tiles).
 - Uses custom extensions for [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
 - Uses custom tiledpalettequant app (not public yet).
-
+- Custom `_VInt_lean` interrupt handler in `sega.s` for faster execution wihtout unused features.
 
 ### Config theese first:
-
+--
 - You need *Image Magick v7.x* tools set in _PATH_.
 - You need *ffmpeg* set in the _PATH_.
 - Set `ENABLE_BANK_SWITCH` 1 in _SGDK_'s `config.h` for rom size bigger than 4MB, and re build the _SGDK_ lib.
 - You need *NodeJs* and its *NODEJS_HOME* env var properly set on user/system variables. This is required for `env.bat`.
 
-
 ### Instructions using custom tiledpalettequant app
-
+---
 1) `env.bat`
 Sets NodeJs env var.
 
@@ -79,7 +81,7 @@ Run it once to catch rescomp output to know tileset stats (resource TILESET_STAT
 
 
 ### NOTES
-
+--
 - I recommend to use a video resize and filter program like *VirtualDub 2*, which allows you to keep a crisp image when resizing, 
 uses custom ratio with black regions when resizing, lets you crop the video, and also comes with all kind of useful filters. 
 That way the `extract.bat` script, which calls ffmpeg, will only extract the frames without any resizing, and then extract the audio 
@@ -87,7 +89,7 @@ in correct format for the SGDK rescomp tool.
 
 
 ### TODO
-
+--
 - Update joy like in raycasting project.
 - Pre load frame 0 before starting music and see how does result with sound timing/sync.
 - Try new video from VirtualDub2 project. Better definition and correct dimensions. Frame size: 272 x 200 px (34 x 25 tiles).
@@ -110,10 +112,10 @@ in correct format for the SGDK rescomp tool.
 	- See http://gendev.spritesmind.net/forum/viewtopic.php?p=17683&sid=e64d28235b5b42d96b82483d4d71d34b#p17683
 	- This technique: https://gendev.spritesmind.net/forum/viewtopic.php?f=22&t=2964&sid=395ed554dbdeb24d2a5b64c29a0abd03&start=15#p35118
 
+---
 
-----
 ### (OLD/OUTDATED) Instructions using custom quantization lua script
-
+---
 1) env.bat
 
 2) extract.bat "video.mp4" tmpmv 16

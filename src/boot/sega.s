@@ -40,7 +40,7 @@ _Vecteurs_68K:
         dc.l    _INT
         dc.l    hintCaller
         dc.l    _INT
-        dc.l    _VINT
+        dc.l    _VINT_lean              /* _VINT_lean is faster than SGDK's _VINT but skips some features */
         dc.l    _INT
         dc.l    _trap_0                 /* Resume supervisor task */
         dc.l    _INT,_INT,_INT,_INT,_INT,_INT,_INT
@@ -156,4 +156,18 @@ no_bmp_task:
         jsr     (%a0)                       /* call user callback */
         andi.w  #0xFFFE, intTrace           /* out V-Int */
         movem.l (%sp)+,%d0-%d1/%a0-%a1
+        rte
+
+* Custom version of the _VINT vector which discards User tasks and Bitmap tasks.
+* It uses usp to backup a1, and immediately calls user's VInt callback.
+_VINT_lean:
+        movem.l %d0-%d1/%a0, -(%sp)         /* Save the scratch pad since it won't be saved by the function pointed by vintCB */
+        move.l  %a1, %usp
+        *ori.w   #0x0001, intTrace           /* in V-Int */
+        addq.w  #1, vtimer
+        move.l  vintCB, %a0
+        jsr     (%a0)
+        *andi.w  #0xFFFE, intTrace           /* out V-Int */
+        move.l  %usp, %a1
+        movem.l (%sp)+, %d0-%d1/%a0         /* Restore scratch pad */
         rte

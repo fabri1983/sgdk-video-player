@@ -128,7 +128,6 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/processor/TilesCacheStatsPrinterProcessor.class ^
 	./sgdk/rescomp/processor/TilesetStatsCollectorProcessor.class ^
 	./sgdk/rescomp/processor/ext.processor.properties ^
-	./sgdk/rescomp/resource/BinCustom$1.class ^
 	./sgdk/rescomp/resource/BinCustom.class ^
 	./sgdk/rescomp/resource/HeaderAppender.class ^
 	./sgdk/rescomp/resource/HeaderAppenderAllCustomResource.class ^
@@ -161,7 +160,6 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/TilesetStatsCollectorPrinter.class ^
 	./sgdk/rescomp/resource/ext.resource.properties ^
 	./sgdk/rescomp/resource/internal/SpriteAnimationMultiPal.class ^
-	./sgdk/rescomp/resource/internal/SpriteFrameMultiPal$1.class ^
 	./sgdk/rescomp/resource/internal/SpriteFrameMultiPal.class ^
 	./sgdk/rescomp/resource/internal/VDPSpriteMultiPal.class ^
 	./sgdk/rescomp/tool/CommonTilesRangeManager.class ^

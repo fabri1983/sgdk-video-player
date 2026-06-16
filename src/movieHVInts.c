@@ -355,8 +355,8 @@ HINTERRUPT_CALLBACK HIntCallback_CPU ()
 }
 
 // Declare this outside the function. Use static so it goes into RAM.
-// Pre allocated op codes for dma mid and low length.
-static u16 dma_len_cmds[2] = {0x9600, 0x9500};
+// Pre allocated op codes for dma mid and low source length.
+static u16 dma_addr_cmds[2] = {0x9600, 0x9500};
 
 HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
 {
@@ -375,7 +375,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
         "   lea         0xC00004,%%a1\n"          // a1: VDP_CTRL_PORT 0xC00004
         "   lea         5(%%a1),%%a2\n"           // a2: HCounter address 0xC00009 (VDP_HVCOUNTER_PORT + 1)
         "   move.b      %[hcLimit],%%d6\n"        // d6: HCounter limit
-        "   lea         %[dma_len_cmds],%%a3\n"   // a3: dma_len_cmds = [0x9600, 0x9500]
+        "   lea         %[dma_addr_cmds],%%a3\n"  // a3: dma_addr_cmds = {0x9600, 0x9500}
 
         // DMA batch 1
         "   move.l      %%a0,%%d2\n"            // d2: palInFramePtr
@@ -389,7 +389,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
         "0:\n"
 
         // This DMA is the normal one without movep optimization
-//        // Setup DMA command
+//        // Setup DMA address
 //        "   lsr.w       #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
 //            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d2: fromAddrForDMA >> 16
 //        "   move.w      #0x9500,%%d0\n"         // d0: 0x9500
@@ -410,13 +410,13 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
 //        //"   move.w      %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
 
         // This DMA is using movep
-        // Setup DMA command
+        // Setup DMA address
         "   lsr.w     #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
             // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use send the high dma address 0x9700
-        "   movep.w   %%d2,(1,%%a3)\n"        // dma_len_cmds[1] = (u8)(fromAddrForDMA >> 8); dma_len_cmds[3] = (u8)(fromAddrForDMA)
-        "   move.l    (%%a3),(%%a1)\n"        // *((vu16*) VDP_CTRL_PORT) = dma_len_cmds;
-        //"   swap      %%d2\n"                 // move high address at lower word
-        //"   andi.w    #0x007f,%%d2\n"         // mask high address lowest 7 bits and clear bits 8th to 16t
+        "   movep.w   %%d2,(1,%%a3)\n"        // dma_addr_cmds[1] = (u8)(fromAddrForDMA >> 8); dma_addr_cmds[3] = (u8)(fromAddrForDMA)
+        "   move.l    (%%a3),(%%a1)\n"        // *((vu32*) VDP_CTRL_PORT) = dma_addr_cmds;
+        //"   swap      %%d2\n"                 // move high address at lower word: fromAddr >> 16
+        //"   andi.w    #0x007f,%%d2\n"         // mask high address lowest 7 bits and clear bits 8th to 16th
         //"   or.w      #0x9700,%%d2\n"         // high address op code
         //"   move.w    %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
         // Setup DMA length
@@ -441,7 +441,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
 		"   addi.l      %[cmdOffset],%%d5\n"    // d5: palCmdForDMA += cmdOffset // previous batch advanced 16 colors (MOVIE_FRAME_COLORS_PER_STRIP/2)
 
         // This DMA is the normal one without movep optimization
-//        // Setup DMA command
+//        // Setup DMA address
 //        "   lsr.w       #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
 //            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d2: fromAddrForDMA >> 16
 //        "   move.w      #0x9500,%%d0\n"         // d0: 0x9500
@@ -462,13 +462,13 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
 //        //"   move.w      %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
 
         // This DMA is using movep
-        // Setup DMA command
+        // Setup DMA address
         "   lsr.w     #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
             // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use send the high dma address 0x9700
-        "   movep.w   %%d2,(1,%%a3)\n"        // dma_len_cmds[1] = (u8)(fromAddrForDMA >> 8); dma_len_cmds[3] = (u8)(fromAddrForDMA)
-        "   move.l    (%%a3),(%%a1)\n"        // *((vu16*) VDP_CTRL_PORT) = dma_len_cmds;
-        //"   swap      %%d2\n"                 // move high address at lower word
-        //"   andi.w    #0x007f,%%d2\n"         // mask high address lowest 7 bits and clear bits 8th to 16t
+        "   movep.w   %%d2,(1,%%a3)\n"        // dma_addr_cmds[1] = (u8)(fromAddrForDMA >> 8); dma_addr_cmds[3] = (u8)(fromAddrForDMA)
+        "   move.l    (%%a3),(%%a1)\n"        // *((vu32*) VDP_CTRL_PORT) = dma_addr_cmds;
+        //"   swap      %%d2\n"                 // move high address at lower word: fromAddr >> 16
+        //"   andi.w    #0x007f,%%d2\n"         // mask high address lowest 7 bits and clear bits 8th to 16th
         //"   or.w      #0x9700,%%d2\n"         // high address op code
         //"   move.w    %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
         // Setup DMA length
@@ -491,7 +491,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_2_cmds_ASM ()
 		: 
 		[palInFramePtr] "+m" (palInFramePtr),
 		[palCmdAddrrToggle] "+m" (palCmdAddrrToggle),
-        [dma_len_cmds] "+m" (dma_len_cmds)
+        [dma_addr_cmds] "+m" (dma_addr_cmds)
 		: 
 		[turnOff] "i" (0x8100 | (0x74 & ~0x40)), // 0x8134
 		[turnOn] "i" (0x8100 | (0x74 | 0x40)), // 0x8174
@@ -606,7 +606,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
         "   lea         0xC00004,%%a1\n"          // a1: VDP_CTRL_PORT 0xC00004
         "   lea         5(%%a1),%%a2\n"           // a2: HCounter address 0xC00009 (VDP_HVCOUNTER_PORT + 1)
         "   move.b      %[hcLimit],%%d6\n"        // d6: HCounter limit
-        "   lea         %[dma_len_cmds],%%a3\n"   // a3: dma_len_cmds = [0x9600, 0x9500]
+        "   lea         %[dma_addr_cmds],%%a3\n"  // a3: dma_addr_cmds = {0x9600, 0x9500}
 
         // DMA batch 1
         "   move.l      %%a0,%%d2\n"            // d2: palInFramePtr
@@ -620,7 +620,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
         "0:\n"
 
         // This DMA is the normal one without movep optimization
-//        // Setup DMA command
+//        // Setup DMA address
 //        "   lsr.w       #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
 //            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d2: fromAddrForDMA >> 16
 //        "   move.w      #0x9500,%%d0\n"         // d0: 0x9500
@@ -641,13 +641,13 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
 //        //"   move.w      %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
 
         // This DMA is using movep
-        // Setup DMA command
+        // Setup DMA address
         "   lsr.w     #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
             // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use send the high dma address 0x9700
-        "   movep.w   %%d2,(1,%%a3)\n"        // dma_len_cmds[1] = (u8)(fromAddrForDMA >> 8); dma_len_cmds[3] = (u8)(fromAddrForDMA)
-        "   move.l    (%%a3),(%%a1)\n"        // *((vu16*) VDP_CTRL_PORT) = dma_len_cmds;
-        //"   swap      %%d2\n"                 // move high address at lower word
-        //"   andi.w    #0x007f,%%d2\n"         // mask high address lowest 7 bits and clear bits 8th to 16t
+        "   movep.w   %%d2,(1,%%a3)\n"        // dma_addr_cmds[1] = (u8)(fromAddrForDMA >> 8); dma_addr_cmds[3] = (u8)(fromAddrForDMA)
+        "   move.l    (%%a3),(%%a1)\n"        // *((vu32*) VDP_CTRL_PORT) = dma_addr_cmds;
+        //"   swap      %%d2\n"                 // move high address at lower word: fromAddr >> 16
+        //"   andi.w    #0x007f,%%d2\n"         // mask high address lowest 7 bits and clear bits 8th to 16th
         //"   or.w      #0x9700,%%d2\n"         // high address op code
         //"   move.w    %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
         // Setup DMA length
@@ -672,7 +672,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
 		"   addi.l      %[cmdOffset],%%d5\n"    // d5: palCmdForDMA += 0x140000 // previous batch advanced 10 colors (MOVIE_FRAME_COLORS_PER_STRIP/3)
 
         // This DMA is the normal one without movep optimization
-//        // Setup DMA command
+//        // Setup DMA address
 //        "   lsr.w       #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
 //            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d2: fromAddrForDMA >> 16
 //        "   move.w      #0x9500,%%d0\n"         // d0: 0x9500
@@ -693,13 +693,13 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
 //        //"   move.w      %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
 
         // This DMA is using movep
-        // Setup DMA command
+        // Setup DMA address
         "   lsr.w     #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
             // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use send the high dma address 0x9700
-        "   movep.w   %%d2,(1,%%a3)\n"        // dma_len_cmds[1] = (u8)(fromAddrForDMA >> 8); dma_len_cmds[3] = (u8)(fromAddrForDMA)
-        "   move.l    (%%a3),(%%a1)\n"        // *((vu16*) VDP_CTRL_PORT) = dma_len_cmds;
-        //"   swap      %%d2\n"                 // move high address at lower word
-        //"   andi.w    #0x007f,%%d2\n"         // mask high address lowest 7 bits and clear bits 8th to 16t
+        "   movep.w   %%d2,(1,%%a3)\n"        // dma_addr_cmds[1] = (u8)(fromAddrForDMA >> 8); dma_addr_cmds[3] = (u8)(fromAddrForDMA)
+        "   move.l    (%%a3),(%%a1)\n"        // *((vu32*) VDP_CTRL_PORT) = dma_addr_cmds;
+        //"   swap      %%d2\n"                 // move high address at lower word: fromAddr >> 16
+        //"   andi.w    #0x007f,%%d2\n"         // mask high address lowest 7 bits and clear bits 8th to 16th
         //"   or.w      #0x9700,%%d2\n"         // high address op code
         //"   move.w    %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
         // Setup DMA length
@@ -724,7 +724,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
 		"   addi.l      %[cmdOffset],%%d5\n"    // d5: palCmdForDMA += 0x140000 // previous batch advanced 10 colors (MOVIE_FRAME_COLORS_PER_STRIP/3)
 
         // This DMA is the normal one without movep optimization
-//        // Setup DMA command
+//        // Setup DMA address
 //        "   lsr.w       #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
 //            // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use d2: fromAddrForDMA >> 16
 //        "   move.w      #0x9500,%%d0\n"         // d0: 0x9500
@@ -745,13 +745,13 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
 //        //"   move.w      %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
 
         // This DMA is using movep
-        // Setup DMA command
+        // Setup DMA address
         "   lsr.w     #1,%%d2\n"              // d2: fromAddrForDMA = (u32) palInFramePtr >> 1;
             // NOTE: previous lsr.l can be replaced by lsr.w in case we don't need to use send the high dma address 0x9700
-        "   movep.w   %%d2,(1,%%a3)\n"        // dma_len_cmds[1] = (u8)(fromAddrForDMA >> 8); dma_len_cmds[3] = (u8)(fromAddrForDMA)
-        "   move.l    (%%a3),(%%a1)\n"        // *((vu16*) VDP_CTRL_PORT) = dma_len_cmds;
-        //"   swap      %%d2\n"                 // move high address at lower word
-        //"   andi.w    #0x007f,%%d2\n"         // mask high address lowest 7 bits and clear bits 8th to 16t
+        "   movep.w   %%d2,(1,%%a3)\n"        // dma_addr_cmds[1] = (u8)(fromAddrForDMA >> 8); dma_addr_cmds[3] = (u8)(fromAddrForDMA)
+        "   move.l    (%%a3),(%%a1)\n"        // *((vu32*) VDP_CTRL_PORT) = dma_addr_cmds;
+        //"   swap      %%d2\n"                 // move high address at lower word: fromAddr >> 16
+        //"   andi.w    #0x007f,%%d2\n"         // mask high address lowest 7 bits and clear bits 8th to 16th
         //"   or.w      #0x9700,%%d2\n"         // high address op code
         //"   move.w    %%d2,(%%a1)\n"          // *((vu16*) VDP_CTRL_PORT) = 0x9700 | (u8)((fromAddrForDMA >> 16) & 0x7f);
         // Setup DMA length
@@ -775,7 +775,7 @@ HINTERRUPT_CALLBACK HIntCallback_DMA_3_cmds_ASM ()
 		: 
 		[palInFramePtr] "+m" (palInFramePtr),
 		[palCmdAddrrToggle] "+m" (palCmdAddrrToggle),
-        [dma_len_cmds] "+m" (dma_len_cmds)
+        [dma_addr_cmds] "+m" (dma_addr_cmds)
 		: 
 		[turnOff] "i" (0x8100 | (0x74 & ~0x40)), // 0x8134
 		[turnOn] "i" (0x8100 | (0x74 | 0x40)), // 0x8174

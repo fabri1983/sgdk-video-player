@@ -34,6 +34,7 @@
 "[m68k]": {
     "editor.rulers": []
 },
+"terminal.integrated.defaultProfile.windows": "Command Prompt",
 "gens.path": "D:\\Games\\retro\\blastem-win64-0.6.3-pre-9c105d94ad6f\\blastem.exe",
 "GDK": "C:\\sgdk_master"
 }
