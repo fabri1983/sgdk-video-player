@@ -7,14 +7,14 @@ SET JAVA_SOURCE=8
 SET JAVA_TARGET=21
 
 IF "%JAVA_HOME%"=="" (
-    echo ERROR: JAVA_HOME environment variable is not set!
+    ECHO ERROR: JAVA_HOME environment variable is not set!
 	PAUSE
 	GOTO FINISHED
 )
 
 :: Check Java's installed directory
 IF NOT EXIST "%JAVA_HOME%" (
-    echo ERROR: JAVA_HOME path does not exist: %JAVA_HOME%
+    ECHO ERROR: JAVA_HOME path does not exist: %JAVA_HOME%
 	PAUSE
 	GOTO FINISHED
 )
@@ -31,7 +31,9 @@ if "%JAVA_SPEC%"=="1.8" (
     set JAVA_MAJOR=%JAVA_SPEC%
 )
 
-echo Java version found: %JAVA_MAJOR%
+ECHO Java version found: %JAVA_MAJOR%
+ECHO Source version: %JAVA_SOURCE%
+ECHO Target version: %JAVA_TARGET%
 
 IF "%~dp0" == "%GDK_WIN%\tools\rescomp\" (
 	GOTO COMPILE_DEPENDENCIES

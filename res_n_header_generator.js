@@ -12,6 +12,7 @@ if (args.length != 4) {
 	throw new Error("Wrong parameters count. See usage in this script source code.");
 }
 
+// Folders relative to the location of this script
 const FRAMES_DIR = 'rgb/';
 const GEN_INC_DIR = 'inc/generated/';
 const RES_DIR = 'res/';

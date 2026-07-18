@@ -15,6 +15,7 @@
 #include "videoPlayer.h"
 #include "dma_elems.h"
 #include "compressionTypes_res.h"
+#include "compressionTypesTracker.h"
 #include "decomp/unpackSelector.h"
 #include "utils.h"
 #include "memcpy.h"
@@ -469,7 +470,9 @@ void playMovie ()
     	memsetU16(unpackedPalsBuffer, 0x0, VIDEO_FRAME_PALS_COLORS_NUM); // black all the buffer
 
         // Clears all tilemap VRAM region for BG_B
-        VDP_fillTileMap(VDP_BG_B, 0, 0, VIDEO_PLANE_COLUMNS * 32);
+        //VDP_fillTileMap(VDP_BG_B, 0, 0, VIDEO_PLANE_COLUMNS * 32);
+        VDP_clearTileMap(VDP_BG_B, 0, VIDEO_PLANE_COLUMNS * 32, TRUE);
+        VDP_setAutoInc(2);
 
 		#if VIDEO_FRAME_ADVANCE_STRATEGY == 1 || VIDEO_FRAME_ADVANCE_STRATEGY == 3 || VIDEO_PLAYER_DEBUG_FIXED_VFRAME
 		u16 sysFrameRate = IS_PAL_SYSTEM ? 50 : 60;

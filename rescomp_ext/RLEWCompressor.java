@@ -10,11 +10,11 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 /**
- * RLE compression algorithm that combines Variable-Length Encoding, Block Based Encoding, and Run-Length Limited (RLL) Coding.</br>
+ * RLE compression algorithm that combines Variable-Length Encoding, Block Based Encoding, Run-Length Limited (RLL) Encoding, and Back Reference Encoding.</br>
  * The source array is treated as a multi row of words, each row is treated as an independent block of RLE encoding with a limited max 
  * length of {@link RLEWCompressor#RLE_MAX_RUN_LENGTH} words due to the 6 bits dedicated for length.</br>
  * It runs 3 RLE phases which aim to reduce the size of the final encoding, with some configurable parameters to slightly speedup decompression.</br>
- * IS USEFUL IF YOUR TARGET MAP BUFFER HAS AN EXTENDED WIDTH TO [32, 64, 128] TILES (GOOD FOR FASTER DMA OPERATION).</br>
+ * IS USEFUL IF YOUR TARGET TILEMAP HAS AN EXTENDED WIDTH TO [32, 64, 128] TILES (GOOD FOR FASTER DMA OPERATION (NOTE: there is a faster way!)).</br>
  * THIS WAY YOU CAN DECOMPRESS A BLOCK AND LEAVE UNTOUCHED THE EXTRA SPACE USED TO FULFILL THE WIDTH UP TO [32, 64, 128] TILES.</br>
  *  
  * @author fabri1983
@@ -24,15 +24,48 @@ public class RLEWCompressor {
 	public static final String RLE_PROPERTY_SUFFIX_WORDS_PER_ROW = "_WORDS_PER_ROW";
 
 	/**
-	 * Only 6 bits used for the length (in words), hence (2^6)-1=63.
+	 * Only 6 bits used for the length value, but we leave 0x3F value for special treatment.
 	 */
-	private static final int RLE_MAX_RUN_LENGTH = 63;
+	private static final int RLE_MAX_RUN_LENGTH = 62;
+
+	/**
+	 * Only 6 bits used for the length: (2^6)-1 = 63
+	 */
+	private static final int LENGTH_MASK = 0b00111111;
+
+	private static final int BITS_DESCRIPTOR_MASK = 0b11000000;
+
+	private static final int BIT_END_OF_ROW_A = 0b10000000;
+	private static final int BIT_STREAM_OF_WORDS_A = 0b01000000;
+	private static final int BYTE_BACKWARD_REF_A = 0b00111111;
+
+	private static final int BYTE_END_OF_ROW_B = 0;
+	private static final int BITS_INCREMENTAL_RLE_B = 0b01000000;
+	private static final int BITS_STREAM_OF_WORDS_B = 0b10000000;
+	private static final int BITS_HIGH_COMMON_BYTE_B = 0b11000000;
+
+	private static final int PARITY_BYTE_A = 0;
+	private static final int PARITY_BYTE_B = 0b01000000;
+
+	private static final int MIN_LENGTH_STREAM_OF_WORDS_FOR_BACKWARD_REF = 4;
+	/**
+	 * Strategy 1 rapidly searches for best matching stream, but is also considered by Strategy 2
+	 */
+	private static final boolean ENABLE_BACKWARD_REF_STRATEGY_1 = false;
+	/**
+	 * Strategy 2 searches for the best matching stream accounting different sizes for a stream.
+	 */
+	private static final boolean ENABLE_BACKWARD_REF_STRATEGY_2 = true;
+	private static final String CMD_RLE = "RLE";
+	private static final String CMD_STREAM_WORDS = "STREAM_WORDS";
+
 	/**
 	 * Value must be >= 2</br>
 	 * Play with this value to see how much the size of the encoded output changes.</br>
-	 * This has an impact in the unpack algorithm time.
+	 * This has an impact in the unpack algorithm time.</br>
+	 * Use a big value to disable this strategy.
 	 */
-	private static final int RLE_MIN_SEQUENCE_OF_INCREMENTAL_OCCURRENCES = Integer.MAX_VALUE; // Use a big value to disable this strategy
+	private static final int RLE_MIN_SEQUENCE_OF_INCREMENTAL_OCCURRENCES = Integer.MAX_VALUE;
 	/**
 	 * Value must be >= 2</br>
 	 * Play with this value to see how much the size of the encoded output changes.</br>
@@ -75,17 +108,7 @@ public class RLEWCompressor {
 		if ((data.length % 2) != 0)
 			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": data[] length " + data.length + " + is not even");
 
-		// this is the width in words of the data region containing valid data (not the extended width in the case of a map).
-		// up to RLE_MAX_RUN_LENGTH because we use 6 bits for the length
-		int wordsPerRow = getIntProperty(binId + RLE_PROPERTY_SUFFIX_WORDS_PER_ROW);
-		if (wordsPerRow == 0) {
-			wordsPerRow = RLE_MAX_RUN_LENGTH;
-			System.out.println("WARN: " + RLEWCompressor.class.getSimpleName() + ": wordsPerRow was invalid, now is " + RLE_MAX_RUN_LENGTH);
-		}
-		// ensure it does not exceeds the limit, otherwise throw error
-		if (wordsPerRow > RLE_MAX_RUN_LENGTH) {
-			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": wordsPerRow > " + RLE_MAX_RUN_LENGTH);
-		}
+		int wordsPerRow = getWordsPerRow(binId);
 
 		byte[] packed = methodA(data, wordsPerRow);
 
@@ -93,7 +116,9 @@ public class RLEWCompressor {
 //		Map<String, WordInfo> wordInfo_A = decodeRLEforStats_A(packed);
 //		printStats(wordInfo_A);
 
-		final int rows = data.length / (wordsPerRow * 2); // multiply by 2 because every word entry is 2 bytes
+		int rows = data.length / (wordsPerRow * 2); // converts wordsPerRow into bytes
+		if (rows >= 256)
+			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": rows >= 256");
 		byte[] packedWithHeader = addHeader(packed, rows);
 		byte[] packedFinal = addParityBytes_A(packedWithHeader);
 //		printAsHexa(packedFinal);
@@ -111,8 +136,25 @@ public class RLEWCompressor {
 		if ((data.length % 2) != 0)
 			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": data[] length " + data.length + " + is not even");
 
-		// this is the width in words of the data region containing valid data (not the extended width in the case of a map).
-		// up to RLE_MAX_RUN_LENGTH because we use 6 bits for the length
+		int wordsPerRow = getWordsPerRow(binId);
+
+		byte[] packed = methodB(data, wordsPerRow);
+
+		checkCorrectRowLength_B(packed, wordsPerRow);
+//		Map<String, WordInfo> wordInfo_B = decodeRLEforStats_B(packed);
+//		printStats(wordInfo_B);
+
+		int rows = data.length / (wordsPerRow * 2); // converts wordsPerRow into bytes
+		if (rows >= 256)
+			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": rows >= 256");
+		byte[] packedWithHeader = addHeader(packed, rows);
+		byte[] packedFinal = addParityBytes_B(packedWithHeader);
+//		printAsHexa(packedFinal);
+		return packedFinal;
+	}
+
+	private static int getWordsPerRow(String binId) {
+		// this is the width in words of the data region containing valid data (not the extended width in the case of a tilemap).
 		int wordsPerRow = getIntProperty(binId + RLE_PROPERTY_SUFFIX_WORDS_PER_ROW);
 		if (wordsPerRow == 0) {
 			wordsPerRow = RLE_MAX_RUN_LENGTH;
@@ -122,18 +164,7 @@ public class RLEWCompressor {
 		if (wordsPerRow > RLE_MAX_RUN_LENGTH) {
 			throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": wordsPerRow > " + RLE_MAX_RUN_LENGTH);
 		}
-
-		byte[] packed = methodB(data, wordsPerRow);
-
-		checkCorrectRowLength_B(packed, wordsPerRow);
-//		Map<String, WordInfo> wordInfo_B = decodeRLEforStats_B(packed);
-//		printStats(wordInfo_B);
-
-		final int rows = data.length / (wordsPerRow * 2); // multiply by 2 because every word entry is 2 bytes
-		byte[] packedWithHeader = addHeader(packed, rows);
-		byte[] packedFinal = addParityBytes_B(packedWithHeader);
-//		printAsHexa(packedFinal);
-		return packedFinal;
+		return wordsPerRow;
 	}
 
 	/**
@@ -192,12 +223,13 @@ public class RLEWCompressor {
 
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);
 		int accumWordsThisRow = 0;
+		ByteBuffer byteBuffer = ByteBuffer.allocate(3);
 
 		for (int i = 0; i < data.length; i += 2) {
 			// Combine two bytes into a word
 			int currentWord = ((data[i] & 0xFF) << 8) | ((data[i + 1] & 0xFF));
 			int runLength = 1;
-			accumWordsThisRow++; // current word being analyzed per row
+			accumWordsThisRow++;
 
 			while ((i+2) < data.length && runLength < RLE_MAX_RUN_LENGTH && accumWordsThisRow < wordsPerRow && 
 					(data[i] == data[i + 2]) && (data[i + 1] == data[i + 3])) {
@@ -212,18 +244,21 @@ public class RLEWCompressor {
 				setEndOfRowBit = true;
 			}
 
-			ByteBuffer buffer = ByteBuffer.allocate(3);
-			byte rleDescriptor = (byte) (runLength & 0b00111111); // keep only first 6 bits
-
+			byte rleDescriptor = (byte) (runLength & LENGTH_MASK);
 			if (setEndOfRowBit)
-				rleDescriptor = (byte) (rleDescriptor | 0b10000000); // set the bit marking end of row
+				rleDescriptor = (byte) (rleDescriptor | BIT_END_OF_ROW_A); // set the bit marking end of row
 
-			buffer.put(rleDescriptor); // store RLE byte descriptor
-			buffer.putShort((short) currentWord); // store word value
-			outputStream.write(buffer.array(), 0, 3);
+			byteBuffer.clear();
+			byteBuffer.put(rleDescriptor); // store RLE byte descriptor
+			byteBuffer.put((byte)((currentWord >> 8) & 0xFF)); // store word's higher byte
+			byteBuffer.put((byte)(currentWord & 0xFF)); // store word's lower byte
+			outputStream.write(byteBuffer.array(), 0, 3);
 		}
 
 		byte[] rleArrayPhase1 = outputStream.toByteArray();
+		byteBuffer = null;
+		outputStream.reset();
+		outputStream = null;
 
 		// PHASE 2:
 		// Now transform consecutive words having RLE byte descriptor with length 1 into one stream of at least N words.
@@ -233,10 +268,9 @@ public class RLEWCompressor {
 
 		List<Byte> rleArrayPhase2List = new ArrayList<>(rleArrayPhase1.length);
 
-		int i = 0;
-		while (i < rleArrayPhase1.length) {
+		for (int i=0; i < rleArrayPhase1.length;) {
 			byte rleDescriptor = rleArrayPhase1[i];
-			int length = rleDescriptor & 0b00111111;
+			int length = rleDescriptor & LENGTH_MASK;
 
 			// Check if the length is 1 (single word repeat)
 			if (length == 1) {
@@ -251,36 +285,44 @@ public class RLEWCompressor {
 			}
 		}
 
-		byte[] rleArrayPhase2 = convertToByteArray(rleArrayPhase2List);
-		return rleArrayPhase2;
+		// PHASE 3:
+		// Backward reference optimization.
+		// Search for duplicated commands. Use new byte BYTE_BACKWARD_REF to mark a back reference command,
+		// followed by a word with the distance in words to jump backwards, followed by a byte with the length of words to copy.
+
+		List<Byte> rleArrayPhase3List = encodeBackReference_A(rleArrayPhase2List);
+
+		rleArrayPhase2List = null;
+		byte[] rleArrayPhase3 = convertToByteArray(rleArrayPhase3List);
+		return rleArrayPhase3;
 	}
 
 	private static int collectWordsIntoStream_A (byte[] source, List<Byte> target, int i) {
 		// Start collecting a stream of single-word repeats
 		int sequenceStart = i; // descriptor's position
 		int sequenceLength = 0;
-		boolean isEndOfRow = false;
+		boolean hasEndOfRowBit = false;
 
 		// Scan forward to count how many consecutive words with length == 1 we find
-		while (i < source.length && (source[i] & 0b00111111) == 1 && !isEndOfRow) {
-			isEndOfRow = (source[i] & 0b10000000) != 0;
+		while (i < source.length && (source[i] & LENGTH_MASK) == 1 && !hasEndOfRowBit) {
+			hasEndOfRowBit = (source[i] & BIT_END_OF_ROW_A) != 0;
 			sequenceLength++;
 			i += 3; // Move to the next descriptor
 		}
 
 		if (sequenceLength >= RLE_MIN_SEQUENCE_OF_LENGTH_1_OCCURRENCE) {
 			// Prepare the new descriptor with the 2nd MSB set as 1 followed by the length
-			byte newDescriptor = (byte) (0b01000000 | (sequenceLength & 0b00111111));
+			byte newDescriptor = (byte) (BIT_STREAM_OF_WORDS_A | (sequenceLength & LENGTH_MASK));
 			// Set the end of row bit?
-			if (isEndOfRow)
-				newDescriptor = (byte) (newDescriptor | 0b10000000);
-
+			if (hasEndOfRowBit)
+				newDescriptor = (byte) (newDescriptor | BIT_END_OF_ROW_A);
 			target.add(newDescriptor);
+			sequenceStart++; // consume the descriptor
 
 			// Add the collected words
 			for (int j = 0; j < sequenceLength; j++) {
-				target.add(source[sequenceStart + 1 + 3*j]); // word high byte
-				target.add(source[sequenceStart + 2 + 3*j]); // word low byte
+				target.add(source[sequenceStart + 0 + 3*j]); // word high byte
+				target.add(source[sequenceStart + 1 + 3*j]); // word low byte
 			}
 		}
 		// Not enough length to form a stream, then copy the segments as it is
@@ -291,6 +333,309 @@ public class RLEWCompressor {
 		}
 
 		return i;
+	}
+
+	private static List<Byte> encodeBackReference_A(List<Byte> rleArrayPhase2List) {
+		List<String> entryCommand = new ArrayList<>(rleArrayPhase2List.size());
+		List<Integer> entryIndex = new ArrayList<>(rleArrayPhase2List.size());
+		List<Integer> entryIndexDecoded = new ArrayList<>(rleArrayPhase2List.size());
+		List<Integer> entryLengthInWords = new ArrayList<>(rleArrayPhase2List.size());
+
+		// Collect commands and the index locations in coded rle buffer and decoded buffer
+		for (int indexDecoded=0, index=0; index < rleArrayPhase2List.size(); ) {
+			byte descriptor = rleArrayPhase2List.get(index).byteValue();
+			++index; // consume the descriptor
+			int length = descriptor & LENGTH_MASK;
+
+			// test if descriptor 2nd MSB is 0 then we have basic RLE entry
+			if ((byte)(descriptor & BIT_STREAM_OF_WORDS_A) == (byte)0) {
+				entryCommand.add(CMD_RLE);
+				entryIndex.add(index); // index points right after the descriptor
+				entryIndexDecoded.add(indexDecoded);
+				entryLengthInWords.add(length);
+				indexDecoded += 2 * length; // consume all the words
+				index += 2; // consume the word
+			}
+			// descriptor 2nd MSB is 1, then we have a stream of words
+			else {
+				entryCommand.add(CMD_STREAM_WORDS);
+				entryIndex.add(index); // index points right after the descriptor
+				entryIndexDecoded.add(indexDecoded);
+				entryLengthInWords.add(length);
+				indexDecoded += 2 * length; // consume all the words
+				index += 2 * length; // consume all the words
+			}
+		}
+
+		List<Byte> rleArrayPhase3List = new ArrayList<>(rleArrayPhase2List.size());
+
+		// Search for duplicated and create new descriptor accordingly
+		for (int cmdIdx=0, index=0; cmdIdx < entryCommand.size() && index < rleArrayPhase2List.size(); cmdIdx++) {
+			byte descriptor = rleArrayPhase2List.get(index).byteValue();
+			index++; // consume the descriptor
+			int length = descriptor & LENGTH_MASK;
+			boolean setEndOfRowBit = (descriptor & BIT_END_OF_ROW_A) != 0;
+
+			// test if descriptor 2nd MSB is 0 then we have basic RLE entry
+			if ((byte)(descriptor & BIT_STREAM_OF_WORDS_A) == (byte)0) {
+				// No reason to create a backward reference entry for basic RLE commands since they are already a better coding choice.
+				// Straight copy it.
+				rleArrayPhase3List.add(descriptor);
+				rleArrayPhase3List.add(rleArrayPhase2List.get(index));
+				rleArrayPhase3List.add(rleArrayPhase2List.get(index + 1));
+				index += 2; // consume the word
+			}
+			// descriptor 2nd MSB is 1, then we have a stream of words
+			else {
+				boolean backRefEncoded = false;
+
+				if (length >= MIN_LENGTH_STREAM_OF_WORDS_FOR_BACKWARD_REF) {
+
+					// STRATEGY 1: Search for a stream containing in entirety the source stream
+					if (ENABLE_BACKWARD_REF_STRATEGY_1) {
+
+						// Search from the start for matching command entries and compare their stream contents
+						for (int searchCmdIdx=0; searchCmdIdx < cmdIdx; ++searchCmdIdx) {
+							int lengthWordSearchingStream = entryLengthInWords.get(searchCmdIdx);
+
+							// Different command? Length not in range?
+							if (!entryCommand.get(searchCmdIdx).equals(CMD_STREAM_WORDS) || lengthWordSearchingStream < length)
+								continue;
+
+							// Search for the starting index from where the streams are duplicated.
+						    // Try all possible starting positions in the searching stream.
+							int startIndexDecodedSearchingStream = entryIndexDecoded.get(searchCmdIdx);
+							int searchingIndex = entryIndex.get(searchCmdIdx); // is already after the descriptor
+							boolean sameStreamFound = false;
+						    for (; lengthWordSearchingStream >= length; 
+						    		searchingIndex += 2, startIndexDecodedSearchingStream += 2, lengthWordSearchingStream--) {
+						        // Compare current stream with existing stream starting at existingStart
+						    	sameStreamFound = true;
+						        for (int j = 0; j < 2*length; j += 2) {
+						            // Compare the two words byte to byte
+					            	boolean highByteDifferent = rleArrayPhase2List.get(index + j).byteValue() 
+					            			!= rleArrayPhase2List.get(searchingIndex + j).byteValue();
+					            	boolean lowByteDifferent = rleArrayPhase2List.get(index + 1 + j).byteValue() 
+					            			!= rleArrayPhase2List.get(searchingIndex + 1 + j).byteValue();
+					            	if (highByteDifferent || lowByteDifferent)
+										break;
+						        }
+
+						        if (sameStreamFound)
+						            break;
+						    }
+
+						    // Common Stream found. Let's try to encode it.
+						    if (sameStreamFound) {
+
+						    	// Calculate distance to jump back in the decoded buffer
+						    	int distanceJumpBack = entryIndexDecoded.get(cmdIdx) - startIndexDecodedSearchingStream;
+						    	// Compensate for the extra increment the output stream pointer makes in the unpacker algorithm
+						    	//distanceJumpBack += 2;
+
+						    	// This won't never happen, but if it does then something wrong happened in previous phase
+						    	if (distanceJumpBack % 2 != 0)
+						    		throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": distanceJumpBack is odd.");
+
+						    	// Ensure the jump distance is only 15 bits. 2^15=32767
+						    	if (distanceJumpBack < 32767) {
+
+						    		// Add back ref byte
+						    		rleArrayPhase3List.add((byte)BYTE_BACKWARD_REF_A);
+
+						    		// Add jump back distance
+						    		// Negate the jump distance as a 16 bits number
+						    		short negated = (short) -((short)distanceJumpBack);
+						    		rleArrayPhase3List.add((byte)((negated >> 8) & 0xFF));
+						    		rleArrayPhase3List.add((byte)(negated & 0xFF));
+
+						    		// Add the end of row bit
+						    		byte lengthWithEndOfRowBit = (byte)length;
+						    		if (setEndOfRowBit)
+						    			lengthWithEndOfRowBit |= BIT_END_OF_ROW_A;
+						    		rleArrayPhase3List.add(lengthWithEndOfRowBit);
+
+						    		// Encoded is done
+						    		backRefEncoded = true;
+						    		break;
+						    	}
+						    }
+						}
+					}
+
+					// STRATEGY 2: Search for the longest subset stream
+
+					if (ENABLE_BACKWARD_REF_STRATEGY_2 && !backRefEncoded) {
+
+						int bestSourceStartIndex = 0;
+						int bestSourceStartIndexDecoded = 0;
+						int bestMatchLength = 0;
+						int bestMatchStartIndexDecoded = 0;
+
+						// Search from the start for matching command entries
+					    for (int searchCmdIdx=0; searchCmdIdx < cmdIdx; ++searchCmdIdx) {
+							int lengthWordSearchingStream = entryLengthInWords.get(searchCmdIdx);
+
+							// Different command? Skip
+							if (!entryCommand.get(searchCmdIdx).equals(CMD_STREAM_WORDS))
+								continue;
+
+							int startIndexSearchingStream = entryIndex.get(searchCmdIdx); // is already after the descriptor
+							int startIndexDecodedSearchingStream = entryIndexDecoded.get(searchCmdIdx);
+
+							// Try all possible starting positions in the searching stream
+			        		for (int j = 0; j < 2*lengthWordSearchingStream; j += 2) {
+
+								int searchingIndex = startIndexSearchingStream + j;
+								int searchingIndexDecoded = startIndexDecodedSearchingStream + j;
+								int maxPossibleMatchLength = Math.min(length, lengthWordSearchingStream - j/2);
+
+								int sourceIndex = entryIndex.get(cmdIdx);
+								int sourceStartIndexDecoded = entryIndexDecoded.get(cmdIdx);
+
+								// Try all possible starting positions in the source stream
+								for (int k = 0; k < 2*length; k += 2, sourceIndex += 2, sourceStartIndexDecoded += 2) {
+
+									// Find longest subset stream starting at these positions
+									int matchLength = 0;
+						            while (matchLength < maxPossibleMatchLength && (sourceIndex + 1 + matchLength*2) < rleArrayPhase2List.size()) {
+						                // Compare the two words byte to byte
+						            	boolean highByteDifferent = rleArrayPhase2List.get(sourceIndex + matchLength*2).byteValue() 
+						            			!= rleArrayPhase2List.get(searchingIndex + matchLength*2).byteValue();
+						            	boolean lowByteDifferent = rleArrayPhase2List.get(sourceIndex + 1 + matchLength*2).byteValue() 
+						            			!= rleArrayPhase2List.get(searchingIndex + 1 + matchLength*2).byteValue();
+						            	if (highByteDifferent || lowByteDifferent)
+											break;
+										matchLength++;
+									}
+
+									// Length meets criteria?
+									if (matchLength >= MIN_LENGTH_STREAM_OF_WORDS_FOR_BACKWARD_REF && matchLength > bestMatchLength) {
+										bestSourceStartIndex = sourceIndex;
+										bestSourceStartIndexDecoded = sourceStartIndexDecoded;
+										bestMatchLength = matchLength;
+										bestMatchStartIndexDecoded = searchingIndexDecoded;
+									}
+
+									// Earlier exit if match found is the best possible
+									if (bestMatchLength == length)
+										break;
+								}
+
+								// Earlier exit if match found is the best possible
+								if (bestMatchLength == length)
+									break;
+					        }
+
+							// Earlier exit if match found is the best possible
+							if (bestMatchLength == length)
+								break;
+					    }
+
+					    // If we found the best partial match, encode it
+					    if (bestMatchLength > 0) {
+
+							// Calculate distance to jump back in the decoded buffer
+					        int distanceJumpBack = bestSourceStartIndexDecoded - bestMatchStartIndexDecoded;
+					        // Compensate for the extra increment the output stream pointer makes in the unpacker algorithm
+					    	//distanceJumpBack += 2;
+
+					    	// This won't never happen, but if it does then something wrong happened in previous phase
+					    	if (distanceJumpBack % 2 != 0)
+					    		throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": distanceJumpBack is odd.");
+
+					    	// Ensure the jump distance is only 15 bits. 2^15=32767
+					    	if (distanceJumpBack < 32767) {
+
+					        	// If best starting source index is not the start of the source stream then add a new command for the excluded leading words
+					        	if (bestSourceStartIndex != entryIndex.get(cmdIdx)) {
+					        		int startIndexStream = entryIndex.get(cmdIdx);
+					        		int newCmdLength = (bestSourceStartIndex - entryIndex.get(cmdIdx)) / 2;
+					        		// if length is 1 then just create a basic RLE command
+					        		if (newCmdLength == 1) {
+										byte newCmdDescriptor = (byte) (newCmdLength & LENGTH_MASK);
+										rleArrayPhase3List.add(newCmdDescriptor);
+										rleArrayPhase3List.add(rleArrayPhase2List.get(startIndexStream));
+										rleArrayPhase3List.add(rleArrayPhase2List.get(startIndexStream + 1));
+					        		}
+					        		// length is > 1 then create a Stream of Words command
+					        		else {
+					        			byte newCmdDescriptor = (byte) (BIT_STREAM_OF_WORDS_A | (newCmdLength & LENGTH_MASK));
+					        			rleArrayPhase3List.add(newCmdDescriptor);
+					        			// Add the words
+					        			for (int j=0; j < 2*newCmdLength; j += 2) {
+											rleArrayPhase3List.add(rleArrayPhase2List.get(startIndexStream + j)); // word high byte
+											rleArrayPhase3List.add(rleArrayPhase2List.get(startIndexStream + 1 + j)); // word low byte
+										}
+					        		}
+					        	}
+
+					    		// Add back ref byte
+					    		rleArrayPhase3List.add((byte)BYTE_BACKWARD_REF_A);
+
+					    		// Add jump back distance
+					    		// Negate the jump distance as a 16 bits number
+					    		short negated = (short) -((short)distanceJumpBack);
+					    		rleArrayPhase3List.add((byte)((negated >> 8) & 0xFF));
+					    		rleArrayPhase3List.add((byte)(negated & 0xFF));
+
+					    		// Add the end of row bit
+					    		byte lengthWithEndOfRowBit = (byte)bestMatchLength;
+					    		if (setEndOfRowBit) {
+					    			// Only if we didn't leave any trailing word 
+					    			if (bestMatchLength == length)
+					    				lengthWithEndOfRowBit = (byte) (lengthWithEndOfRowBit | BIT_END_OF_ROW_A);
+					    		}
+					    		rleArrayPhase3List.add(lengthWithEndOfRowBit);
+
+					    		// Encoded is done
+					    		backRefEncoded = true;
+
+					    		// If ending index is not the end of the stream then add a new command for the excluded trailing words
+					    		if ((bestSourceStartIndex + 2*bestMatchLength) != (entryIndex.get(cmdIdx) + 2*length)) {
+					    			int startIndexStream = bestSourceStartIndex + 2*bestMatchLength;
+					    			int newCmdLength = ((entryIndex.get(cmdIdx) + 2*length) - (bestSourceStartIndex + 2*bestMatchLength)) / 2;
+					    			// if length is 1 then just create a basic RLE command
+					        		if (newCmdLength == 1) {
+					        			byte newCmdDescriptor = (byte) (newCmdLength & LENGTH_MASK);
+					        			if (setEndOfRowBit)
+					        				newCmdDescriptor = (byte) (newCmdDescriptor | BIT_END_OF_ROW_A);
+					        			rleArrayPhase3List.add(newCmdDescriptor);
+					        			rleArrayPhase3List.add(rleArrayPhase2List.get(startIndexStream));
+							    		rleArrayPhase3List.add(rleArrayPhase2List.get(startIndexStream + 1));
+					        		}
+					        		// length is > 1 then create a Stream of Words command
+					        		else {
+					        			byte newCmdDescriptor = (byte) (BIT_STREAM_OF_WORDS_A | (newCmdLength & LENGTH_MASK));
+					        			if (setEndOfRowBit)
+					        				newCmdDescriptor = (byte) (newCmdDescriptor | BIT_END_OF_ROW_A);
+					        			rleArrayPhase3List.add(newCmdDescriptor);
+					        			// Add the words
+					        			for (int j=0; j < 2*newCmdLength; j += 2) {
+											rleArrayPhase3List.add(rleArrayPhase2List.get(startIndexStream + j)); // word high byte
+											rleArrayPhase3List.add(rleArrayPhase2List.get(startIndexStream + 1 + j)); // word low byte
+										}
+					        		}
+					    		}
+					        }
+					    }
+					}
+				}
+
+				// Not duplicated? Then straight copy it
+				if (!backRefEncoded) {
+					rleArrayPhase3List.add(descriptor);
+					for (int j=0; j < 2*length; j += 2) {
+						rleArrayPhase3List.add(rleArrayPhase2List.get(index + j)); // word high byte
+						rleArrayPhase3List.add(rleArrayPhase2List.get(index + 1 + j)); // word low byte
+					}
+				}
+
+				index += 2 * length; // consume all the words
+			}
+		}
+
+		return rleArrayPhase3List;
 	}
 
 	/**
@@ -307,12 +652,13 @@ public class RLEWCompressor {
 
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);
 		int accumWordsThisRow = 0;
+		ByteBuffer byteBuffer = ByteBuffer.allocate(4);
 
 		for (int i = 0; i < data.length; i += 2) {
 			// Combine two bytes into a word
 			int currentWord = ((data[i] & 0xFF) << 8) | ((data[i + 1] & 0xFF));
 			int runLength = 1;
-			accumWordsThisRow++; // current word being analyzed per row
+			accumWordsThisRow++;
 
 			while ((i+2) < data.length && runLength < RLE_MAX_RUN_LENGTH && accumWordsThisRow < wordsPerRow && 
 					(data[i] == data[i + 2]) && (data[i + 1] == data[i + 3])) {
@@ -321,27 +667,30 @@ public class RLEWCompressor {
 				i += 2;
 			}
 
-			boolean setEndOfRowBit = false;
+			boolean addEndOfRowByte = false;
 			if (accumWordsThisRow == wordsPerRow) {
 				accumWordsThisRow = 0;
-				setEndOfRowBit = true;
+				addEndOfRowByte = true;
 			}
 
-			ByteBuffer buffer = ByteBuffer.allocate(4);
-			byte rleDescriptor = (byte) (runLength & 0b00111111); // keep only first 6 bits
-			buffer.put(rleDescriptor); // store RLE byte descriptor
-			buffer.putShort((short) currentWord); // store word value
+			byte rleDescriptor = (byte) (runLength & LENGTH_MASK);
+
+			byteBuffer.clear();
+			byteBuffer.put(rleDescriptor); // store RLE byte descriptor
+			byteBuffer.put((byte)((currentWord >> 8) & 0xFF)); // store word's higher byte
+			byteBuffer.put((byte)(currentWord & 0xFF)); // store word's lower byte
 			
-			if (setEndOfRowBit) {
-				buffer.put((byte)0); // add byte 0 to mark the end of a row
-				outputStream.write(buffer.array(), 0, 4);
+			if (addEndOfRowByte) {
+				byteBuffer.put((byte)BYTE_END_OF_ROW_B); // mark the end of a row
+				outputStream.write(byteBuffer.array(), 0, 4);
 			}
 			else {
-				outputStream.write(buffer.array(), 0, 3);
+				outputStream.write(byteBuffer.array(), 0, 3);
 			}
 		}
 
 		byte[] rlePhase1Array = outputStream.toByteArray();
+		byteBuffer = null;
 		outputStream.reset();
 		outputStream = null;
 
@@ -353,13 +702,13 @@ public class RLEWCompressor {
 			byte rleDescriptor = rlePhase1Array[i];
 			
 			// If the descriptor is the end of row mark then collect it and continue
-			if (rleDescriptor == 0) {
+			if (rleDescriptor == (byte)BYTE_END_OF_ROW_B) {
 				rlePhase2List.add(rleDescriptor);
 				++i;
 			}
 			// Try to find an incremental RLE segment only if segment is length 1
-			else if ((rleDescriptor & 0b00111111) == 1) {
-				i = collectIncrementalRLE_B(rlePhase1Array, rlePhase2List, i);
+			else if ((rleDescriptor & LENGTH_MASK) == 1) {
+				i = collectIncrementalRLE_B(rlePhase1Array, rlePhase2List, i, wordsPerRow);
 			}
 			// Copy the RLE segment
 			else {
@@ -370,120 +719,116 @@ public class RLEWCompressor {
 			}
 		}
 
-		byte[] rlePhase2Array = convertToByteArray(rlePhase2List);
 		rlePhase1Array = null;
-		rlePhase2List.clear();
 
 		// PHASE 3:
 		// Now transform consecutive words having RLE byte descriptor with length 1 into one stream of at least N words.
 		// The new RLE byte descriptor for such streams has 1 as its MSB and the length in the 6 LSBs.
 		// The rest of the encoded RLE stays the same if the stream criteria is not met.
 
-		List<Byte> rlePhase3List = new ArrayList<>(rlePhase2Array.length);
+		List<Byte> rlePhase3List = new ArrayList<>(rlePhase2List.size());
 
-		for (int i = 0; i < rlePhase2Array.length;) {
+		for (int i = 0; i < rlePhase2List.size();) {
 
-			byte rleDescriptor = rlePhase2Array[i];
+			byte rleDescriptor = rlePhase2List.get(i).byteValue();
 
 			// If the descriptor is the end of row mark then collect it and continue
-			if (rleDescriptor == 0) {
+			if (rleDescriptor == (byte)BYTE_END_OF_ROW_B) {
 				rlePhase3List.add(rleDescriptor);
 				++i;
 			}
 			// Check if the length is 1 (single word repeat)
-			else if ((rleDescriptor & 0b00111111) == 1) {
-				i = collectWordsIntoStream_B(rlePhase2Array, rlePhase3List, i);
+			else if ((rleDescriptor & LENGTH_MASK) == 1) {
+				i = collectWordsIntoStream_B(rlePhase2List, rlePhase3List, i);
 			}
 			// Segment's length > 1
 			else {
 				// If descriptor's mask matches 0b01...... then we have an incremental RLE segment
-				if ((byte)(rleDescriptor & 0b11000000) == (byte)0b01000000) {
+				if ((byte)(rleDescriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_INCREMENTAL_RLE_B) {
 					rlePhase3List.add(rleDescriptor);
-					rlePhase3List.add(rlePhase2Array[i + 1]); // operand
-					rlePhase3List.add(rlePhase2Array[i + 2]); // word high byte
-					rlePhase3List.add(rlePhase2Array[i + 3]); // word low byte
+					rlePhase3List.add(rlePhase2List.get(i + 1)); // operand
+					rlePhase3List.add(rlePhase2List.get(i + 2)); // word high byte
+					rlePhase3List.add(rlePhase2List.get(i + 3)); // word low byte
 					i += 4;
 				}
 				// Others
 				else {
 					rlePhase3List.add(rleDescriptor);
-					rlePhase3List.add(rlePhase2Array[i + 1]); // word high byte
-					rlePhase3List.add(rlePhase2Array[i + 2]); // word low byte
+					rlePhase3List.add(rlePhase2List.get(i + 1)); // word high byte
+					rlePhase3List.add(rlePhase2List.get(i + 2)); // word low byte
 					i += 3;
 				}
 			}
 		}
 
-		byte[] rlePhase3Array = convertToByteArray(rlePhase3List);
-		rlePhase2Array = null;
-		rlePhase3List.clear();
+		rlePhase2List.clear();
+		rlePhase2List = null;
 
 		// PHASE 4:
 		// Process the streams of words and extract at least N consecutive words having the same high byte. 
 		// This way the common high byte can be included once at the beginning of the stream and then continue 
 		// with the low byte of every remaining word in the stream. This saves up to <50% in the best case.
 
-		List<Byte> rlePhase4List = new ArrayList<>(rlePhase3Array.length);
+		List<Byte> rlePhase4List = new ArrayList<>(rlePhase3List.size());
 
-		for (int i = 0; i < rlePhase3Array.length; ) {
+		for (int i = 0; i < rlePhase3List.size(); ) {
 
-			byte rleDescriptor = rlePhase3Array[i];
+			byte rleDescriptor = rlePhase3List.get(i).byteValue();
 
 			// If the descriptor is the end of row mark then collect it and continue
-			if (rleDescriptor == 0) {
+			if (rleDescriptor == (byte)BYTE_END_OF_ROW_B) {
 				rlePhase4List.add(rleDescriptor);
 				++i;
 				continue;
 			}
 
-			// If descriptor has the stream bit set then we're going to analyze the stream
-			if ((byte)(rleDescriptor & 0b10000000) != (byte)0) {
-				i = compressStreamCommonHighBytes_B(rlePhase3Array, rlePhase4List, i);
+			// If descriptor's mask matches 0b10...... then we're going to analyze the stream
+			if ((byte)(rleDescriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_STREAM_OF_WORDS_B) {
+				i = compressStreamCommonHighBytes_B(rlePhase3List, rlePhase4List, i);
+			}
+			// If descriptor's mask matches 0b01...... then we have an incremental RLE segment
+			else if ((byte)(rleDescriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_INCREMENTAL_RLE_B) {
+				rlePhase4List.add(rleDescriptor);
+				rlePhase4List.add(rlePhase3List.get(i + 1)); // operand
+				rlePhase4List.add(rlePhase3List.get(i + 2)); // word high byte
+				rlePhase4List.add(rlePhase3List.get(i + 3)); // word low byte
+				i += 4;
 			}
 			// Others
 			else {
-				// If descriptor's mask matches 0b01...... then we have an incremental RLE segment
-				if ((byte)(rleDescriptor & 0b11000000) == (byte)0b01000000) {
-					rlePhase4List.add(rleDescriptor);
-					rlePhase4List.add(rlePhase3Array[i + 1]); // operand
-					rlePhase4List.add(rlePhase3Array[i + 2]); // word high byte
-					rlePhase4List.add(rlePhase3Array[i + 3]); // word low byte
-					i += 4;
-				}
-				// Others
-				else {
-					rlePhase4List.add(rleDescriptor);
-					rlePhase4List.add(rlePhase3Array[i + 1]); // word high byte
-					rlePhase4List.add(rlePhase3Array[i + 2]); // word low byte
-					i += 3;
-				}
+				rlePhase4List.add(rleDescriptor);
+				rlePhase4List.add(rlePhase3List.get(i + 1)); // word high byte
+				rlePhase4List.add(rlePhase3List.get(i + 2)); // word low byte
+				i += 3;
 			}
 		}
 
-		// Convert List<Byte> to byte[]
+		rlePhase3List = null;
 		byte[] rlePhase4Array = convertToByteArray(rlePhase4List);
 		return rlePhase4Array;
 	}
 
-	private static int collectIncrementalRLE_B (byte[] source, List<Byte> target, int i) {
+	private static int collectIncrementalRLE_B (byte[] source, List<Byte> target, int i, int wordsPerRow) {
 		// Start collecting a sequence of incremental words
 		int sequenceStart = i; // descriptor's position
-		int sequenceLength = 1; // we start counting the first word is already in because the comparison is between 2 words
+		int sequenceLength = 1; // the first word is already in because the comparison is between 2 words
 		byte[] operand = {0}; // initial operand value always 0
 
 		// Scan forward to count how many consecutive words with an incremental nature we find.
-		// We only interesting in RLE segments of length 1
-		while ((i+5) < source.length && source[i] != 0 && source[i+3] != 0 && (source[i] & 0b00111111) == 1 
-				&& (source[i+3] & 0b00111111) == 1 && keepSameOperand(source, i, operand)) {
+		// We only interesting in RLE segments of length 1.
+		// i is descriptor's position, i+3 is the next descriptor's position
+		while ((i+5) < source.length && sequenceLength <= wordsPerRow 
+				&& source[i+3] != (byte)BYTE_END_OF_ROW_B 
+				&& source[i] != 0 && source[i+3] != 0 && (source[i] & LENGTH_MASK) == 1 
+				&& (source[i+3] & LENGTH_MASK) == 1 && keepSameOperand(source, i, operand)) {
 			sequenceLength++;
-			i += 3; // Move to the next descriptor
+			i += 3; // Consume this segment and locates at next descriptor
 		}
 
 		if (sequenceLength >= RLE_MIN_SEQUENCE_OF_INCREMENTAL_OCCURRENCES) {
-			// Accommodate for the last word included in the segment
-			i += 3; // Move to the next descriptor
+			i += 3; // Consume the last segment and locates at next descriptor
 			// Set the mask to tell this is an incremental RLE segment, including the length
-			byte newDescriptor = (byte) (0b01000000 | (sequenceLength & 0b00111111));
+			byte newDescriptor = (byte) (BITS_INCREMENTAL_RLE_B | (sequenceLength & LENGTH_MASK));
 			target.add(newDescriptor);
 			target.add(operand[0]);
 			target.add(source[sequenceStart + 1]); // word high byte
@@ -491,9 +836,8 @@ public class RLEWCompressor {
 		}
 		// Not enough length to form an incremental RLE, then copy the segments as it is
 		else {
-			// Accommodate for the last word used in the condition above
-			i += 3; // Move to the next descriptor
-			// Copy descriptor + word
+			i += 3; // Consume the last segment and locates at next descriptor
+			// Copy all the segments from the beginning up to the last segment used in the comparison loop
 			for (int j = sequenceStart; j < (sequenceStart + 3 * sequenceLength); j++)
 				target.add(source[j]);
 		}
@@ -513,13 +857,13 @@ public class RLEWCompressor {
 		return a != b && (previousOp == 0 || previousOp == operand[0]);
 	}
 
-	private static int collectWordsIntoStream_B (byte[] source, List<Byte> target, int i) {
+	private static int collectWordsIntoStream_B (List<Byte> source, List<Byte> target, int i) {
 		// Start collecting a stream of single-word repeats
 		int sequenceStart = i; // descriptor's position
 		int sequenceLength = 0;
 
 		// Scan forward to count how many consecutive words with length == 1 we find
-		while (i < source.length && (source[i] & 0b00111111) == 1) {
+		while (i < source.size() && (source.get(i).byteValue() & LENGTH_MASK) == 1) {
 			sequenceLength++;
 			i += 3; // Move to the next descriptor
 		}
@@ -527,39 +871,40 @@ public class RLEWCompressor {
 		if (sequenceLength >= RLE_MIN_SEQUENCE_OF_LENGTH_1_OCCURRENCE) {
 			// Set the MSB to 1 to tell this is a stream of words, followed by the length of 
 			// the stream in the remaining 6 LSBs
-			byte newDescriptor = (byte) (0b10000000 | (sequenceLength & 0b00111111));
+			byte newDescriptor = (byte) (BITS_STREAM_OF_WORDS_B | (sequenceLength & LENGTH_MASK));
 			target.add(newDescriptor);
+			sequenceStart++; // consume the descriptor
 
 			// Add the collected words
 			for (int j = 0; j < sequenceLength; j++) {
-				target.add(source[sequenceStart + 3*j + 1]); // word high byte
-				target.add(source[sequenceStart + 3*j + 2]); // word low byte
+				target.add(source.get(sequenceStart + 0 + 3*j)); // word high byte
+				target.add(source.get(sequenceStart + 1 + 3*j)); // word low byte
 			}
 		}
 		// Not enough length to form a stream, then copy the segments as it is
 		else {
 			// Copy descriptor + word
 			for (int j = sequenceStart; j < (sequenceStart + 3 * sequenceLength); j++)
-				target.add(source[j]);
+				target.add(source.get(j));
 		}
 
 		return i;
 	}
 
-	private static int compressStreamCommonHighBytes_B (byte[] rleArrayPhase2, List<Byte> rleArrayPhase3List, int i) {
+	private static int compressStreamCommonHighBytes_B (List<Byte> source, List<Byte> target, int i) {
 		List<Byte> tempCollectorListPass1 = new ArrayList<>();
 		int streamStartAt = i;
-		int streamLength = rleArrayPhase2[i] & 0b00111111;
+		int streamLength = source.get(i).byteValue() & LENGTH_MASK;
 		++i; // Move to the high byte of the first word in the stream
 
 		// Traverse all the stream of words
 		for (int streamLenAux = streamLength; streamLenAux > 0; ) {
 			int sequenceStart = i;
 			int sequenceLength = 0;
-			byte currentHighByte = rleArrayPhase2[i];
+			byte currentHighByte = source.get(i).byteValue();
 
 			// Scan forward to count how many consecutive words with same high byte we actually find
-			while (i < rleArrayPhase2.length && rleArrayPhase2[i] == currentHighByte && streamLenAux > 0) {
+			while (i < source.size() && source.get(i).byteValue() == currentHighByte && streamLenAux > 0) {
 				sequenceLength++;
 				i += 2; // Move to the next word's high byte in the stream
 				--streamLenAux; // one word less in the stream
@@ -568,12 +913,12 @@ public class RLEWCompressor {
 			// If at least 2 words share the same high byte then we can compress them
 			if (sequenceLength >= RLE_MIN_COMMON_HIGH_BYTE_SEQUENCE) {
 				// Set the first 2 MSBs to 1 to tell this is a stream of bytes using a common high byte for the following N bytes.
-				byte newDescriptor = (byte) (0b11000000 | (sequenceLength & 0b00111111));
+				byte newDescriptor = (byte) (BITS_HIGH_COMMON_BYTE_B | (sequenceLength & LENGTH_MASK));
 				tempCollectorListPass1.add(newDescriptor);
 				tempCollectorListPass1.add(currentHighByte);
 				// Add every low byte
 				for (int j = 0; j < sequenceLength; j++)
-					tempCollectorListPass1.add(rleArrayPhase2[sequenceStart + 1 + 2*j]); // word's low byte
+					tempCollectorListPass1.add(source.get(sequenceStart + 1 + 2*j)); // word's low byte
 			}
 			// Not enough length to compress the words, then copy every word as a RLE of length 1
 			else {
@@ -581,35 +926,32 @@ public class RLEWCompressor {
 					// Use a RLE descriptor with length 1 so we can convert them into a stream later on
 					tempCollectorListPass1.add((byte) 0b00000001);
 					// Collect the word
-					tempCollectorListPass1.add(rleArrayPhase2[j]);
-					tempCollectorListPass1.add(rleArrayPhase2[j+1]);
+					tempCollectorListPass1.add(source.get(j));
+					tempCollectorListPass1.add(source.get(j+1));
 				}
 			}
 		}
 
-		// Convert List<Byte> to byte[]
-		byte[] tempCollectorArrayPass1 = convertToByteArray(tempCollectorListPass1);
-
 		List<Byte> tempCollectorListPass2 = new ArrayList<>();
 
 		// Now traverse the previous list and perform RLE only over the words having descriptor 0b10000001
-		for (int j = 0; j < tempCollectorArrayPass1.length;) {
+		for (int j = 0; j < tempCollectorListPass1.size();) {
 
-			byte descriptor = tempCollectorArrayPass1[j];
+			byte descriptor = tempCollectorListPass1.get(j);
 
 			// If the descriptor is a RLE of length 1 (previously set on purpose) then we're going to process this 
 			// and consecutive words trying to collect them into a stream
 			if (descriptor == (byte) 0b00000001) {
-				j = collectWordsIntoStream_B(tempCollectorArrayPass1, tempCollectorListPass2, j);
+				j = collectWordsIntoStream_B(tempCollectorListPass1, tempCollectorListPass2, j);
 			}
 			// If the descriptor is the one marking a high common byte, then we just collect the sequence
-			else if ((byte)(descriptor & 0b11000000) == (byte)0b11000000) {
+			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_HIGH_COMMON_BYTE_B) {
 				tempCollectorListPass2.add(descriptor);
 				j++; // move to the high common byte
-				tempCollectorListPass2.add(tempCollectorArrayPass1[j++]); // collect the high common byte and move forward
-				int len = descriptor & 0b00111111;
+				tempCollectorListPass2.add(tempCollectorListPass1.get(j++)); // collect the high common byte and move forward
+				int len = descriptor & LENGTH_MASK;
 				for (int k = 0; k < len; ++k)
-					tempCollectorListPass2.add(tempCollectorArrayPass1[j++]);
+					tempCollectorListPass2.add(tempCollectorListPass1.get(j++));
 			}
 			else
 				throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + ": descriptor is not expected.");
@@ -617,10 +959,10 @@ public class RLEWCompressor {
 
 		// Resulting array must be at least 80% smaller than the original stream of words
 		if (tempCollectorListPass2.size() <= ((1 + streamLength * 2) * RLE_THRESHOLD_PHASE_2_TO_PHASE_3))
-			rleArrayPhase3List.addAll(tempCollectorListPass2);
+			target.addAll(tempCollectorListPass2);
 		// Otherwise just copy all the original stream of words
 		else
-			rleArrayPhase3List.addAll(convertToByteList(rleArrayPhase2, streamStartAt, streamStartAt + 1 + streamLength * 2));
+			target.addAll(source.subList(streamStartAt, streamStartAt + 1 + streamLength*2));
 
 		return i;
 	}
@@ -633,12 +975,98 @@ public class RLEWCompressor {
 		return array;
 	}
 
-	private static List<Byte> convertToByteList (byte[] array, int startAt, int endAtExclusive) {
-		List<Byte> list = new ArrayList<>(1 + endAtExclusive - startAt);
-		for (int k = startAt; k < endAtExclusive; k++) {
-			list.add(array[k]);
+	private static void checkCorrectRowLength_A(byte[] rleData, int wordsPerRowLimit) {
+		int rowLengthAccum = 0;
+		int index = 0;
+	
+		while (index < rleData.length) {
+			byte descriptor = rleData[index++];
+	
+			// it's a backward ref byte?
+			if ((byte)descriptor == (byte)BYTE_BACKWARD_REF_A) {
+				int rawLengthByte = rleData[index+2];
+				boolean isEndOfRow = (rawLengthByte & BIT_END_OF_ROW_A) != 0;
+				int length = rawLengthByte & LENGTH_MASK;
+				rowLengthAccum += length;
+				index += 3; // consume the jump distance (2 bytes) and the length (1 byte)
+				// is end of row bit set?
+				if (isEndOfRow) {
+					if (rowLengthAccum != wordsPerRowLimit) {
+						throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() 
+								+ " method A: wrong number of words in Backward Ref command relative to current row length.");
+					}
+					rowLengthAccum = 0;
+				}
+			}
+			// test if descriptor 2nd MSB is 0 then we have basic RLE entry
+			else if ((byte)(descriptor & BIT_STREAM_OF_WORDS_A) == (byte)0) {
+				int length = descriptor & LENGTH_MASK;
+				rowLengthAccum += length;
+				index += 2; // consume the word
+				// if MSB is set then it marks end of row
+				if ((descriptor & BIT_END_OF_ROW_A) != 0) {
+					if (rowLengthAccum != wordsPerRowLimit) {
+						throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() 
+								+ " method A: wrong number of words in Simple RLE command relative to current row length.");
+					}
+					rowLengthAccum = 0;
+				}
+			}
+			// descriptor 2nd MSB is 1, then we have a stream of words
+			else {
+				int length = descriptor & LENGTH_MASK;
+				rowLengthAccum += length;
+				index += 2 * length; // consume all the words
+				// if MSB is set then it marks end of row
+				if ((descriptor & BIT_END_OF_ROW_A) != 0) {
+					if (rowLengthAccum != wordsPerRowLimit) {
+						throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() 
+								+ " method A: wrong number of words in Stream of Words command relative to current row length.");
+					}
+					rowLengthAccum = 0;
+				}
+			}
 		}
-		return list;
+	}
+
+	private static void checkCorrectRowLength_B(byte[] rleData, int wordsPerRowLimit) {
+		int rowLengthAccum = 0;
+		int index = 0;
+	
+		while (index < rleData.length) {
+			byte descriptor = rleData[index++];
+	
+			// is descriptor the mark for end of row?
+			if (descriptor == (byte)BYTE_END_OF_ROW_B) {
+				if (rowLengthAccum != wordsPerRowLimit) {
+					throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + " method B: wrong number of words in row.");
+				}
+				rowLengthAccum = 0;
+				continue;
+			}
+	
+			int length = descriptor & LENGTH_MASK;
+			rowLengthAccum += length;
+	
+			// test if descriptor's mask matches 0...... then we have basic RLE segment
+			if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)0) {
+				index += 2; // consume the word
+			}
+			// test if descriptor's mask matches 0b01...... then we have an incremental RLE segment
+			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_INCREMENTAL_RLE_B) {
+				index++; // consume operand
+				index += 2; // consume the word
+			}
+			// test if descriptor's mask matches 0b10...... then is a stream of words
+			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_STREAM_OF_WORDS_B) {
+				index += 2 * length; // consume all the words
+			}
+			// descriptor's mask matches 0b11...... then is a stream with a common high byte
+			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_HIGH_COMMON_BYTE_B) {
+				index++; // consume common high byte
+				index += length; // consume all the lower bytes
+			}
+		}
 	}
 
 	private static byte[] addHeader (byte[] rleData, int mapTilesPerRow) {
@@ -648,10 +1076,17 @@ public class RLEWCompressor {
 		return newArray;
 	}
 
+	/**
+	 * Add the parity byte before a descriptor so the next word can be read from an even address, 
+	 * since M68000 CPU can't read words from odd addresses which impacts in the performance of the unpacker.
+	 * @param rleData
+	 * @return
+	 */
 	private static byte[] addParityBytes_A (byte[] rleData) {
 		List<Byte> list = new ArrayList<>(rleData.length); // initial capacity
 		int index = 0;
-		boolean firstRun = true;
+		boolean afterFirstDescriptor = false;
+		boolean backRefByteAdded = false;
 
 		// first byte is the header
 		list.add(rleData[index++]);
@@ -659,30 +1094,47 @@ public class RLEWCompressor {
 		// visit the rest of the array
 		while (index < rleData.length) {
 			byte descriptor = rleData[index++];
-			
-			// if not the first run then we add parity byte and then copy with the segment
-			if (!firstRun)
-				list.add((byte) 0); // add the parity byte
+
+			// if not the first run then we add the Parity Byte
+			if (afterFirstDescriptor) {
+				// only if Back Ref Byte wasn't added in previous loop
+				if (!backRefByteAdded) {
+					list.add((byte)PARITY_BYTE_A);
+				}
+			}
+
+			// reset the flag for this loop
+			backRefByteAdded = false;
 
 			list.add(descriptor);
 
+			// it's a Back Ref Byte?
+			if ((byte)descriptor == (byte)BYTE_BACKWARD_REF_A) {
+				// copy the jump distance (2 bytes)
+				list.add(rleData[index++]);
+				list.add(rleData[index++]);
+				// copy the length (with end of row bit if set)
+				list.add(rleData[index++]);
+				// set the flag so next loop Parity Byte is not added
+				backRefByteAdded = true;
+			}
 			// test if descriptor 2nd MSB is 0 then we have basic RLE entry
-			if ((byte)(descriptor & 0b01000000) == (byte)0) {
+			else if ((byte)(descriptor & BIT_STREAM_OF_WORDS_A) == (byte)0) {
 				// copy the word
 				list.add(rleData[index++]);
 				list.add(rleData[index++]);
 			}
 			// descriptor 2nd MSB is 1, then we have a stream of words
 			else {
+				int length = descriptor & LENGTH_MASK;
 				// copy the words
-				int length = descriptor & 0x3F; // First 6 bits for length
 				for (int i = 0; i < length; i++) {
 					list.add(rleData[index++]);
 					list.add(rleData[index++]);
 				}
 			}
 			
-			firstRun = false;
+			afterFirstDescriptor = true;
 		}
 
 		return convertToByteArray(list);
@@ -701,17 +1153,16 @@ public class RLEWCompressor {
 			byte descriptor = rleData[index++];
 			list.add(descriptor);
 
-			// descriptor == 0 is the mark for end of row
-			if (descriptor == 0) {
+			// is descriptor the mark for end of row?
+			if (descriptor == (byte)BYTE_END_OF_ROW_B) {
 				continue;
 			}
-
-			// test if descriptor's mask matches 0b00...... then we have basic RLE segment
-			if ((byte)(descriptor & 0b11000000) == (byte)0b00000000) {
+			// test if descriptor's mask matches 0...... then we have basic RLE segment
+			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)0) {
 				// if descriptor was at even position then we'll add before him the parity byte
 				if (isEven(index - 1, offsetAccum)) {
 					list.remove(list.size() - 1); // remove descriptor
-					list.add((byte) 0b01000000); // add the parity byte
+					list.add((byte)PARITY_BYTE_B); // add the parity byte
 					list.add(descriptor); // now add the descriptor
 					++offsetAccum;
 				}
@@ -720,11 +1171,11 @@ public class RLEWCompressor {
 				list.add(rleData[index++]);
 			}
 			// test if descriptor's mask matches 0b01...... then we have an incremental RLE segment
-			else if ((byte)(descriptor & 0b11000000) == (byte)0b01000000) {
+			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_INCREMENTAL_RLE_B) {
 				// if descriptor was at even position then we'll add before him the parity byte
 				if (isOdd(index - 1, offsetAccum)) {
 					list.remove(list.size() - 1); // remove descriptor
-					list.add((byte) 0b01000000); // add the parity byte
+					list.add((byte)PARITY_BYTE_B); // add the parity byte
 					list.add(descriptor); // now add the descriptor
 					++offsetAccum;
 				}
@@ -735,32 +1186,32 @@ public class RLEWCompressor {
 				list.add(rleData[index++]);
 			}
 			// test if descriptor's mask matches 0b10...... then is a stream of words
-			else if ((byte)(descriptor & 0b11000000) == (byte)0b10000000) {
+			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_STREAM_OF_WORDS_B) {
 				// if descriptor was at even position then we'll add before him the parity byte
 				if (isEven(index - 1, offsetAccum)) {
 					list.remove(list.size() - 1); // remove descriptor
-					list.add((byte) 0b01000000); // add the parity byte
+					list.add((byte)PARITY_BYTE_B); // add the parity byte
 					list.add(descriptor); // now add the descriptor
 					++offsetAccum;
 				}
 				// copy the words
-				int length = descriptor & 0x3F; // First 6 bits for length
+				int length = descriptor & LENGTH_MASK;
 				for (int i = 0; i < length; i++) {
 					list.add(rleData[index++]);
 					list.add(rleData[index++]);
 				}
 			}
 			// descriptor's mask matches 0b11...... then is a stream with a common high byte
-			else {
+			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_HIGH_COMMON_BYTE_B) {
 				// if descriptor was at even position then we'll add before him the parity byte
 				if (isEven(index - 1, offsetAccum)) {
 					list.remove(list.size() - 1); // remove descriptor
-					list.add((byte) 0b01000000); // add the parity byte
+					list.add((byte)PARITY_BYTE_B); // add the parity byte
 					list.add(descriptor); // now add the descriptor
 					++offsetAccum;
 				}
 				list.add(rleData[index++]); // common high byte
-				int length = (descriptor & 0x3F); // length is first 6 bits
+				int length = (descriptor & LENGTH_MASK);
 				// copy the bytes
 				for (int i = 0; i < length; i++)
 					list.add(rleData[index++]);
@@ -776,79 +1227,6 @@ public class RLEWCompressor {
 
 	private static boolean isOdd(int i, int offset) {
 		return ((i + offset) % 2) == 1;
-	}
-
-	private static void checkCorrectRowLength_A(byte[] rleData, int wordsPerRow) {
-		int rowLengthAccum = 0;
-		int index = 0;
-
-		while (index < rleData.length) {
-			byte descriptor = rleData[index++];
-
-			// test if descriptor 2nd MSB is 0 then we have basic RLE entry
-			if ((byte)(descriptor & 0b01000000) == (byte)0) {
-				int length = descriptor & 0x3F; // First 6 bits for length
-				rowLengthAccum += length;
-				index += 2; // consume the word
-				// if MSB is set then it marks end of row
-				if ((descriptor & 0b10000000) != 0) {
-					if (rowLengthAccum != wordsPerRow)
-						throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + " method A: wrong number of words in Simple RLE row.");
-					rowLengthAccum = 0;
-				}
-			}
-			// descriptor 2nd MSB is 1, then we have a stream of words
-			else {
-				int length = descriptor & 0x3F; // First 6 bits for length
-				rowLengthAccum += length;
-				index += 2 * length; // consume the all the words
-				// if MSB is set then it marks end of row
-				if ((descriptor & 0b10000000) != 0) {
-					if (rowLengthAccum != wordsPerRow)
-						throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + " method A: wrong number of words in RLE Stream row.");
-					rowLengthAccum = 0;
-				}
-			}
-		}
-	}
-	
-	private static void checkCorrectRowLength_B(byte[] rleData, int wordsPerRow) {
-		int rowLengthAccum = 0;
-		int index = 0;
-
-		while (index < rleData.length) {
-			byte descriptor = rleData[index++];
-
-			// descriptor == 0 is the mark for end of row
-			if (descriptor == 0) {
-				if (rowLengthAccum != wordsPerRow)
-					throw new RuntimeException("ERROR: " + RLEWCompressor.class.getSimpleName() + " method B: wrong number of words in row.");
-				rowLengthAccum = 0;
-				continue;
-			}
-
-			int length = descriptor & 0x3F; // First 6 bits for length
-			rowLengthAccum += length;
-
-			// test if descriptor's mask matches 0b00...... then we have basic RLE segment
-			if ((byte)(descriptor & 0b11000000) == (byte)0b00000000) {
-				index += 2; // consume the word
-			}
-			// test if descriptor's mask matches 0b01...... then we have an incremental RLE segment
-			else if ((byte)(descriptor & 0b11000000) == (byte)0b01000000) {
-				index++; // consume operand
-				index += 2; // consume the word
-			}
-			// test if descriptor's mask matches 0b10...... then is a stream of words
-			else if ((byte)(descriptor & 0b11000000) == (byte)0b10000000) {
-				index += 2 * length; // consume all the words
-			}
-			// descriptor's mask matches 0b11...... then is a stream with a common high byte
-			else {
-				index++; // consume common high byte
-				index += length; // consume all the lower bytes
-			}
-		}
 	}
 
 	private static void printStats (Map<String, WordInfo> wordInfoMap) {
@@ -875,21 +1253,26 @@ public class RLEWCompressor {
 			int currentDescriptorPos = index;
 			byte descriptor = rleData[index++];
 
-			// test if descriptor != 0 then we have basic RLE entry
-			if (descriptor != 0) {
-				int word = ((rleData[index++] & 0xFF) << 8) | (rleData[index++] & 0xFF);
+			// it's a backward ref byte?
+			if ((byte)descriptor == (byte)BYTE_BACKWARD_REF_A) {
+				index += 3; // consume the jump distance (2 bytes) and the length byte
+			}
+			// test if descriptor 2nd MSB is 0 then we have basic RLE entry
+			else if ((byte)(descriptor & BIT_STREAM_OF_WORDS_A) == (byte)0) {
+				int word = (rleData[index++] << 8) | rleData[index++];
 				updateWordInfo(wordInfoMap, word, currentDescriptorPos);
 			}
 			// descriptor 2nd MSB is 1, then we have a stream of words
 			else {
-				int length = descriptor & 0x3F; // First 6 bits for length
+				int length = descriptor & LENGTH_MASK;
 				// track position and occurrences of every word in the stream
 				for (int i = 0; i < length; i++) {
-					int word = ((rleData[index++] & 0xFF) << 8) | (rleData[index++] & 0xFF);
+					int word = (rleData[index++] << 8) | rleData[index++];
 					updateWordInfo(wordInfoMap, word, currentDescriptorPos + i);
 				}
 			}
 		}
+
 		return wordInfoMap;
 	}
 
@@ -901,45 +1284,45 @@ public class RLEWCompressor {
 			int currentDescriptorPos = index;
 			byte descriptor = rleData[index++];
 
-			// descriptor == 0 is the mark for end of row
-			if (descriptor == 0) {
+			// is descriptor the mark for end of row?
+			if (descriptor == (byte)BYTE_END_OF_ROW_B) {
 				continue;
 			}
-			
-			// test if descriptor's mask matches 0b00...... then we have basic RLE segment
-			if ((byte)(descriptor & 0b11000000) == (byte)0b00000000) {
-				int word = ((rleData[index++] & 0xFF) << 8) | (rleData[index++] & 0xFF);
+			// test if descriptor's mask matches 0...... then we have basic RLE segment
+			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)0) {
+				int word = (rleData[index++] << 8) | rleData[index++];
 				updateWordInfo(wordInfoMap, word, currentDescriptorPos);
 			}
 			// test if descriptor's mask matches 0b01...... then we have an incremental RLE segment
-			else if ((byte)(descriptor & 0b11000000) == (byte)0b01000000) {
-				int length = descriptor & 0x3F; // First 6 bits for length
+			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_INCREMENTAL_RLE_B) {
+				int length = descriptor & LENGTH_MASK;
 				byte operand = rleData[index++]; // operand
-				int word = (rleData[index++] << 8) | (rleData[index++] & 0xFF);
+				int word = (rleData[index++] << 8) | rleData[index++];
 				for (int i = 0; i < length-1; i++) {
 					updateWordInfo(wordInfoMap, word, currentDescriptorPos + 1 + i);
 					word = word + operand;
 				}
 			}
 			// test if descriptor's mask matches 0b10...... then is a stream of words
-			else if ((byte)(descriptor & 0b11000000) == (byte)0b10000000) {
-				int length = descriptor & 0x3F; // First 6 bits for length
+			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_STREAM_OF_WORDS_B) {
+				int length = descriptor & LENGTH_MASK;
 				// track position and occurrences of every word in the stream
 				for (int i = 0; i < length; i++) {
-					int word = ((rleData[index++] & 0xFF) << 8) | (rleData[index++] & 0xFF);
+					int word = (rleData[index++] << 8) | rleData[index++];
 					updateWordInfo(wordInfoMap, word, currentDescriptorPos + i);
 				}
 			}
 			// descriptor's mask matches 0b11...... then is a stream with a common high byte
-			else {
-				int length = descriptor & 0x3F; // First 6 bits for length
+			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_HIGH_COMMON_BYTE_B) {
+				int length = descriptor & LENGTH_MASK;
 				byte commonHighByte = rleData[index++];
 				for (int i = 0; i < length; i++) {
-					int word = (commonHighByte << 8) | (rleData[index++] & 0xFF);
+					int word = (commonHighByte << 8) | rleData[index++];
 					updateWordInfo(wordInfoMap, word, currentDescriptorPos + i);
 				}
 			}
 		}
+
 		return wordInfoMap;
 	}
 
@@ -971,4 +1354,18 @@ public class RLEWCompressor {
 			return 0;
 		}
 	}
+	
+//	public static void main(String[] args) throws Exception
+//	{
+//		byte[] words = new byte[] {
+//				0,46, 0,46, 0,46, 0,46, 0,46, 0,46, // basic RLE
+//				1,1, 1,2, 1,3, 1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 1,10, 1,11, 1,12, 1,13, 1,14, 1,15, 1,16, 1,17, // Stream of Words
+//				0,58, 0,58, 0,58, 0,58, 0,58, 0,58, // basic RLE
+//				1,1, 1,2, 1,3, 1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 1,10, 1,11, 1,12, 1,13, 1,14, 1,15, 1,16, 1,17, // Stream of Words
+//				0,69, 0,69, 0,69, 0,69, 0,69, 0,69, // basic RLE
+//				0,72, 0,72, 0,72, 0,72, 0,72, 0,72, 0,72, 0,72, 0,72, 0,72, // basic RLE
+//				2,1, 2,2, 1,3, 1,4, 1,5, 1,6, 1,7, 1,8, 1,9, 1,10, 2,11, 2,12, 2,13 // Stream of Words
+//		};
+//		compress_A(words, "");
+//	}
 }

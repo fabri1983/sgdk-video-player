@@ -50,7 +50,7 @@ public class ImageStripsNoPals extends Resource
         tileset = (TilesetOriginalCustom) addInternalResource(new TilesetOriginalCustom(id + "_tileset", finalImageData, w, h, 0, 0, wt, ht, tileOpt, 
         		compression, compressionCustomTileset, false, false, TileOrdering.ROW, tilesCacheId, addCompressionField, commonTilesRangeId));
 
-        System.out.print(" " + id + " -> numTiles: " + tileset.getNumTile() + ". ");
+        System.out.println(" " + id + " -> numTiles: " + tileset.getNumTile() + ". ");
         if (tilesetStatsCollectorId != null && !"".equals(tilesetStatsCollectorId)) {
 	        TilesetStatsCollector.count1chunk(tilesetStatsCollectorId, tileset.getNumTile());
         }

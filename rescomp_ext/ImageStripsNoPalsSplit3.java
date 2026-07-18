@@ -109,7 +109,7 @@ public class ImageStripsNoPalsSplit3 extends Resource
 
     	List<TilesetOriginalCustom> tilesetsList = Arrays.asList(tileset1, tileset2, tileset3);
 
-    	System.out.print(" " + id + " -> numTiles (chunk1 + chunk2 + chunk3): " + tileset1.getNumTile() + " + " + tileset2.getNumTile() + " + " + tileset3.getNumTile() + " = " + 
+    	System.out.println(" " + id + " -> numTiles (chunk1 + chunk2 + chunk3): " + tileset1.getNumTile() + " + " + tileset2.getNumTile() + " + " + tileset3.getNumTile() + " = " + 
     			(tileset1.getNumTile() + tileset2.getNumTile() + tileset3.getNumTile()) + ". ");
     	if (tilesetStatsCollectorId != null && !"".equals(tilesetStatsCollectorId)) {
 	    	TilesetStatsCollector.count3chunks(tilesetStatsCollectorId, tileset1.getNumTile(), tileset2.getNumTile(), tileset3.getNumTile());

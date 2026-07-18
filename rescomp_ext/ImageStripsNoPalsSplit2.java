@@ -103,7 +103,7 @@ public class ImageStripsNoPalsSplit2 extends Resource
 
     	List<TilesetOriginalCustom> tilesetsList = Arrays.asList(tileset1, tileset2);
 
-    	System.out.print(" " + id + " -> numTiles (chunk1 + chunk2): " + tileset1.getNumTile() + " + " + tileset2.getNumTile() + " = " + 
+    	System.out.println(" " + id + " -> numTiles (chunk1 + chunk2): " + tileset1.getNumTile() + " + " + tileset2.getNumTile() + " = " + 
     			(tileset1.getNumTile() + tileset2.getNumTile()) + ". ");
     	if (tilesetStatsCollectorId != null && !"".equals(tilesetStatsCollectorId)) {
     		TilesetStatsCollector.count2chunks(tilesetStatsCollectorId, tileset1.getNumTile(), tileset2.getNumTile());
