@@ -11,8 +11,8 @@ import java.util.stream.Collectors;
 
 /**
  * RLE compression algorithm that combines Variable-Length Encoding, Block Based Encoding, Run-Length Limited (RLL) Encoding, and Back Reference Encoding.</br>
- * The source array is treated as a multi row of words, each row is treated as an independent block of RLE encoding with a limited max 
- * length of {@link RLEWCompressor#RLE_MAX_RUN_LENGTH} words due to the 6 bits dedicated for length.</br>
+ * The source array is treated as a multi row of words, each row is treated as an independent block with a limited max length of 
+ * {@link RLEWCompressor#RLE_MAX_RUN_LENGTH} words due to the 6 bits dedicated for length.</br>
  * It runs 3 RLE phases which aim to reduce the size of the final encoding, with some configurable parameters to slightly speedup decompression.</br>
  * IS USEFUL IF YOUR TARGET TILEMAP HAS AN EXTENDED WIDTH TO [32, 64, 128] TILES (GOOD FOR FASTER DMA OPERATION (NOTE: there is a faster way!)).</br>
  * THIS WAY YOU CAN DECOMPRESS A BLOCK AND LEAVE UNTOUCHED THE EXTRA SPACE USED TO FULFILL THE WIDTH UP TO [32, 64, 128] TILES.</br>
@@ -65,7 +65,7 @@ public class RLEWCompressor {
 	 * This has an impact in the unpack algorithm time.</br>
 	 * Use a big value to disable this strategy.
 	 */
-	private static final int RLE_MIN_SEQUENCE_OF_INCREMENTAL_OCCURRENCES = Integer.MAX_VALUE;
+	private static final int RLE_MIN_SEQUENCE_OF_INCREMENTAL_OCCURRENCES = 4;
 	/**
 	 * Value must be >= 2</br>
 	 * Play with this value to see how much the size of the encoded output changes.</br>
@@ -704,9 +704,9 @@ public class RLEWCompressor {
 			// If the descriptor is the end of row mark then collect it and continue
 			if (rleDescriptor == (byte)BYTE_END_OF_ROW_B) {
 				rlePhase2List.add(rleDescriptor);
-				++i;
+				i++;
 			}
-			// Try to find an incremental RLE segment only if segment is length 1
+			// Try to find an incremental RLE segment only on consecutive segments of length 1
 			else if ((rleDescriptor & LENGTH_MASK) == 1) {
 				i = collectIncrementalRLE_B(rlePhase1Array, rlePhase2List, i, wordsPerRow);
 			}
@@ -735,7 +735,7 @@ public class RLEWCompressor {
 			// If the descriptor is the end of row mark then collect it and continue
 			if (rleDescriptor == (byte)BYTE_END_OF_ROW_B) {
 				rlePhase3List.add(rleDescriptor);
-				++i;
+				i++;
 			}
 			// Check if the length is 1 (single word repeat)
 			else if ((rleDescriptor & LENGTH_MASK) == 1) {
@@ -778,7 +778,7 @@ public class RLEWCompressor {
 			// If the descriptor is the end of row mark then collect it and continue
 			if (rleDescriptor == (byte)BYTE_END_OF_ROW_B) {
 				rlePhase4List.add(rleDescriptor);
-				++i;
+				i++;
 				continue;
 			}
 
@@ -818,9 +818,8 @@ public class RLEWCompressor {
 		// We only interesting in RLE segments of length 1.
 		// i is descriptor's position, i+3 is the next descriptor's position
 		while ((i+5) < source.length && sequenceLength <= wordsPerRow 
-				&& source[i+3] != (byte)BYTE_END_OF_ROW_B 
-				&& source[i] != 0 && source[i+3] != 0 && (source[i] & LENGTH_MASK) == 1 
-				&& (source[i+3] & LENGTH_MASK) == 1 && keepSameOperand(source, i, operand)) {
+				&& (source[i] & LENGTH_MASK) == 1 && (source[i+3] & LENGTH_MASK) == 1 
+				&& keepSameOperand(source, i, operand)) {
 			sequenceLength++;
 			i += 3; // Consume this segment and locates at next descriptor
 		}
@@ -838,7 +837,7 @@ public class RLEWCompressor {
 		else {
 			i += 3; // Consume the last segment and locates at next descriptor
 			// Copy all the segments from the beginning up to the last segment used in the comparison loop
-			for (int j = sequenceStart; j < (sequenceStart + 3 * sequenceLength); j++)
+			for (int j = sequenceStart; j < (sequenceStart + 3*sequenceLength); j++)
 				target.add(source[j]);
 		}
 
@@ -849,12 +848,17 @@ public class RLEWCompressor {
 		// Both high bytes must be the same so the incremental nature only applies in the lower bytes
 //		if (source[i+1] != source[i+4])
 //			return false;
-		// Combine two bytes into a word
-		int a = ((source[i+1] & 0xFF) << 8) | ((source[i+2] & 0xFF));
-		int b = ((source[i+4] & 0xFF) << 8) | ((source[i+5] & 0xFF));
+		// Combine two bytes into a word. Java casting to short preserves sign
+		// NOTE: this conversion might be wrong. Test accepting delta with negative values up to -128 and sign extend the operand in the unpacker
+		short a = (short) (((source[i + 1] & 0xFF) << 8) | (source[i + 2] & 0xFF));
+		short b = (short) (((source[i + 4] & 0xFF) << 8) | (source[i + 5] & 0xFF));
+		short delta = (short) (b - a);
+		// 0 < delta <= 127
+		if (delta <= 0 || delta > 127)
+			return false;
 		byte previousOp = operand[0];
-		operand[0] = (byte)(b - a); // Java casting to byte preserves sign
-		return a != b && (previousOp == 0 || previousOp == operand[0]);
+		operand[0] = (byte)delta; // Java casting to byte preserves sign
+		return previousOp == 0 || previousOp == (byte)operand[0];
 	}
 
 	private static int collectWordsIntoStream_B (List<Byte> source, List<Byte> target, int i) {
@@ -1172,7 +1176,7 @@ public class RLEWCompressor {
 			}
 			// test if descriptor's mask matches 0b01...... then we have an incremental RLE segment
 			else if ((byte)(descriptor & BITS_DESCRIPTOR_MASK) == (byte)BITS_INCREMENTAL_RLE_B) {
-				// if descriptor was at even position then we'll add before him the parity byte
+				// if descriptor was at odd position then we'll add before him the parity byte
 				if (isOdd(index - 1, offsetAccum)) {
 					list.remove(list.size() - 1); // remove descriptor
 					list.add((byte)PARITY_BYTE_B); // add the parity byte

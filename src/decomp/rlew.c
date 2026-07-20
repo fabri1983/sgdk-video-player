@@ -293,8 +293,7 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
             }
         }
         // if descriptor's mask matches 0b01...... then we have an incremental RLE segment
-        // NOTE: commented because it's not correctly working
-        /*else if (rleDescriptor < 0b10000000) {
+        else if (rleDescriptor < 0b10000000) {
             s8 operator = *in++;
             s16 value_w = *(u16*) in; // read word
             in += 2;
@@ -361,12 +360,12 @@ void NO_INLINE rlew_decomp_B (const u8 jumpGap, u8* in, u8* out) {
                 case  5: *out_w++ = value_w; value_w += operator; // fall through
                 case  4: *out_w++ = value_w; value_w += operator; // fall through
                 case  3: *out_w++ = value_w; value_w += operator; // fall through
-                case  2: *out_w++ = value_w; // fall through
+                case  2: *out_w++ = value_w; value_w += operator; // fall through
                 default: break;
             }
-            // *out_w++ = value_w;
+            *out_w++ = value_w;
             out = (u8*) out_w;
-        }*/
+        }
         // if descriptor's mask matches 0b1...... then is a stream of words
         else if (rleDescriptor < 0b11000000) {
             u8 length = rleDescriptor & 0b00111111;

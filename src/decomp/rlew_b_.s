@@ -83,9 +83,8 @@ func rlew_decomp_B_asm
 2:
     cmp.b       d4, d2              ;// test rleDescriptor (d2) against 0b01000000 (d4)
     bcs         .b_rlew_rle         ;// if (rleDescriptor < 0b01000000) then is a basic RLE
-    ;// NOTE: commented because it's not correctly working
-    *cmp.b       d5, d2              ;// test rleDescriptor (d2) against 0b10000000 (d5)
-    *bcs         .b_rlew_inc_rle     ;// if (rleDescriptor < 0b10000000) then is an incremental RLE
+    cmp.b       d5, d2              ;// test rleDescriptor (d2) against 0b10000000 (d5)
+    bcs         .b_rlew_inc_rle     ;// if (rleDescriptor < 0b10000000) then is an incremental RLE
     cmp.b       d6, d2              ;// test rleDescriptor (d2) against 0b11000000 (d6)
     bcs         .b_rlew_stream_w    ;// if (rleDescriptor < 0b11000000) then is a stream of words
     ;// it's a stream of a common high byte followed by lower bytes
@@ -130,14 +129,14 @@ func rlew_decomp_B_asm
 .b_jmp_inc_rle:
     move.w	    d3, (a1)+           ;// write the word set in previous step
     moveq       #0x3F, d7           ;// restore d7: 0b00111111 mask for length
-.b_jmp_inc_rle_plus_4b:             ;// this label put here so jump back calculation fits ok
+.b_jmp_inc_rle_plus_4b:             ;// this label defined here so jump back calculation fits ok
     jmp         (a3)                ;// jump to get next descriptor
 
 ;// incremental RLE
 .b_rlew_inc_rle:
     and.w       d7, d2              ;// d2: length = rleDescriptor & 0b00111111. Here we know length >= 2
-    moveq       #0, d7
     move.b      (a0)+, d7           ;// d7: operator. We will restore it later on.
+    *ext.w       d7                 ;// NOTE: not need to sign extend since d7 is already 0 at the high byte
     move.w      (a0)+, d3           ;// d3: initial value for incremental value copy into output
     ;// prepare jump offset
     add.w       d2, d2
