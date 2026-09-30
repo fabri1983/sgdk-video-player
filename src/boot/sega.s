@@ -159,11 +159,11 @@ no_bmp_task:
         rte
 
 * Custom version of the _VINT vector which discards User tasks and Bitmap tasks.
-* It uses usp to backup a1, and immediately calls user's VInt callback.
+* It uses usp to backup a1 ONLY IF YOU WON'T USE MULTITASKING, and immediately calls user's VInt callback.
 _VINT_lean:
         movem.l %d0-%d1/%a0, -(%sp)         /* Save the scratch pad since it won't be saved by the function pointed by vintCB */
         move.l  %a1, %usp
-        *ori.w   #0x0001, intTrace           /* in V-Int */
+        *ori.w   #0x0001, intTrace           /* in V-Int */ NOTE: Make sure we don't need it
         addq.w  #1, vtimer
         move.l  vintCB, %a0
         jsr     (%a0)

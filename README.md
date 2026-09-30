@@ -13,19 +13,19 @@ You can find me in the SGDK Discord server: https://discord.gg/xmnBWQS
 
 ### SGDK lib config
 ---
-Before you compile this project, make sure your SGDK library was built with next switches in `config.h`:
+Before you compile this project, make sure your SGDK library is built with next switches in `config.h`:
 - `ENABLE_BANK_SWITCH      1`
 
 ### Features
 ---
 - Supports up to 256+ colors per frame.
-- Currently running at 11-15 FPS in NTSC and 11-12 FPS in PAL, with a frame size of 272 x 192 pixels (34 x 24 tiles).
+- Runs at 11-15 FPS in NTSC and 11-12 FPS in PAL, with a frame size of 272 x 192 pixels (34 x 24 tiles).
 - Uses custom extensions for [Stef's SGDK rescomp tool](https://github.com/Stephane-D/SGDK/blob/master/bin/rescomp.txt).
 - Uses custom tiledpalettequant app (not public yet).
 - Custom `_VInt_lean` interrupt handler in `sega.s` for faster execution wihtout unused features.
 
 ### Config theese first:
---
+---
 - You need *Image Magick v7.x* tools set in _PATH_.
 - You need *ffmpeg* set in the _PATH_.
 - Set `ENABLE_BANK_SWITCH` 1 in _SGDK_'s `config.h` for rom size bigger than 4MB, and re build the _SGDK_ lib.
@@ -81,15 +81,15 @@ Run it once to catch rescomp output to know tileset stats (resource TILESET_STAT
 
 
 ### NOTES
---
-- I recommend to use a video resize and filter program like *VirtualDub 2*, which allows you to keep a crisp image when resizing, 
-uses custom ratio with black regions when resizing, lets you crop the video, and also comes with all kind of useful filters. 
+---
+- I recommend to use a video editor program like *VirtualDub 2* for resize and filter it, which allows you to keep a crisp image when resizing, 
+use custom ratio with black bars, crop the video, and all kind of useful filters. 
 That way the `extract.bat` script, which calls ffmpeg, will only extract the frames without any resizing, and then extract the audio 
 in correct format for the SGDK rescomp tool.
 
 
 ### TODO
---
+---
 - Update joy like in raycasting project.
 - Pre load frame 0 before starting music and see how does result with sound timing/sync.
 - Try new video from VirtualDub2 project. Better definition and correct dimensions. Frame size: 272 x 200 px (34 x 25 tiles).

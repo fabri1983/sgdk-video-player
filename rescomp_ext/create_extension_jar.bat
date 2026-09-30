@@ -117,6 +117,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/processor/ImageNoPalsProcessor.class ^
 	./sgdk/rescomp/processor/ImageStripsCommonTilesRangeProcessor.class ^
 	./sgdk/rescomp/processor/ImageStripsNoPalsProcessor.class ^
+	./sgdk/rescomp/processor/MapBeyond2047Processor.class ^
 	./sgdk/rescomp/processor/Palette16AllStripsProcessor.class ^
 	./sgdk/rescomp/processor/Palette16Processor.class ^
 	./sgdk/rescomp/processor/Palette32AllStripsProcessor.class ^
@@ -140,6 +141,7 @@ jar cvf rescomp_ext.jar ^
 	./sgdk/rescomp/resource/ImageStripsNoPals.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPalsSplit2.class ^
 	./sgdk/rescomp/resource/ImageStripsNoPalsSplit3.class ^
+	./sgdk/rescomp/resource/MapBeyond2047.class ^
 	./sgdk/rescomp/resource/Palette16.class ^
 	./sgdk/rescomp/resource/Palette16AllStrips.class ^
 	./sgdk/rescomp/resource/Palette16AllStripsSplit2.class ^
